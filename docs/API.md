@@ -79,6 +79,10 @@ Uses `HF_TOKEN` when present.
 
 Runs the local agent with memory and search context.
 
+### `GET /api/hermes/status`
+
+Detects whether Hermes is installed and returns setup commands for wiring Hermes to the local model backend.
+
 ### `POST /api/search/documents`
 
 Adds text to the local search index.

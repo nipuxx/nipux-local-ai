@@ -4,6 +4,7 @@ import { APP_NAME, IS_DEV_UI, IS_FAKE_LLM, LLAMA_BASE_URL, PORT, SEARXNG_URL, WE
 import { chatCompletion, estimateMessageTokens, testLlamaBackend } from "./providers/llamaCpp.ts";
 import { createAgent, listAgentRuns, listAgents, runAgent } from "./services/agents.ts";
 import { createBrowserSession, isPlaywrightAvailable, listBrowserSessions } from "./services/browserBroker.ts";
+import { getHermesStatus } from "./services/hermes.ts";
 import { detectHardware } from "./services/hardware.ts";
 import {
   downloadHuggingFaceFile,
@@ -91,7 +92,12 @@ export async function route(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
 
   if (url.pathname === "/api/status") {
-    const [hardware, llama, playwright] = await Promise.all([detectHardware(), testLlamaBackend(), isPlaywrightAvailable()]);
+    const [hardware, llama, playwright, hermes] = await Promise.all([
+      detectHardware(),
+      testLlamaBackend(),
+      isPlaywrightAvailable(),
+      getHermesStatus(),
+    ]);
     return json({
       app: APP_NAME,
       fakeLlm: IS_FAKE_LLM,
@@ -100,6 +106,7 @@ export async function route(req: Request): Promise<Response> {
       searxngConfigured: Boolean(SEARXNG_URL),
       hardware,
       llama,
+      hermes,
       playwright,
       serveCommands: {
         fast: llamaServeCommand("fast"),
@@ -143,6 +150,9 @@ export async function route(req: Request): Promise<Response> {
   }
 
   if (url.pathname === "/api/agents" && req.method === "GET") return json({ agents: listAgents(), runs: listAgentRuns() });
+  if (url.pathname === "/api/hermes/status" && req.method === "GET") {
+    return json(await getHermesStatus(url.searchParams.get("model") ?? "balanced"));
+  }
   if (url.pathname === "/api/agents" && req.method === "POST") {
     const body = await readJson<{ name?: string; modelPreset?: string }>(req);
     return json({ agent: createAgent(body.name ?? "Agent", body.modelPreset ?? "balanced") });

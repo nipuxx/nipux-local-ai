@@ -18,6 +18,7 @@ The first runnable build is intentionally LLM-only. Image/video/audio are capabi
   - Smart: `google/gemma-4-26B-A4B-it-qat-q4_0-gguf:Q4_0`
 - Local SQLite persistence
 - Agent memory and run history
+- Hermes detection/config adapter with internal-memory-agent fallback
 - Local document indexing/search
 - SearXNG adapter for local web search
 - Hugging Face GGUF search, file listing, and direct download hooks

@@ -59,6 +59,24 @@ Each agent has:
 
 The first agent implementation is intentionally conservative. It stores task summaries and retrieves memories with local search. Later Hermes integration should wrap the same persistence tables instead of replacing them.
 
+## Hermes Adapter
+
+The app exposes Hermes readiness at:
+
+```text
+GET /api/hermes/status
+```
+
+That route checks whether `hermes` is installed and returns the commands needed to point Hermes at the local llama.cpp-compatible backend:
+
+```bash
+hermes config set model.provider custom
+hermes config set model.base_url http://127.0.0.1:8080/v1
+hermes config set model.default google/gemma-4-12B-it-qat-q4_0-gguf:Q4_0
+```
+
+When Hermes is unavailable, the app uses the built-in internal memory agent so agents still work out of the box. A future live Hermes runner should execute through this adapter and keep the same database memory tables as the product source of truth.
+
 ## Future Capability Ports
 
 The API gateway should gain separate worker adapters for:
