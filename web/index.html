@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nipux Local AI</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="mark">N</div>
+          <div>
+            <strong>Nipux Local</strong>
+            <span id="statusText">starting</span>
+          </div>
+        </div>
+        <nav>
+          <button class="nav active" data-view="chat">Chat</button>
+          <button class="nav" data-view="agents">Agents</button>
+          <button class="nav" data-view="models">Models</button>
+          <button class="nav" data-view="search">Search</button>
+          <button class="nav" data-view="usage">Usage</button>
+        </nav>
+        <div class="preset">
+          <label for="presetSelect">Mode</label>
+          <select id="presetSelect">
+            <option value="fast">Fast</option>
+            <option value="balanced" selected>Balanced</option>
+            <option value="smart">Smart</option>
+          </select>
+        </div>
+      </aside>
+
+      <main>
+        <section id="chat" class="view active">
+          <header>
+            <h1>Chat</h1>
+            <button id="newChat">New</button>
+          </header>
+          <div id="messages" class="messages"></div>
+          <form id="chatForm" class="composer">
+            <textarea id="chatInput" placeholder="Ask locally..." rows="2"></textarea>
+            <button type="submit">Send</button>
+          </form>
+        </section>
+
+        <section id="agents" class="view">
+          <header>
+            <h1>Agents</h1>
+            <button id="createBrowser">Browser</button>
+          </header>
+          <div class="split">
+            <div>
+              <form id="agentForm" class="stack">
+                <textarea id="agentInput" placeholder="Give the background agent a task..." rows="5"></textarea>
+                <button type="submit">Run Agent</button>
+              </form>
+              <div id="agentOutput" class="output"></div>
+            </div>
+            <div>
+              <h2>Runs</h2>
+              <div id="agentRuns" class="list"></div>
+              <h2>Browsers</h2>
+              <div id="browserList" class="list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="models" class="view">
+          <header>
+            <h1>Models</h1>
+            <button id="refreshModels">Refresh</button>
+          </header>
+          <div id="modelList" class="model-grid"></div>
+          <div class="panel">
+            <h2>Hugging Face</h2>
+            <div class="row">
+              <input id="hfQuery" placeholder="Search GGUF models, e.g. gemma 12b q4" />
+              <button id="hfSearch">Search</button>
+            </div>
+            <div id="hfResults" class="list"></div>
+          </div>
+        </section>
+
+        <section id="search" class="view">
+          <header>
+            <h1>Search</h1>
+          </header>
+          <div class="split">
+            <form id="searchForm" class="stack">
+              <input id="searchInput" placeholder="Search local index and SearXNG" />
+              <button type="submit">Search</button>
+            </form>
+            <form id="documentForm" class="stack">
+              <input id="docTitle" placeholder="Document title" />
+              <textarea id="docBody" placeholder="Paste local text to index..." rows="6"></textarea>
+              <button type="submit">Index</button>
+            </form>
+          </div>
+          <div id="searchResults" class="list"></div>
+        </section>
+
+        <section id="usage" class="view">
+          <header>
+            <h1>Usage</h1>
+            <button id="refreshUsage">Refresh</button>
+          </header>
+          <div id="usageSummary" class="stats"></div>
+          <div id="usageTimeline" class="list"></div>
+          <pre id="devStatus" class="dev"></pre>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

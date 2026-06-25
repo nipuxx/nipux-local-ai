@@ -1,0 +1,24 @@
+{
+  "name": "nipux-local-ai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A minimal local-first AI workspace with chat, agents, model management, search, usage stats, and an OpenAI-compatible API.",
+  "scripts": {
+    "start": "bun run src/main.ts",
+    "dev": "bun --watch src/dev.ts",
+    "doctor": "bun run src/cli.ts doctor",
+    "install:local": "bun run src/cli.ts install",
+    "models": "bun run src/cli.ts models",
+    "check": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/bun": "^1.2.22",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "bun": ">=1.2.17"
+  }
+}

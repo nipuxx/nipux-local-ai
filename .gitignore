@@ -1,0 +1,9 @@
+node_modules/
+bun.lockb
+.DS_Store
+.env
+.env.local
+dist/
+coverage/
+*.log
+.nipux-local-ai/

@@ -1,0 +1,125 @@
+import { db, getDefaultAgent, searchAgentMemories, upsertAgentMemory } from "../db.ts";
+import { chatText, estimateMessageTokens } from "../providers/llamaCpp.ts";
+import { getModel } from "./modelRegistry.ts";
+import { localSearch, webSearch } from "./search.ts";
+import { recordUsage } from "./usage.ts";
+import type { Agent, ChatMessage } from "../types.ts";
+
+export function listAgents(): Agent[] {
+  getDefaultAgent();
+  return db
+    .prepare(
+      `SELECT id, name, model_preset AS modelPreset, system_prompt AS systemPrompt,
+        created_at AS createdAt, updated_at AS updatedAt
+       FROM agents
+       ORDER BY created_at`,
+    )
+    .all() as Agent[];
+}
+
+export function createAgent(name: string, modelPreset = "balanced") {
+  const id = crypto.randomUUID();
+  const prompt =
+    "You are a local Hermes-style agent with persistent memory, search tools, and browser-session metadata. Keep answers direct, remember durable preferences, and produce action logs.";
+  db.prepare("INSERT INTO agents (id, name, model_preset, system_prompt) VALUES (?, ?, ?, ?)").run(
+    id,
+    name,
+    modelPreset,
+    prompt,
+  );
+  return listAgents().find((agent) => agent.id === id);
+}
+
+function readAgent(agentId?: string): Agent {
+  if (!agentId) return getDefaultAgent();
+  const agent = db
+    .prepare(
+      `SELECT id, name, model_preset AS modelPreset, system_prompt AS systemPrompt,
+        created_at AS createdAt, updated_at AS updatedAt
+       FROM agents WHERE id = ?`,
+    )
+    .get(agentId) as Agent | null;
+  return agent ?? getDefaultAgent();
+}
+
+function formatResults(title: string, results: Array<{ title: string; snippet: string; url?: string; path?: string }>) {
+  if (!results.length) return `${title}: none`;
+  return `${title}:\n${results
+    .map((result, index) => `${index + 1}. ${result.title}${result.url ? ` (${result.url})` : result.path ? ` (${result.path})` : ""}\n${result.snippet}`)
+    .join("\n")}`;
+}
+
+export async function runAgent(input: string, agentId?: string, forcedPreset?: string) {
+  const agent = readAgent(agentId);
+  const runId = crypto.randomUUID();
+  const started = Date.now();
+  db.prepare("INSERT INTO agent_runs (id, agent_id, input, status) VALUES (?, ?, ?, 'running')").run(runId, agent.id, input);
+
+  try {
+    const memories = searchAgentMemories(agent.id, input, 8);
+    const localResults = localSearch(input, 5);
+    const wantsWeb = /\b(web|internet|search|latest|current|news|look up)\b/i.test(input);
+    const webResults = wantsWeb ? await webSearch(input, 5) : [];
+    const model = getModel(forcedPreset ?? agent.modelPreset);
+
+    const memoryBlock = memories.map((memory) => `- [${memory.kind}] ${memory.content}`).join("\n") || "No relevant memories yet.";
+    const messages: ChatMessage[] = [
+      {
+        role: "system",
+        content: `${agent.systemPrompt}
+
+Persistent memory:
+${memoryBlock}
+
+Available context:
+${formatResults("Local search", localResults)}
+
+${formatResults("Web search", webResults)}
+
+Rules:
+- Treat web search as unavailable if the result says SearXNG is not configured.
+- Store only durable, reusable facts in memory.
+- Do not claim browser actions were executed unless a browser session event exists.`,
+      },
+      { role: "user", content: input },
+    ];
+
+    const output = await chatText(messages, model.id);
+    db.prepare("UPDATE agent_runs SET output = ?, status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = ?").run(output, runId);
+    upsertAgentMemory({
+      id: crypto.randomUUID(),
+      agentId: agent.id,
+      kind: "task",
+      content: `User asked: ${input}\nAgent answered: ${output.slice(0, 900)}`,
+      importance: 3,
+    });
+    recordUsage({
+      kind: "agent",
+      model: model.id,
+      tokensIn: estimateMessageTokens(messages),
+      tokensOut: Math.ceil(output.length / 4),
+      latencyMs: Date.now() - started,
+      status: "ok",
+      meta: { runId, agentId: agent.id },
+    });
+    return { runId, agent, output, localResults, webResults, memories };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    db.prepare("UPDATE agent_runs SET output = ?, status = 'failed', completed_at = CURRENT_TIMESTAMP WHERE id = ?").run(message, runId);
+    recordUsage({ kind: "agent", latencyMs: Date.now() - started, status: "error", meta: { runId, error: message } });
+    throw error;
+  }
+}
+
+export function listAgentRuns(limit = 40) {
+  return db
+    .prepare(
+      `SELECT r.id, r.agent_id AS agentId, a.name AS agentName, r.input, r.output,
+        r.status, r.created_at AS createdAt, r.completed_at AS completedAt
+       FROM agent_runs r
+       JOIN agents a ON a.id = r.agent_id
+       ORDER BY r.created_at DESC
+       LIMIT ?`,
+    )
+    .all(limit);
+}
