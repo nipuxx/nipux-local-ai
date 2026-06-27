@@ -62,6 +62,7 @@ import {
 } from "./services/memory.ts";
 import {
   downloadHuggingFaceFile,
+  installModelPreset,
   listHuggingFaceFiles,
   listModels,
   llamaServeCommand,
@@ -474,6 +475,14 @@ export async function route(req: Request): Promise<Response> {
     const body = await readJson<{ repo?: string; filename?: string }>(req);
     if (!body.repo || !body.filename) return json({ error: "repo and filename are required" }, 400);
     return json(await downloadHuggingFaceFile(body.repo, body.filename));
+  }
+  if (url.pathname === "/api/models/install" && req.method === "POST") {
+    const body = await readJson<{ modelPreset?: string; filename?: string }>(req);
+    try {
+      return json(await installModelPreset(body.modelPreset ?? getAppSettings().defaultModelPreset, body.filename));
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : String(error) }, 502);
+    }
   }
   if (url.pathname === "/api/runtime/status" && req.method === "GET") return json(await getRuntimeStatus());
   if (url.pathname === "/api/runtime/start" && req.method === "POST") {

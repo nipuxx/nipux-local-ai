@@ -324,6 +324,14 @@ async function loadModels() {
         <div class="meta">${model.family} ${model.parametersB}B ${model.quant}</div>
         <div class="meta">${model.repo}</div>
         <div class="meta">State: ${model.state} · RAM: ${model.estimatedRamGb}GB</div>
+        ${model.localPath ? `<div class="meta">${h(model.localPath)}</div>` : ""}
+        ${
+          model.state === "missing" || model.state === "error"
+            ? `<button class="install-model" data-model-id="${h(model.id)}">Install</button>`
+            : model.state === "downloading"
+              ? `<button disabled>Downloading</button>`
+              : ""
+        }
       </div>`,
     )
     .join("");
@@ -1139,7 +1147,30 @@ async function downloadFile(button) {
   });
   button.textContent = "Downloaded";
   console.log(data);
-  await loadModels();
+  await Promise.all([loadModels(), loadSetupActions(), loadRuntime()]);
+}
+
+async function installModel(button) {
+  const original = button.textContent;
+  button.textContent = "Installing";
+  button.disabled = true;
+  try {
+    const data = await api("/api/models/install", {
+      method: "POST",
+      body: JSON.stringify({ modelPreset: button.dataset.modelId }),
+    });
+    button.textContent = "Installed";
+    console.log(data);
+  } catch (error) {
+    button.textContent = "Install failed";
+    alert(error instanceof Error ? error.message : String(error));
+  } finally {
+    setTimeout(() => {
+      button.textContent = original;
+      button.disabled = false;
+    }, 1200);
+  }
+  await Promise.all([loadModels(), loadReadiness(), loadSetupActions(), loadRuntime()]);
 }
 
 document.addEventListener("click", async (event) => {
@@ -1153,6 +1184,7 @@ document.addEventListener("click", async (event) => {
   if (target.matches(".chat-item")) await openChat(target.dataset.chatId);
   if (target.matches(".show-files")) await showHfFiles(target);
   if (target.matches(".download-file")) await downloadFile(target);
+  if (target.matches(".install-model")) await installModel(target);
   if (target.matches(".copy-command")) {
     const original = target.textContent;
     try {

@@ -6,6 +6,7 @@ import type { Agent, AgentMemory, SearchResult } from "./types.ts";
 mkdirSync(DATA_DIR, { recursive: true });
 
 export const db = new Database(DB_PATH, { create: true });
+db.exec("PRAGMA busy_timeout = 5000;");
 let ftsAvailable = true;
 
 export function migrate() {

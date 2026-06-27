@@ -25,6 +25,7 @@ This file translates the product goal into independently owned workstreams. The 
 
 - Manage llama.cpp runtime status and process lifecycle.
 - Add start/stop endpoints for local model serving.
+- Maintain built-in preset install so everyday users do not need Hugging Face search first.
 - Keep Hugging Face model discovery/download/test reliable.
 - Add backend adapters later for vLLM and MLX.
 - Track model disk usage and runnable state.

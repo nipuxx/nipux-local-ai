@@ -5,7 +5,7 @@ import { DATA_DIR, MODEL_DIR, NIPUX_HOME, RUNTIME_DIR } from "../config.ts";
 import { testLlamaBackend } from "../providers/llamaCpp.ts";
 import { detectHardware } from "./hardware.ts";
 import { getAppSettings } from "./settings.ts";
-import { llamaServeCommand } from "./modelRegistry.ts";
+import { getModel, llamaServeCommand } from "./modelRegistry.ts";
 
 export type SetupCheckStatus = "ok" | "warning" | "error";
 
@@ -170,8 +170,10 @@ export async function getSetupPreflight(): Promise<SetupPreflight> {
     searxng,
   ];
 
+  const recommendedModel = getModel(hardware.recommendedPreset);
   const nextSteps = [
     "Run bun run dev for the fake local backend.",
+    ...(recommendedModel.state === "available" ? [] : [`Install the recommended chat model: bun run model:install ${recommendedModel.id}`]),
     `For live inference, run: ${llamaServeCommand(hardware.recommendedPreset)}`,
     `Open http://127.0.0.1:${process.env.NIPUX_PORT ?? 3434}`,
   ];

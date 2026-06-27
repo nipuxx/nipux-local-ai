@@ -65,9 +65,10 @@ export async function startModelRuntime(modelPreset = "balanced") {
   const model = getModel(modelPreset);
   const port = portFromBaseUrl();
   const logs: string[] = [];
+  const modelArgs = model.localPath ? ["-m", model.localPath] : ["-hf", model.llamaRef];
 
   try {
-    const proc = Bun.spawn(["llama", "serve", "-hf", model.llamaRef, "--port", String(port), "--ctx-size", String(Math.min(model.contextTokens, 32768))], {
+    const proc = Bun.spawn(["llama", "serve", ...modelArgs, "--port", String(port), "--ctx-size", String(Math.min(model.contextTokens, 32768))], {
       stdout: "pipe",
       stderr: "pipe",
     });

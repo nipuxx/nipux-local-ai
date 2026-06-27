@@ -366,6 +366,16 @@ Lists GGUF files for a Hugging Face model repo.
 
 Uses `HF_TOKEN` when present.
 
+### `POST /api/models/install`
+
+```json
+{
+  "modelPreset": "balanced"
+}
+```
+
+Downloads the GGUF file for a built-in preset. If `filename` is omitted, the server lists the preset repository and selects the best `.gguf` file matching the preset quantization. Runtime start commands use the downloaded local path after install.
+
 ### `POST /api/agents/run`
 
 ```json

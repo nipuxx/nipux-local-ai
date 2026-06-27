@@ -4,6 +4,11 @@ import { db } from "../db.ts";
 import { MODEL_DIR } from "../config.ts";
 import type { LocalModelRecord, ModelPreset } from "../types.ts";
 
+export interface HuggingFaceModelFile {
+  rfilename: string;
+  size?: number;
+}
+
 export const DEFAULT_PRESETS: ModelPreset[] = [
   {
     id: "fast",
@@ -99,9 +104,14 @@ export function getModel(id = "balanced"): LocalModelRecord {
   return model;
 }
 
+function shellArg(value: string) {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
 export function llamaServeCommand(modelId = "balanced", port = 8080) {
   const model = getModel(modelId);
-  return `llama serve -hf ${model.llamaRef} --port ${port} --ctx-size ${Math.min(model.contextTokens, 32768)}`;
+  const source = model.localPath ? `-m ${shellArg(model.localPath)}` : `-hf ${model.llamaRef}`;
+  return `llama serve ${source} --port ${port} --ctx-size ${Math.min(model.contextTokens, 32768)}`;
 }
 
 export async function searchHuggingFace(query: string) {
@@ -125,8 +135,26 @@ export async function searchHuggingFace(query: string) {
 export async function listHuggingFaceFiles(repo: string) {
   const res = await fetch(`https://huggingface.co/api/models/${repo}`);
   if (!res.ok) throw new Error(`Could not read model files for ${repo}: ${res.status}`);
-  const data = (await res.json()) as { siblings?: Array<{ rfilename: string; size?: number }> };
+  const data = (await res.json()) as { siblings?: HuggingFaceModelFile[] };
   return (data.siblings ?? []).filter((file) => file.rfilename.endsWith(".gguf"));
+}
+
+function normalizeName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+export function selectBestGgufFile(files: HuggingFaceModelFile[], quant: string) {
+  const normalizedQuant = normalizeName(quant);
+  const candidates = files
+    .filter((file) => file.rfilename.toLowerCase().endsWith(".gguf"))
+    .filter((file) => !file.rfilename.toLowerCase().includes("mmproj"))
+    .map((file) => {
+      const name = normalizeName(file.rfilename);
+      const score = (name.includes(normalizedQuant) ? 10 : 0) + (file.size ? 1 : 0) - file.rfilename.split("/").length * 0.01;
+      return { file, score };
+    })
+    .sort((a, b) => b.score - a.score || (b.file.size ?? 0) - (a.file.size ?? 0) || a.file.rfilename.localeCompare(b.file.rfilename));
+  return candidates[0]?.file ?? null;
 }
 
 export async function downloadHuggingFaceFile(repo: string, filename: string) {
@@ -156,6 +184,31 @@ export async function downloadHuggingFaceFile(repo: string, filename: string) {
     "UPDATE models SET state = 'available', local_path = ?, file_name = ?, updated_at = CURRENT_TIMESTAMP WHERE repo = ?",
   ).run(targetPath, filename, repo);
   return { targetPath, stdout, stderr };
+}
+
+export async function installModelPreset(modelId = "balanced", filename?: string) {
+  const model = getModel(modelId);
+  let selected = filename;
+  let availableFiles: HuggingFaceModelFile[] | undefined;
+
+  if (!selected) {
+    availableFiles = await listHuggingFaceFiles(model.repo);
+    selected = selectBestGgufFile(availableFiles, model.quant)?.rfilename;
+  }
+
+  if (!selected) {
+    throw new Error(`No GGUF file matching ${model.quant} was found for ${model.repo}.`);
+  }
+
+  const downloaded = await downloadHuggingFaceFile(model.repo, selected);
+  return {
+    model: getModel(model.id),
+    modelPreset: model.id,
+    repo: model.repo,
+    filename: selected,
+    availableFiles,
+    ...downloaded,
+  };
 }
 
 seedModelRegistry();

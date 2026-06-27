@@ -1,6 +1,6 @@
 import { platform } from "node:os";
 import { PORT } from "../config.ts";
-import { llamaServeCommand } from "./modelRegistry.ts";
+import { getModel, llamaServeCommand } from "./modelRegistry.ts";
 import { getMediaRuntimePlan, type MediaRuntimeCommand, type MediaRuntimePlan } from "./mediaRuntimes.ts";
 import { getSetupPreflight, installGuidanceFor, type SetupCheck } from "./setupChecks.ts";
 
@@ -110,6 +110,7 @@ export async function getSetupActions(): Promise<SetupActionsResult> {
 
   const llama = checks.llama;
   const llamaMissing = llama?.detail.toLowerCase().includes("not installed");
+  const recommendedModel = getModel(media.hardware.recommendedPreset);
   if (llamaMissing) {
     actions.push(
       action({
@@ -123,6 +124,25 @@ export async function getSetupActions(): Promise<SetupActionsResult> {
       }),
     );
   }
+
+  actions.push(
+    action({
+      id: "install-chat-model",
+      label: `Install ${recommendedModel.label} chat model`,
+      kind: "install",
+      status: recommendedModel.state === "available" ? "ready" : "recommended",
+      description:
+        recommendedModel.state === "available"
+          ? `Local GGUF is installed at ${recommendedModel.localPath}.`
+          : `Download the recommended ${recommendedModel.family} ${recommendedModel.quant} GGUF for this machine.`,
+      commands:
+        recommendedModel.state === "available"
+          ? []
+          : [command("Command", `bun run model:install ${recommendedModel.id}`)],
+      related: ["chat", "model", recommendedModel.id],
+      reason: `${recommendedModel.estimatedRamGb}GB estimated RAM; this machine is in ${media.hardware.recommendedPreset} mode.`,
+    }),
+  );
 
   actions.push(
     action({

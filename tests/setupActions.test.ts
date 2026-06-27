@@ -11,6 +11,7 @@ const { getSetupActions } = await import("../src/services/setupActions.ts");
 
 test("setup actions expose copyable commands for local runtime setup", async () => {
   const result = await getSetupActions();
+  expect(result.actions.some((action) => action.id === "install-chat-model" && action.commands.some((item) => item.command.includes("bun run model:install")))).toBe(true);
   expect(result.actions.some((action) => action.id === "run-dev" && action.commands.some((item) => item.command === "bun run dev"))).toBe(true);
   expect(result.actions.some((action) => action.id === "start-llama" && action.commands.some((item) => item.command.includes("llama serve")))).toBe(true);
   expect(result.actions.some((action) => action.id === "verify-readiness" && action.commands.some((item) => item.command === "bun run ready"))).toBe(true);

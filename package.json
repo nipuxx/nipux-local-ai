@@ -13,6 +13,7 @@
     "ready": "bun run src/cli.ts readiness",
     "setup:actions": "bun run src/cli.ts setup-actions",
     "install:local": "bun run src/cli.ts install",
+    "model:install": "bun run src/cli.ts model-install",
     "media:runtimes": "bun run src/cli.ts media-runtimes",
     "media:defaults": "bun run src/cli.ts media-defaults",
     "launch:profile": "bun run src/cli.ts launch-profile",
