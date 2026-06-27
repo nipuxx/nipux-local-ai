@@ -511,6 +511,24 @@ Denies a pending permission request.
 
 Adds text to the local search index.
 
+### `POST /api/search/documents/bulk`
+
+```json
+{
+  "documents": [
+    {
+      "title": "notes.md",
+      "path": "Research/notes.md",
+      "body": "Local text to index"
+    }
+  ],
+  "maxDocuments": 80,
+  "maxBytes": 2097152
+}
+```
+
+Adds browser-selected files or folders to the local search index. The response includes `indexed`, `skipped`, and `errors` arrays so the UI can report what happened without hiding unsupported or oversized files.
+
 ### `GET /api/search/documents`
 
 Lists recently indexed local documents.

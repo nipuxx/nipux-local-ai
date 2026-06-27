@@ -68,7 +68,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Agent memory and run history exist.
 - Agent memory CRUD, scored retrieval, summaries, provenance, and compaction exist.
 - Agent runs can execute a conservative local tool layer for local search, SearXNG web search, and browser-session creation.
-- Manual document indexing, file/folder indexing, local search, and SearXNG adapter exist.
+- Manual document indexing, browser file/folder import, dev file-path indexing, local search, and SearXNG adapter exist.
 - Playwright browser sessions can open, navigate, screenshot, click, type, press keys, and close.
 - Browser action logs and permission gates for agent-originated risky actions exist.
 - Persisted app settings exist for default mode, SearXNG URL, browser headless mode, and dev mode.

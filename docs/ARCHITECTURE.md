@@ -74,7 +74,7 @@ The Settings page writes user-facing defaults to SQLite. Environment variables s
 - dev-control visibility
 - local media worker URLs
 
-Dev mode hides advanced tools from the main experience until enabled. Runtime start/stop/test controls, Hugging Face model search/download, file-path indexing, raw status JSON, and browser action logs are dev-only surfaces. Permission approvals remain visible because they are part of the agent safety flow.
+Dev mode hides advanced tools from the main experience until enabled. Runtime start/stop/test controls, Hugging Face model search/download, backend file-path indexing, raw status JSON, and browser action logs are dev-only surfaces. Permission approvals remain visible because they are part of the agent safety flow.
 
 The Setup page is the non-dev status surface. It calls `/api/readiness` and `/api/launch/profile`, then shows capability status, launch commands, and next steps without exposing raw diagnostics by default.
 
@@ -96,7 +96,7 @@ The first agent implementation is intentionally conservative. It stores task sum
 
 ## Local Search
 
-Manual text indexing and file/folder indexing share the same `local_documents` table and FTS index. File indexing uses:
+Manual text indexing, browser file/folder import, and backend file/folder indexing share the same `local_documents` table and FTS index. Browser imports read selected text/code files in the app and send bounded batches to `/api/search/documents/bulk`, while dev-mode backend path indexing uses:
 
 - extension allow-list for text/code formats
 - maximum file count

@@ -22,6 +22,45 @@ const state = {
   launchProfile: null,
 };
 
+const IMPORT_MAX_FILES = 80;
+const IMPORT_MAX_BYTES = 2 * 1024 * 1024;
+const IMPORT_EXTENSIONS = new Set([
+  ".txt",
+  ".md",
+  ".mdx",
+  ".json",
+  ".jsonl",
+  ".csv",
+  ".tsv",
+  ".js",
+  ".jsx",
+  ".ts",
+  ".tsx",
+  ".py",
+  ".rb",
+  ".go",
+  ".rs",
+  ".java",
+  ".c",
+  ".cpp",
+  ".h",
+  ".hpp",
+  ".css",
+  ".html",
+  ".yml",
+  ".yaml",
+  ".toml",
+  ".ini",
+  ".env",
+]);
+const IMPORT_MIME_TYPES = new Set([
+  "application/json",
+  "application/jsonl",
+  "application/x-ndjson",
+  "application/xml",
+  "application/yaml",
+]);
+
 const $ = (selector) => document.querySelector(selector);
 const h = (value = "") =>
   String(value)
@@ -608,6 +647,100 @@ async function loadDocuments() {
       .join("") || `<div class="meta">No indexed documents yet.</div>`;
 }
 
+function importFilePath(file) {
+  return file.webkitRelativePath || file.name;
+}
+
+function importFileExtension(file) {
+  const name = importFilePath(file).toLowerCase();
+  const index = name.lastIndexOf(".");
+  return index >= 0 ? name.slice(index) : "";
+}
+
+function importSkipReason(file) {
+  if (file.size <= 0) return "Empty file.";
+  if (file.size > IMPORT_MAX_BYTES) return `Larger than ${Math.round(IMPORT_MAX_BYTES / 1024 / 1024)} MB.`;
+  const mime = (file.type || "").toLowerCase();
+  if (mime.startsWith("text/") || IMPORT_MIME_TYPES.has(mime) || IMPORT_EXTENSIONS.has(importFileExtension(file))) return "";
+  return "Unsupported file type.";
+}
+
+function importDetails(label, items) {
+  if (!items.length) return [];
+  return [`${label}:`, ...items.slice(0, 6).map((item) => `- ${item.path || item.title || `item ${item.index + 1}`}: ${item.reason || item.error}`)];
+}
+
+async function indexSelectedFiles() {
+  const output = $("#fileIndexOutput");
+  const files = [...Array.from($("#documentFiles").files || []), ...Array.from($("#documentFolder").files || [])];
+  if (!files.length) {
+    output.textContent = "No files selected.";
+    return;
+  }
+
+  output.textContent = "Reading files...";
+  const documents = [];
+  const skipped = [];
+  const errors = [];
+  const seen = new Set();
+
+  for (const file of files) {
+    const path = importFilePath(file);
+    if (seen.has(path)) {
+      skipped.push({ path, reason: "Duplicate selection." });
+      continue;
+    }
+    seen.add(path);
+
+    if (documents.length >= IMPORT_MAX_FILES) {
+      skipped.push({ path, reason: `Import is limited to ${IMPORT_MAX_FILES} files at once.` });
+      continue;
+    }
+
+    const reason = importSkipReason(file);
+    if (reason) {
+      skipped.push({ path, reason });
+      continue;
+    }
+
+    try {
+      const body = await file.text();
+      if (!body.trim()) {
+        skipped.push({ path, reason: "No text content." });
+        continue;
+      }
+      documents.push({ title: file.name, path, body });
+    } catch (error) {
+      errors.push({ path, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
+  let imported = { indexed: [], skipped: [], errors: [] };
+  if (documents.length) {
+    imported = await api("/api/search/documents/bulk", {
+      method: "POST",
+      body: JSON.stringify({ documents, maxDocuments: IMPORT_MAX_FILES, maxBytes: IMPORT_MAX_BYTES }),
+    });
+  }
+
+  const allSkipped = [...skipped, ...(imported.skipped || [])];
+  const allErrors = [...errors, ...(imported.errors || [])];
+  const lines = [
+    `Indexed ${imported.indexed.length} file${imported.indexed.length === 1 ? "" : "s"}.`,
+    `Skipped ${allSkipped.length}. Errors ${allErrors.length}.`,
+    ...importDetails("Skipped", allSkipped),
+    ...importDetails("Errors", allErrors),
+  ];
+  output.textContent = lines.join("\n");
+  await Promise.all([loadDocuments(), loadUsage()]);
+}
+
+function clearSelectedFiles() {
+  $("#documentFiles").value = "";
+  $("#documentFolder").value = "";
+  $("#fileIndexOutput").textContent = "";
+}
+
 async function refreshBrowserScreenshot(id) {
   try {
     const data = await api(`/api/browsers/${id}/screenshot`);
@@ -1086,6 +1219,8 @@ $("#speechForm").addEventListener("submit", runSpeech);
 $("#transcriptionForm").addEventListener("submit", runTranscription);
 $("#videoForm").addEventListener("submit", runVideo);
 $("#documentForm").addEventListener("submit", indexDocument);
+$("#indexFilesButton").addEventListener("click", indexSelectedFiles);
+$("#clearFileSelection").addEventListener("click", clearSelectedFiles);
 $("#indexPathButton").addEventListener("click", async () => {
   const path = $("#indexPath").value.trim();
   if (!path) return;

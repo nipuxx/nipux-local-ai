@@ -56,7 +56,7 @@ This file translates the product goal into independently owned workstreams. The 
 
 ## Search Agent
 
-- Add file/folder indexing.
+- Maintain consumer browser file/folder import and dev backend path indexing.
 - Add PDF, Markdown, text, and doc ingestion.
 - Maintain agent tool activity for local and web search.
 - Improve SearXNG setup and status checks.

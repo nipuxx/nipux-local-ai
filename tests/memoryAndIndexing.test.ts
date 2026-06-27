@@ -91,3 +91,31 @@ test("file path indexing adds searchable local documents", async () => {
   const listData = await listed.json();
   expect(listData.documents.some((item: { path?: string }) => item.path === filePath)).toBe(true);
 });
+
+test("bulk document import indexes browser-selected documents and reports skips", async () => {
+  const bad = await jsonRequest("/api/search/documents/bulk", { documents: "not an array" });
+  expect(bad.status).toBe(400);
+
+  const imported = await jsonRequest("/api/search/documents/bulk", {
+    maxBytes: 128,
+    documents: [
+      {
+        title: "Browser Import Alpha",
+        body: "Alpha browser import should make selected folder files searchable.",
+        path: "research/alpha.md",
+      },
+      { title: "Empty Browser Import", body: "   ", path: "research/empty.txt" },
+      { title: "Large Browser Import", body: "x".repeat(180), path: "research/large.txt" },
+      { body: "Missing title should be skipped.", path: "research/untitled.txt" },
+    ],
+  });
+  expect(imported.status).toBe(200);
+  const importData = await imported.json();
+  expect(importData.indexed).toHaveLength(1);
+  expect(importData.skipped).toHaveLength(3);
+  expect(importData.errors).toHaveLength(0);
+
+  const searched = await jsonRequest("/api/search/local", { query: "browser import selected folder files" });
+  const searchData = await searched.json();
+  expect(searchData.results.some((item: { title: string; path?: string }) => item.title === "Browser Import Alpha" && item.path === "research/alpha.md")).toBe(true);
+});

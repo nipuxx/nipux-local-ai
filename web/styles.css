@@ -282,6 +282,21 @@ h2 {
   gap: 10px;
 }
 
+#search .split {
+  margin-bottom: 18px;
+}
+
+.file-import-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.file-import-status {
+  min-height: 18px;
+  white-space: pre-wrap;
+}
+
 .memory-search-row {
   grid-template-columns: minmax(0, 1fr) auto auto;
 }
@@ -602,6 +617,7 @@ h2 {
   }
 
   nav,
+  .file-import-grid,
   .model-grid,
   .media-grid,
   .media-capabilities,

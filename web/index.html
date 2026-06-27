@@ -157,6 +157,30 @@
               <button type="submit">Index</button>
             </form>
           </div>
+          <div class="split">
+            <div class="panel file-import-panel">
+              <h2>Import Files</h2>
+              <div class="file-import-grid">
+                <label>
+                  <span class="meta">Files</span>
+                  <input id="documentFiles" type="file" multiple />
+                </label>
+                <label>
+                  <span class="meta">Folder</span>
+                  <input id="documentFolder" type="file" multiple webkitdirectory />
+                </label>
+              </div>
+              <div class="button-row">
+                <button id="indexFilesButton" type="button">Index Files</button>
+                <button id="clearFileSelection" type="button">Clear</button>
+              </div>
+              <div id="fileIndexOutput" class="meta file-import-status"></div>
+            </div>
+            <div class="panel document-library">
+              <h2>Indexed Documents</h2>
+              <div id="documentList" class="list"></div>
+            </div>
+          </div>
           <div class="panel index-panel dev-only">
             <h2>File Index</h2>
             <div class="row">
@@ -164,7 +188,6 @@
               <button id="indexPathButton">Index Path</button>
             </div>
             <pre id="indexOutput" class="dev"></pre>
-            <div id="documentList" class="list"></div>
           </div>
           <div id="searchResults" class="list"></div>
         </section>

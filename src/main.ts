@@ -69,7 +69,7 @@ import {
 } from "./services/modelRegistry.ts";
 import { getRuntimeStatus, startModelRuntime, stopModelRuntime, testModelPrompt } from "./services/modelRuntime.ts";
 import { getReadinessReport } from "./services/readiness.ts";
-import { addLocalDocument, localSearch, webSearch } from "./services/search.ts";
+import { addLocalDocument, addLocalDocumentsBulk, localSearch, webSearch, type BulkDocumentInput } from "./services/search.ts";
 import { getAppSettings, getSettingsStatus, updateAppSettings, type AppSettings } from "./services/settings.ts";
 import { getUsageSummary, getUsageTimeline, recordUsage } from "./services/usage.ts";
 
@@ -543,6 +543,24 @@ export async function route(req: Request): Promise<Response> {
     return json({ results: localSearch(body.query ?? "") });
   }
   if (url.pathname === "/api/search/documents" && req.method === "GET") return json({ documents: listLocalDocuments() });
+  if (url.pathname === "/api/search/documents/bulk" && req.method === "POST") {
+    const body = await readJson<{ documents?: BulkDocumentInput[]; maxDocuments?: number; maxBytes?: number }>(req);
+    if (!Array.isArray(body.documents)) return json({ error: "documents must be an array" }, 400);
+    const started = Date.now();
+    const result = addLocalDocumentsBulk(body.documents, { maxDocuments: body.maxDocuments, maxBytes: body.maxBytes });
+    recordUsage({
+      kind: "search",
+      latencyMs: Date.now() - started,
+      status: "ok",
+      meta: {
+        action: "bulk-documents",
+        indexed: result.indexed.length,
+        skipped: result.skipped.length,
+        errors: result.errors.length,
+      },
+    });
+    return json(result);
+  }
   const documentMatch = url.pathname.match(/^\/api\/search\/documents\/(\d+)$/);
   if (documentMatch && req.method === "DELETE") return json(deleteDocument(Number(documentMatch[1])));
   if (url.pathname === "/api/search/web" && req.method === "POST") {

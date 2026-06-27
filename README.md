@@ -28,7 +28,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - Hermes detection/config adapter with internal-memory-agent fallback
 - Agent browser sessions with Playwright-backed open, navigate, screenshot, click, type, key, and close APIs
 - Browser action logs and approval gates for agent-originated risky actions
-- Manual document indexing plus safe file/folder indexing and local search
+- Manual document indexing, browser file/folder import, safe dev file-path indexing, and local search
 - SearXNG adapter for local web search
 - Media tab plus local-only image, speech, transcription, and video worker API surfaces
 - Hardware-aware media runtime planner for image, speech, transcription, and video workers
