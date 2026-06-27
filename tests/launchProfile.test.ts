@@ -36,6 +36,8 @@ test("launch profile writer emits json, env, and local launcher files", async ()
   for (const file of result.written) expect(existsSync(file)).toBe(true);
   expect(result.written).toContain(result.profile.files.profileJson);
   expect(readFileSync(result.profile.files.envFile, "utf8")).toContain("NIPUX_BIND_HOST=127.0.0.1");
+  expect(readFileSync(result.profile.files.envFile, "utf8")).toContain("NIPUX_LLAMA_COMMAND=");
+  expect(readFileSync(result.profile.files.envFile, "utf8")).toContain("NIPUX_LLAMA_MODEL_PATH=");
   expect(readFileSync(result.profile.files.envFile, "utf8")).toContain("NIPUX_IMAGE_COMMAND=");
   expect(readFileSync(result.profile.files.envFile, "utf8")).toContain("NIPUX_VIDEO_COMMAND=");
   expect(readFileSync(result.profile.files.startDevSh, "utf8")).toContain("NIPUX_FAKE_LLM='1'");

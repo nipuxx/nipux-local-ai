@@ -201,14 +201,14 @@ bun run setup:actions
 
 `bun run ready` summarizes the user-facing state: chat, browser agents, voice output/input, image/video workers, search, and API exposure. `bun run setup:actions` turns that state into copyable install/start/configure commands. `bun run preflight` keeps the lower-level installer checks.
 
-Start the app plus any configured bundled local workers:
+Start the app plus managed local backends:
 
 ```bash
 bun run local
 bun run src/cli.ts local --dry-run
 ```
 
-`bun run local` starts the UI/API server and any bundled image, transcription, or video workers whose required environment variables are configured. The dry run shows exactly which workers will start and which are skipped.
+`bun run local` starts the UI/API server, the local llama.cpp backend when a local GGUF model path is available, and any bundled image, transcription, or video workers whose required environment variables are configured. The dry run shows exactly which processes will start and which are skipped. Set `NIPUX_LLAMA_MODEL_PATH=/path/to/model.gguf` when using a GGUF file outside the built-in model registry.
 
 Generate or rewrite the local launch profile:
 
@@ -239,6 +239,8 @@ This writes a source zip, JSON manifest, and `SHA256SUMS.txt` into `dist/`. See 
 | `NIPUX_API_KEY` / `NIPUX_API_KEYS` | empty | Required for protected routes when public mode is enabled or keys are configured. |
 | `NIPUX_HOME` | `~/.nipux-local-ai` | Data, models, runtimes |
 | `NIPUX_LLAMA_BASE_URL` | `http://127.0.0.1:8080/v1` | OpenAI-compatible local LLM backend |
+| `NIPUX_LLAMA_COMMAND` | `llama` | Optional command/path used by `bun run local` to start llama.cpp |
+| `NIPUX_LLAMA_MODEL_PATH` | empty | Optional local GGUF path used by `bun run local` when the model is outside the built-in registry |
 | `NIPUX_SEARXNG_URL` | empty | Boot default for the Settings page SearXNG URL, such as `http://127.0.0.1:8888` |
 | `NIPUX_IMAGE_WORKER_URL` | empty | Local OpenAI-compatible image worker URL |
 | `NIPUX_SPEECH_WORKER_URL` | empty | Local text-to-speech worker URL |

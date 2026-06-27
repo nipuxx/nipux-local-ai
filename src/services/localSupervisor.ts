@@ -1,6 +1,11 @@
-import { BIND_HOST, PORT } from "../config.ts";
+import { existsSync } from "node:fs";
+import { platform } from "node:os";
+import { spawnSync } from "node:child_process";
+import { BIND_HOST, LLAMA_BASE_URL, PORT } from "../config.ts";
+import { getModel } from "./modelRegistry.ts";
+import { getAppSettings } from "./settings.ts";
 
-type ManagedKind = "app" | "image" | "transcription" | "video";
+type ManagedKind = "app" | "llm" | "image" | "transcription" | "video";
 type ManagedStatus = "ready" | "skipped";
 
 export interface ManagedProcessPlan {
@@ -38,6 +43,98 @@ function displayCommand(command: string[], env: Record<string, string>) {
 
 function workerUrl(port: number) {
   return `http://127.0.0.1:${port}`;
+}
+
+function commandExists(command: string) {
+  if (command.includes("/") || command.includes("\\")) return existsSync(command);
+  const check = platform() === "win32" ? spawnSync("where", [command]) : spawnSync("which", [command]);
+  return check.status === 0;
+}
+
+function llamaBaseUrl() {
+  try {
+    const url = new URL(LLAMA_BASE_URL);
+    url.hostname = "127.0.0.1";
+    if (!url.pathname.endsWith("/v1")) url.pathname = "/v1";
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return "http://127.0.0.1:8080/v1";
+  }
+}
+
+function llamaPort() {
+  try {
+    return Number(new URL(llamaBaseUrl()).port || 80);
+  } catch {
+    return 8080;
+  }
+}
+
+function configuredLlmPlan(): ManagedProcessPlan {
+  const preset = getAppSettings().defaultModelPreset;
+  const model = getModel(preset);
+  const command = process.env.NIPUX_LLAMA_COMMAND || "llama";
+  const envModelPath = process.env.NIPUX_LLAMA_MODEL_PATH?.trim();
+  const modelPath = envModelPath || model.localPath || "";
+  const baseUrl = llamaBaseUrl();
+
+  if (process.env.NIPUX_FAKE_LLM === "1") {
+    return {
+      kind: "llm",
+      label: "LLM backend",
+      status: "skipped",
+      command: [command, "serve"],
+      env: {},
+      url: baseUrl,
+      reason: "Dev fake LLM is enabled, so no llama.cpp process will start.",
+      optional: true,
+    };
+  }
+
+  if (!commandExists(command)) {
+    return {
+      kind: "llm",
+      label: "LLM backend",
+      status: "skipped",
+      command: [command, "serve"],
+      env: {},
+      url: baseUrl,
+      reason: "Install llama.cpp, then rerun bun run local.",
+    };
+  }
+
+  if (!modelPath) {
+    return {
+      kind: "llm",
+      label: "LLM backend",
+      status: "skipped",
+      command: [command, "serve"],
+      env: {},
+      url: baseUrl,
+      reason: `Run bun run model:install ${model.id}, or set NIPUX_LLAMA_MODEL_PATH to a local GGUF file.`,
+    };
+  }
+
+  if (!existsSync(modelPath)) {
+    return {
+      kind: "llm",
+      label: "LLM backend",
+      status: "skipped",
+      command: [command, "serve", "-m", modelPath],
+      env: {},
+      url: baseUrl,
+      reason: `Local model path does not exist: ${modelPath}`,
+    };
+  }
+
+  return {
+    kind: "llm",
+    label: `LLM backend (${model.label})`,
+    status: "ready",
+    command: [command, "serve", "-m", modelPath, "--port", String(llamaPort()), "--ctx-size", String(Math.min(model.contextTokens, 32768))],
+    env: {},
+    url: baseUrl,
+  };
 }
 
 function configuredWorkerPlans(): ManagedProcessPlan[] {
@@ -90,10 +187,12 @@ function configuredWorkerPlans(): ManagedProcessPlan[] {
 }
 
 export function getLocalSupervisorPlan(): LocalSupervisorPlan {
+  const llm = configuredLlmPlan();
   const workers = configuredWorkerPlans();
-  const readyWorkers = workers.filter((item) => item.status === "ready");
+  const readyServices = [llm, ...workers].filter((item) => item.status === "ready");
   const workerEnv: Record<string, string> = {};
-  for (const worker of readyWorkers) {
+  for (const worker of readyServices) {
+    if (worker.kind === "llm") workerEnv.NIPUX_LLAMA_BASE_URL = worker.url ?? llamaBaseUrl();
     if (worker.kind === "image") workerEnv.NIPUX_IMAGE_WORKER_URL = worker.url ?? workerUrl(8081);
     if (worker.kind === "transcription") workerEnv.NIPUX_TRANSCRIPTION_WORKER_URL = worker.url ?? workerUrl(8083);
     if (worker.kind === "video") workerEnv.NIPUX_VIDEO_WORKER_URL = worker.url ?? workerUrl(8084);
@@ -107,7 +206,8 @@ export function getLocalSupervisorPlan(): LocalSupervisorPlan {
     env: workerEnv,
     url: `http://${BIND_HOST === "0.0.0.0" ? "127.0.0.1" : BIND_HOST}:${PORT}`,
   };
-  const processes = [...readyWorkers, app, ...workers.filter((item) => item.status === "skipped")];
+  const skippedServices = [llm, ...workers].filter((item) => item.status === "skipped");
+  const processes = [...readyServices, app, ...skippedServices];
   return {
     appUrl: app.url!,
     processes,

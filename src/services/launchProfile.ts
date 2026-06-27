@@ -99,6 +99,8 @@ function envFor(settings: AppSettings, fakeLlm: boolean) {
     NIPUX_BIND_HOST: BIND_HOST,
     NIPUX_PUBLIC_API: PUBLIC_API ? "1" : "0",
     NIPUX_LLAMA_BASE_URL: LLAMA_BASE_URL,
+    NIPUX_LLAMA_COMMAND: process.env.NIPUX_LLAMA_COMMAND ?? "",
+    NIPUX_LLAMA_MODEL_PATH: process.env.NIPUX_LLAMA_MODEL_PATH ?? "",
     NIPUX_SEARXNG_URL: settings.searxngUrl,
     NIPUX_IMAGE_WORKER_URL: settings.imageWorkerUrl,
     NIPUX_IMAGE_COMMAND: process.env.NIPUX_IMAGE_COMMAND ?? "",

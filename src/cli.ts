@@ -103,6 +103,8 @@ async function setup() {
       "NIPUX_API_KEYS=",
       `NIPUX_HOME=${NIPUX_HOME}`,
       "NIPUX_LLAMA_BASE_URL=http://127.0.0.1:8080/v1",
+      "NIPUX_LLAMA_COMMAND=",
+      "NIPUX_LLAMA_MODEL_PATH=",
       "NIPUX_SEARXNG_URL=",
       "NIPUX_IMAGE_WORKER_URL=",
       "NIPUX_IMAGE_COMMAND=",

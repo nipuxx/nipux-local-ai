@@ -130,7 +130,7 @@ Returns the machine-specific launch profile used by the Setup page and `bun run 
 
 ### `GET /api/launch/supervisor`
 
-Returns the dry-run plan for `bun run local`: the app process, bundled local workers that would start from configured environment variables, skipped workers, and next steps. It never starts processes.
+Returns the dry-run plan for `bun run local`: the app process, managed local llama.cpp process when `llama` and a local GGUF model path are available, bundled local workers that would start from configured environment variables, skipped processes, and next steps. It never starts processes.
 
 ### `POST /api/launch/profile/write`
 

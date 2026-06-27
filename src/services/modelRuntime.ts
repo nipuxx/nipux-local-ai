@@ -1,6 +1,6 @@
 import { LLAMA_BASE_URL } from "../config.ts";
 import { chatText, testLlamaBackend } from "../providers/llamaCpp.ts";
-import { getModel, llamaServeCommand } from "./modelRegistry.ts";
+import { getModel } from "./modelRegistry.ts";
 import { recordUsage } from "./usage.ts";
 
 type RuntimeProcess = ReturnType<typeof Bun.spawn>;
@@ -10,6 +10,7 @@ interface ActiveRuntime {
   modelPreset: string;
   port: number;
   startedAt: string;
+  command: string;
   logs: string[];
 }
 
@@ -45,7 +46,7 @@ function runtimeSnapshot(backend: Awaited<ReturnType<typeof testLlamaBackend>>) 
     pid: activeRuntime?.process.pid ?? null,
     port: activeRuntime?.port ?? portFromBaseUrl(),
     startedAt: activeRuntime?.startedAt ?? null,
-    command: activeRuntime ? llamaServeCommand(activeRuntime.modelPreset, activeRuntime.port) : null,
+    command: activeRuntime?.command ?? null,
     backend,
     logs: activeRuntime?.logs.slice(-30) ?? [],
   };
@@ -65,10 +66,13 @@ export async function startModelRuntime(modelPreset = "balanced") {
   const model = getModel(modelPreset);
   const port = portFromBaseUrl();
   const logs: string[] = [];
-  const modelArgs = model.localPath ? ["-m", model.localPath] : ["-hf", model.llamaRef];
+  const command = process.env.NIPUX_LLAMA_COMMAND || "llama";
+  const localModelPath = process.env.NIPUX_LLAMA_MODEL_PATH?.trim() || model.localPath;
+  const modelArgs = localModelPath ? ["-m", localModelPath] : ["-hf", model.llamaRef];
+  const commandLine = [command, "serve", ...modelArgs, "--port", String(port), "--ctx-size", String(Math.min(model.contextTokens, 32768))].join(" ");
 
   try {
-    const proc = Bun.spawn(["llama", "serve", ...modelArgs, "--port", String(port), "--ctx-size", String(Math.min(model.contextTokens, 32768))], {
+    const proc = Bun.spawn([command, "serve", ...modelArgs, "--port", String(port), "--ctx-size", String(Math.min(model.contextTokens, 32768))], {
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -77,6 +81,7 @@ export async function startModelRuntime(modelPreset = "balanced") {
       modelPreset: model.id,
       port,
       startedAt: new Date().toISOString(),
+      command: commandLine,
       logs,
     };
     void drain(proc.stdout, logs);
