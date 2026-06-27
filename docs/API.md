@@ -159,6 +159,34 @@ Uses `HF_TOKEN` when present.
 
 Runs the local agent with memory and search context.
 
+### `GET /api/agents/:id/memories`
+
+Lists agent memories. Add `?q=query` to search with scored token retrieval.
+
+### `POST /api/agents/:id/memories`
+
+```json
+{
+  "kind": "fact",
+  "content": "The user prefers local-first defaults.",
+  "importance": 4
+}
+```
+
+### `PATCH /api/memories/:id`
+
+```json
+{
+  "kind": "procedure",
+  "content": "Updated memory content.",
+  "importance": 5
+}
+```
+
+### `DELETE /api/memories/:id`
+
+Deletes an agent memory.
+
 ### `GET /api/hermes/status`
 
 Detects whether Hermes is installed and returns setup commands for wiring Hermes to the local model backend.
@@ -240,6 +268,27 @@ Closes the running browser context and keeps the session record.
 ### `POST /api/search/documents`
 
 Adds text to the local search index.
+
+### `GET /api/search/documents`
+
+Lists recently indexed local documents.
+
+### `DELETE /api/search/documents/:id`
+
+Deletes an indexed document.
+
+### `POST /api/search/index-path`
+
+```json
+{
+  "path": "/Users/example/notes",
+  "maxFiles": 500,
+  "maxBytes": 1048576,
+  "recursive": true
+}
+```
+
+Indexes allow-listed text/code files from a file or folder. The indexer skips common dependency/build/cache folders and overwrites existing indexed rows for the same file path.
 
 ### `POST /api/search/local`
 

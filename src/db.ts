@@ -120,6 +120,7 @@ export function nowIso() {
 }
 
 export function indexDocument(title: string, body: string, path?: string) {
+  if (path) deleteDocumentByPath(path);
   const insert = db.prepare("INSERT INTO local_documents (title, path, body) VALUES (?, ?, ?)");
   const result = insert.run(title, path ?? null, body);
   if (ftsAvailable) {
@@ -131,6 +132,28 @@ export function indexDocument(title: string, body: string, path?: string) {
     );
   }
   return Number(result.lastInsertRowid);
+}
+
+export function listLocalDocuments(limit = 80) {
+  return db
+    .prepare(
+      `SELECT id, title, path, substr(body, 1, 240) AS snippet, created_at AS createdAt
+       FROM local_documents
+       ORDER BY created_at DESC
+       LIMIT ?`,
+    )
+    .all(limit) as Array<{ id: number; title: string; path?: string | null; snippet: string; createdAt: string }>;
+}
+
+export function deleteDocument(id: number) {
+  if (ftsAvailable) db.prepare("DELETE FROM local_documents_fts WHERE rowid = ?").run(id);
+  db.prepare("DELETE FROM local_documents WHERE id = ?").run(id);
+  return { deleted: true, id };
+}
+
+export function deleteDocumentByPath(path: string) {
+  const rows = db.prepare("SELECT id FROM local_documents WHERE path = ?").all(path) as Array<{ id: number }>;
+  for (const row of rows) deleteDocument(row.id);
 }
 
 function toFtsQuery(query: string) {

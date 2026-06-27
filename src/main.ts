@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { deleteDocument, listLocalDocuments } from "./db.ts";
 import {
   API_KEYS,
   APP_NAME,
@@ -27,8 +28,16 @@ import {
   typeInBrowserSession,
 } from "./services/browserBroker.ts";
 import { addChatMessage, createChat, deleteChat, getChat, listChatMessages, listChats, updateChatModel } from "./services/chats.ts";
+import { indexPath } from "./services/fileIndexer.ts";
 import { getHermesStatus } from "./services/hermes.ts";
 import { detectHardware } from "./services/hardware.ts";
+import {
+  createAgentMemory,
+  deleteAgentMemory,
+  listAgentMemories,
+  searchAgentMemoriesScored,
+  updateAgentMemory,
+} from "./services/memory.ts";
 import {
   downloadHuggingFaceFile,
   listHuggingFaceFiles,
@@ -261,6 +270,9 @@ export async function route(req: Request): Promise<Response> {
     const body = await readJson<{ query?: string }>(req);
     return json({ results: localSearch(body.query ?? "") });
   }
+  if (url.pathname === "/api/search/documents" && req.method === "GET") return json({ documents: listLocalDocuments() });
+  const documentMatch = url.pathname.match(/^\/api\/search\/documents\/(\d+)$/);
+  if (documentMatch && req.method === "DELETE") return json(deleteDocument(Number(documentMatch[1])));
   if (url.pathname === "/api/search/web" && req.method === "POST") {
     const body = await readJson<{ query?: string }>(req);
     return json({ results: await webSearch(body.query ?? "") });
@@ -269,6 +281,33 @@ export async function route(req: Request): Promise<Response> {
     const body = await readJson<{ title?: string; body?: string; path?: string }>(req);
     if (!body.title || !body.body) return json({ error: "title and body are required" }, 400);
     return json({ id: addLocalDocument(body.title, body.body, body.path) });
+  }
+  if (url.pathname === "/api/search/index-path" && req.method === "POST") {
+    const body = await readJson<{ path?: string; maxFiles?: number; maxBytes?: number; recursive?: boolean }>(req);
+    if (!body.path) return json({ error: "path is required" }, 400);
+    const started = Date.now();
+    try {
+      const result = await indexPath(body.path, {
+        maxFiles: body.maxFiles,
+        maxBytes: body.maxBytes,
+        recursive: body.recursive,
+      });
+      recordUsage({
+        kind: "search",
+        latencyMs: Date.now() - started,
+        status: "ok",
+        meta: { action: "index-path", path: body.path, indexed: result.indexed, skipped: result.skipped, errors: result.errors.length },
+      });
+      return json(result);
+    } catch (error) {
+      recordUsage({
+        kind: "search",
+        latencyMs: Date.now() - started,
+        status: "error",
+        meta: { action: "index-path", path: body.path, error: error instanceof Error ? error.message : String(error) },
+      });
+      return json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
   }
 
   if (url.pathname === "/api/agents" && req.method === "GET") return json({ agents: listAgents(), runs: listAgentRuns() });
@@ -283,6 +322,33 @@ export async function route(req: Request): Promise<Response> {
     const body = await readJson<{ input?: string; agentId?: string; modelPreset?: string }>(req);
     if (!body.input) return json({ error: "input is required" }, 400);
     return json(await runAgent(body.input, body.agentId, body.modelPreset));
+  }
+  const agentMemoryMatch = url.pathname.match(/^\/api\/agents\/([^/]+)\/memories$/);
+  if (agentMemoryMatch) {
+    const [, agentId] = agentMemoryMatch;
+    if (req.method === "GET") {
+      const query = url.searchParams.get("q") ?? "";
+      const memories = query ? searchAgentMemoriesScored(agentId, query, 80) : listAgentMemories(agentId);
+      return json({ memories });
+    }
+    if (req.method === "POST") {
+      const body = await readJson<{ kind?: "profile" | "task" | "procedure" | "fact"; content?: string; importance?: number }>(req);
+      if (!body.content?.trim()) return json({ error: "content is required" }, 400);
+      return json({ memory: createAgentMemory({ agentId, kind: body.kind, content: body.content, importance: body.importance }) });
+    }
+  }
+  const memoryMatch = url.pathname.match(/^\/api\/memories\/([^/]+)$/);
+  if (memoryMatch) {
+    const [, id] = memoryMatch;
+    try {
+      if (req.method === "PATCH") {
+        const body = await readJson<{ kind?: "profile" | "task" | "procedure" | "fact"; content?: string; importance?: number }>(req);
+        return json({ memory: updateAgentMemory(id, body) });
+      }
+      if (req.method === "DELETE") return json(deleteAgentMemory(id));
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : String(error) }, 404);
+    }
   }
 
   if (url.pathname === "/api/browsers" && req.method === "GET") return json({ sessions: listBrowserSessions() });

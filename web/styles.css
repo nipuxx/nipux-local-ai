@@ -285,6 +285,13 @@ h2 {
   gap: 10px;
 }
 
+.memory-panel,
+.index-panel {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
 .runtime-status {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

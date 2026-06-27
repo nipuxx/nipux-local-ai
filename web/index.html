@@ -59,6 +59,24 @@
                 <button type="submit">Run Agent</button>
               </form>
               <div id="agentOutput" class="output"></div>
+              <div class="panel memory-panel">
+                <h2>Memory</h2>
+                <form id="memoryForm" class="stack">
+                  <select id="memoryKind">
+                    <option value="fact">Fact</option>
+                    <option value="profile">Profile</option>
+                    <option value="procedure">Procedure</option>
+                    <option value="task">Task</option>
+                  </select>
+                  <textarea id="memoryContent" placeholder="Add durable memory..." rows="3"></textarea>
+                  <button type="submit">Save Memory</button>
+                </form>
+                <div class="row">
+                  <input id="memoryQuery" placeholder="Search memory" />
+                  <button id="memorySearch">Search</button>
+                </div>
+                <div id="memoryList" class="list"></div>
+              </div>
             </div>
             <div>
               <h2>Runs</h2>
@@ -112,6 +130,15 @@
               <textarea id="docBody" placeholder="Paste local text to index..." rows="6"></textarea>
               <button type="submit">Index</button>
             </form>
+          </div>
+          <div class="panel index-panel">
+            <h2>File Index</h2>
+            <div class="row">
+              <input id="indexPath" placeholder="Folder or file path" />
+              <button id="indexPathButton">Index Path</button>
+            </div>
+            <pre id="indexOutput" class="dev"></pre>
+            <div id="documentList" class="list"></div>
           </div>
           <div id="searchResults" class="list"></div>
         </section>

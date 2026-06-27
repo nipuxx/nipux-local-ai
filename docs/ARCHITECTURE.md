@@ -44,6 +44,8 @@ flowchart TD
 - `src/services/modelRuntime.ts`: app-managed llama.cpp start/stop/status/test path.
 - `src/services/chats.ts`: persisted chat records and messages.
 - `src/services/agents.ts`: agent runs, memory injection, search context.
+- `src/services/memory.ts`: memory CRUD and scored token retrieval.
+- `src/services/fileIndexer.ts`: safe local file/folder indexing into SQLite FTS.
 - `src/services/browserBroker.ts`: Playwright browser sessions for agents and UI takeover.
 - `src/services/search.ts`: local FTS and SearXNG.
 - `src/services/hardware.ts`: OS/GPU/RAM detection.
@@ -60,7 +62,20 @@ Each agent has:
 - local/web search context per run
 - browser session metadata
 
-The first agent implementation is intentionally conservative. It stores task summaries and retrieves memories with local search. Later Hermes integration should wrap the same persistence tables instead of replacing them.
+The first agent implementation is intentionally conservative. It stores task summaries, lets users add/edit/delete durable memories, and retrieves relevant memories with scored token retrieval. Later Hermes integration should wrap the same persistence tables instead of replacing them.
+
+## Local Search
+
+Manual text indexing and file/folder indexing share the same `local_documents` table and FTS index. File indexing uses:
+
+- extension allow-list for text/code formats
+- maximum file count
+- maximum file size
+- recursive scanning by default
+- skipped dependency/build/cache directories
+- idempotent path updates
+
+This keeps local indexing useful without accidentally crawling huge build outputs or binary files.
 
 ## Chat Persistence
 

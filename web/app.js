@@ -2,8 +2,11 @@ const state = {
   status: null,
   models: [],
   chats: [],
+  agents: [],
+  activeAgentId: null,
   activeChatId: null,
   messages: [],
+  memories: [],
   browserShots: {},
   browserErrors: {},
   runtime: null,
@@ -187,6 +190,8 @@ async function loadUsage() {
 
 async function loadAgents() {
   const data = await api("/api/agents");
+  state.agents = data.agents;
+  state.activeAgentId ??= data.agents[0]?.id ?? null;
   $("#agentRuns").innerHTML = data.runs
     .map(
       (run) => `
@@ -234,6 +239,53 @@ async function loadAgents() {
           </div>`,
       )
       .join("") || `<div class="meta">No browser sessions yet.</div>`;
+  if (state.activeAgentId) await loadMemories();
+}
+
+async function loadMemories(query = "") {
+  if (!state.activeAgentId) {
+    $("#memoryList").innerHTML = `<div class="meta">No agent yet.</div>`;
+    return;
+  }
+  const suffix = query ? `?q=${encodeURIComponent(query)}` : "";
+  const data = await api(`/api/agents/${state.activeAgentId}/memories${suffix}`);
+  state.memories = data.memories;
+  $("#memoryList").innerHTML =
+    data.memories
+      .map(
+        (memory) => `
+          <div>
+            <div class="row">
+              <select class="memory-kind">
+                ${["fact", "profile", "procedure", "task"]
+                  .map((kind) => `<option value="${kind}" ${kind === memory.kind ? "selected" : ""}>${kind}</option>`)
+                  .join("")}
+              </select>
+              <input class="memory-importance" type="number" min="1" max="5" value="${h(memory.importance)}" />
+            </div>
+            <textarea class="memory-edit-content" rows="3">${h(memory.content)}</textarea>
+            <div class="meta">${h(memory.createdAt)}</div>
+            <button class="memory-save" data-id="${h(memory.id)}">Save</button>
+            <button class="memory-delete" data-id="${h(memory.id)}">Delete</button>
+          </div>`,
+      )
+      .join("") || `<div class="meta">No memories yet.</div>`;
+}
+
+async function loadDocuments() {
+  const data = await api("/api/search/documents");
+  $("#documentList").innerHTML =
+    data.documents
+      .map(
+        (doc) => `
+          <div>
+            <strong>${h(doc.title)}</strong>
+            <div class="meta">${h(doc.path || "manual")} · ${h(doc.createdAt)}</div>
+            <div>${h(doc.snippet || "")}</div>
+            <button class="document-delete" data-id="${h(doc.id)}">Delete</button>
+          </div>`,
+      )
+      .join("") || `<div class="meta">No indexed documents yet.</div>`;
 }
 
 async function refreshBrowserScreenshot(id) {
@@ -330,6 +382,23 @@ async function runAgentForm(event) {
   await Promise.all([loadAgents(), loadUsage()]);
 }
 
+async function saveMemory(event) {
+  event.preventDefault();
+  if (!state.activeAgentId) return;
+  const content = $("#memoryContent").value.trim();
+  if (!content) return;
+  await api(`/api/agents/${state.activeAgentId}/memories`, {
+    method: "POST",
+    body: JSON.stringify({
+      kind: $("#memoryKind").value,
+      content,
+      importance: 4,
+    }),
+  });
+  $("#memoryContent").value = "";
+  await loadMemories();
+}
+
 async function runSearch(event) {
   event.preventDefault();
   const query = $("#searchInput").value.trim();
@@ -359,6 +428,7 @@ async function indexDocument(event) {
   });
   $("#docTitle").value = "";
   $("#docBody").value = "";
+  await loadDocuments();
 }
 
 async function searchHf() {
@@ -417,6 +487,26 @@ document.addEventListener("click", async (event) => {
   if (target.matches(".chat-item")) await openChat(target.dataset.chatId);
   if (target.matches(".show-files")) await showHfFiles(target);
   if (target.matches(".download-file")) await downloadFile(target);
+  if (target.matches(".memory-save")) {
+    const card = target.closest(".list > div");
+    await api(`/api/memories/${target.dataset.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        kind: card.querySelector(".memory-kind").value,
+        importance: Number(card.querySelector(".memory-importance").value),
+        content: card.querySelector(".memory-edit-content").value,
+      }),
+    });
+    await loadMemories($("#memoryQuery").value.trim());
+  }
+  if (target.matches(".memory-delete")) {
+    await api(`/api/memories/${target.dataset.id}`, { method: "DELETE" });
+    await loadMemories($("#memoryQuery").value.trim());
+  }
+  if (target.matches(".document-delete")) {
+    await api(`/api/search/documents/${target.dataset.id}`, { method: "DELETE" });
+    await loadDocuments();
+  }
   if (target.matches(".browser-open")) {
     const id = target.dataset.id;
     try {
@@ -473,8 +563,25 @@ document.addEventListener("click", async (event) => {
 
 $("#chatForm").addEventListener("submit", sendChat);
 $("#agentForm").addEventListener("submit", runAgentForm);
+$("#memoryForm").addEventListener("submit", saveMemory);
+$("#memorySearch").addEventListener("click", () => loadMemories($("#memoryQuery").value.trim()));
 $("#searchForm").addEventListener("submit", runSearch);
 $("#documentForm").addEventListener("submit", indexDocument);
+$("#indexPathButton").addEventListener("click", async () => {
+  const path = $("#indexPath").value.trim();
+  if (!path) return;
+  $("#indexOutput").textContent = "Indexing...";
+  try {
+    const data = await api("/api/search/index-path", {
+      method: "POST",
+      body: JSON.stringify({ path, maxFiles: 500, maxBytes: 1024 * 1024, recursive: true }),
+    });
+    $("#indexOutput").textContent = JSON.stringify(data, null, 2);
+  } catch (error) {
+    $("#indexOutput").textContent = error instanceof Error ? error.message : String(error);
+  }
+  await Promise.all([loadDocuments(), loadUsage()]);
+});
 $("#hfSearch").addEventListener("click", searchHf);
 $("#refreshModels").addEventListener("click", loadModels);
 $("#refreshUsage").addEventListener("click", loadUsage);
@@ -518,7 +625,7 @@ $("#createBrowser").addEventListener("click", async () => {
 });
 
 await loadStatus();
-await Promise.all([loadModels(), loadRuntime(), loadUsage(), loadAgents()]);
+await Promise.all([loadModels(), loadRuntime(), loadUsage(), loadAgents(), loadDocuments()]);
 await loadChats();
 if (state.chats[0]) await openChat(state.chats[0].id);
 else await createNewChat();

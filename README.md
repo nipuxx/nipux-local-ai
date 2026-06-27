@@ -18,10 +18,10 @@ The first runnable build is intentionally LLM-only. Image/video/audio are capabi
   - Balanced: `google/gemma-4-12B-it-qat-q4_0-gguf:Q4_0`
   - Smart: `google/gemma-4-26B-A4B-it-qat-q4_0-gguf:Q4_0`
 - Local SQLite persistence
-- Agent memory and run history
+- Agent memory CRUD, scored retrieval, and run history
 - Hermes detection/config adapter with internal-memory-agent fallback
 - Agent browser sessions with Playwright-backed open, navigate, screenshot, click, type, key, and close APIs
-- Local document indexing/search
+- Manual document indexing plus safe file/folder indexing and local search
 - SearXNG adapter for local web search
 - Hugging Face GGUF search, file listing, and direct download hooks
 - llama.cpp runtime status, start, stop, and prompt test controls

@@ -1,5 +1,6 @@
-import { db, getDefaultAgent, searchAgentMemories, upsertAgentMemory } from "../db.ts";
+import { db, getDefaultAgent } from "../db.ts";
 import { chatText, estimateMessageTokens } from "../providers/llamaCpp.ts";
+import { createAgentMemory, searchAgentMemoriesScored } from "./memory.ts";
 import { getModel } from "./modelRegistry.ts";
 import { localSearch, webSearch } from "./search.ts";
 import { recordUsage } from "./usage.ts";
@@ -56,7 +57,7 @@ export async function runAgent(input: string, agentId?: string, forcedPreset?: s
   db.prepare("INSERT INTO agent_runs (id, agent_id, input, status) VALUES (?, ?, ?, 'running')").run(runId, agent.id, input);
 
   try {
-    const memories = searchAgentMemories(agent.id, input, 8);
+    const memories = searchAgentMemoriesScored(agent.id, input, 8);
     const localResults = localSearch(input, 5);
     const wantsWeb = /\b(web|internet|search|latest|current|news|look up)\b/i.test(input);
     const webResults = wantsWeb ? await webSearch(input, 5) : [];
@@ -86,8 +87,7 @@ Rules:
 
     const output = await chatText(messages, model.id);
     db.prepare("UPDATE agent_runs SET output = ?, status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = ?").run(output, runId);
-    upsertAgentMemory({
-      id: crypto.randomUUID(),
+    createAgentMemory({
       agentId: agent.id,
       kind: "task",
       content: `User asked: ${input}\nAgent answered: ${output.slice(0, 900)}`,

@@ -63,7 +63,8 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Hugging Face GGUF search/list/download hooks exist.
 - Hermes status/config adapter exists.
 - Agent memory and run history exist.
-- Local search and SearXNG adapter exist.
+- Agent memory CRUD and scored retrieval exist.
+- Manual document indexing, file/folder indexing, local search, and SearXNG adapter exist.
 - Playwright browser sessions can open, navigate, screenshot, click, type, press keys, and close.
 - One-command setup CLI and install scripts exist.
 - CI exists for macOS, Linux, and Windows.
@@ -74,10 +75,9 @@ The product should be usable by everyday people first. Advanced controls belong 
 2. Add API keys and public/LAN exposure guardrails.
 3. Add model runtime start/stop/status management.
 4. Improve Hugging Face download/test/start flow.
-5. Upgrade agent memory retrieval and memory management UI.
-6. Add local file/folder indexing.
-7. Add better browser action logs and permission gates.
-8. Add Settings and Dev mode surfaces.
-9. Improve install reliability on Windows/Linux/macOS.
-10. Add release packaging.
-11. Add media lanes only after the LLM-first product is solid.
+5. Add memory summarization/compaction and provenance.
+6. Add better browser action logs and permission gates.
+7. Add Settings and Dev mode surfaces.
+8. Improve install reliability on Windows/Linux/macOS.
+9. Add release packaging.
+10. Add media lanes only after the LLM-first product is solid.
