@@ -5,6 +5,7 @@ import { detectHardware } from "./services/hardware.ts";
 import { downloadHuggingFaceFile, listHuggingFaceFiles, listModels, llamaServeCommand } from "./services/modelRegistry.ts";
 import { testLlamaBackend } from "./providers/llamaCpp.ts";
 import { getUsageSummary } from "./services/usage.ts";
+import { formatSetupCheck, getSetupPreflight } from "./services/setupChecks.ts";
 
 const command = process.argv[2] ?? "help";
 
@@ -16,6 +17,7 @@ function printHelp() {
 Commands:
   bun run setup                   One-command setup: creates dirs, detects hardware, checks backends
   bun run src/cli.ts install      Prepare local folders and print runtime setup
+  bun run src/cli.ts preflight    Check install/runtime readiness with repair hints
   bun run src/cli.ts doctor       Detect hardware and backend health
   bun run src/cli.ts models       List built-in model presets
   bun run src/cli.ts llama-command [id]   Print the llama.cpp serve command
@@ -87,7 +89,14 @@ async function setup() {
   );
   console.log(`  ✓ ${envPath}`);
 
+  step(6, "Install preflight");
+  const preflight = await getSetupPreflight();
+  for (const check of preflight.checks) console.log(`  ${formatSetupCheck(check).replaceAll("\n", "\n  ")}`);
+
   console.log(`\n✓ Setup complete.`);
+  if (!preflight.ready) {
+    console.log(`Some required checks still need attention. Run "bun run preflight" after fixing them.`);
+  }
   console.log(`\nNext steps:`);
   console.log(`  Dev (no model):  bun run dev`);
   console.log(`  Production:      ${llamaServeCommand(hardware.recommendedPreset)}`);
@@ -112,12 +121,28 @@ async function main() {
     console.log("  macOS/Linux: curl -LsSf https://llama.app/install.sh | sh");
     console.log("  Windows:     winget install llama.cpp");
     console.log(`Then start the default model server:\n  ${llamaServeCommand("balanced")}`);
+    console.log("Run a readiness check:");
+    console.log("  bun run preflight");
+    return;
+  }
+
+  if (command === "preflight") {
+    const preflight = await getSetupPreflight();
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(preflight, null, 2));
+      return;
+    }
+    console.log("\nNipux Local AI preflight");
+    for (const check of preflight.checks) console.log(formatSetupCheck(check));
+    console.log("\nNext steps:");
+    for (const step of preflight.nextSteps) console.log(`  ${step}`);
+    if (!preflight.ready) process.exitCode = 1;
     return;
   }
 
   if (command === "doctor") {
-    const [hardware, llama] = await Promise.all([detectHardware(), testLlamaBackend()]);
-    console.log(JSON.stringify({ home: NIPUX_HOME, port: PORT, hardware, llama, usage: getUsageSummary() }, null, 2));
+    const [hardware, llama, preflight] = await Promise.all([detectHardware(), testLlamaBackend(), getSetupPreflight()]);
+    console.log(JSON.stringify({ home: NIPUX_HOME, port: PORT, hardware, llama, preflight, usage: getUsageSummary() }, null, 2));
     return;
   }
 

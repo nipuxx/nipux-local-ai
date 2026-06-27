@@ -29,6 +29,8 @@ The first runnable build is intentionally LLM-only. Image/video/audio are capabi
 - Usage dashboard
 - Settings page for default mode, SearXNG URL, browser headless mode, client API key, and dev controls
 - Hardware/runtime detection for CPU, Apple Metal, NVIDIA CUDA, AMD ROCm/Vulkan, Intel Vulkan/DirectML
+- Platform-aware preflight checks for install/runtime readiness and repair hints
+- macOS/Linux and Windows install scripts with optional Playwright Chromium setup
 - Dev fake LLM mode so the UI/API can be tested without a model server
 
 ## Quick Start
@@ -91,16 +93,22 @@ NIPUX_BROWSER_HEADLESS=0 bun run start
 The repo includes scripts for eventual public install:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Nipux/nipux-local-ai/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/nipuxx/nipux-local-ai/main/scripts/install.sh | bash
 ```
 
 Windows:
 
 ```powershell
-irm https://raw.githubusercontent.com/Nipux/nipux-local-ai/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/nipuxx/nipux-local-ai/main/scripts/install.ps1 | iex
 ```
 
-Those scripts install Bun if needed, clone the repo, install dependencies, and run the local setup command.
+Those scripts install Bun if needed, clone or update the repo, install dependencies from the lockfile, run the local setup command, and install Playwright Chromium for browser agents. Set `NIPUX_INSTALL_BROWSERS=0` to skip the Chromium download and repair it later with `bun run browsers:install`.
+
+Run the platform-aware readiness check at any time:
+
+```bash
+bun run preflight
+```
 
 ## Environment
 
@@ -131,6 +139,7 @@ x-api-key: <key>
 bun run check
 bun test
 bun run doctor
+bun run preflight
 ```
 
 See [Architecture](docs/ARCHITECTURE.md), [API](docs/API.md), and [Runtime Matrix](docs/RUNTIME-MATRIX.md).

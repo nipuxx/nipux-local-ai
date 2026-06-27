@@ -9,7 +9,9 @@
     "start": "bun run src/main.ts",
     "dev": "bun --watch src/dev.ts",
     "doctor": "bun run src/cli.ts doctor",
+    "preflight": "bun run src/cli.ts preflight",
     "install:local": "bun run src/cli.ts install",
+    "browsers:install": "bunx playwright install chromium",
     "models": "bun run src/cli.ts models",
     "check": "tsc --noEmit",
     "test": "bun test"

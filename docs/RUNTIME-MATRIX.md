@@ -23,6 +23,14 @@ The installer should run everywhere. Model capability depends on hardware.
 
 ## Runtime Management
 
+Use the platform-aware preflight to check required and optional local dependencies:
+
+```bash
+bun run preflight
+```
+
+The preflight checks Bun, git, writable Nipux folders, llama.cpp command/backend state, Playwright Chromium, and SearXNG configuration. Missing llama.cpp, Chromium, or SearXNG are warnings because dev mode and core chat still work without them.
+
 The app can start and stop an app-managed llama.cpp process:
 
 ```bash

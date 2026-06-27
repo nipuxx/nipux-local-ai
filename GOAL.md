@@ -70,6 +70,8 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Browser action logs and permission gates for agent-originated risky actions exist.
 - Persisted app settings exist for default mode, SearXNG URL, browser headless mode, and dev mode.
 - The UI has a Settings page and hides advanced controls unless dev mode is enabled.
+- Platform-aware install preflight exists for Bun, git, local folders, llama.cpp, Playwright Chromium, and SearXNG.
+- macOS/Linux and Windows installer scripts clone the pushed repo, use the lockfile, run setup, and optionally install Playwright Chromium.
 - One-command setup CLI and install scripts exist.
 - CI exists for macOS, Linux, and Windows.
 
@@ -79,6 +81,5 @@ The product should be usable by everyday people first. Advanced controls belong 
 2. Add API keys and public/LAN exposure guardrails.
 3. Add model runtime start/stop/status management.
 4. Improve Hugging Face download/test/start flow.
-5. Improve install reliability on Windows/Linux/macOS.
-6. Add release packaging.
-7. Add media lanes only after the LLM-first product is solid.
+5. Add release packaging.
+6. Add media lanes only after the LLM-first product is solid.

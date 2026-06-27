@@ -13,7 +13,7 @@ This file translates the product goal into independently owned workstreams. The 
 ## Runtime Installer Agent
 
 - Maintain `scripts/install.sh`, `scripts/install.ps1`, and the setup CLI.
-- Validate Bun, git, llama.cpp, Playwright Chromium, and model directories.
+- Validate Bun, git, llama.cpp, Playwright Chromium, SearXNG, and model directories through preflight.
 - Detect OS, RAM, GPU vendor, and recommended mode.
 - Keep Docker out of the required path.
 - Produce human-readable setup failures.
