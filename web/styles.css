@@ -252,6 +252,10 @@ h2 {
   gap: 10px;
 }
 
+.memory-search-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
 .list {
   display: grid;
   gap: 10px;
@@ -426,6 +430,7 @@ h2 {
 
   .composer,
   .row,
+  .memory-search-row,
   .browser-head,
   .browser-controls {
     grid-template-columns: 1fr;

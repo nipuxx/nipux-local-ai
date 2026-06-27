@@ -40,6 +40,7 @@ import { getHermesStatus } from "./services/hermes.ts";
 import { detectHardware } from "./services/hardware.ts";
 import {
   createAgentMemory,
+  compactAgentMemories,
   deleteAgentMemory,
   listAgentMemories,
   searchAgentMemoriesScored,
@@ -348,18 +349,40 @@ export async function route(req: Request): Promise<Response> {
     if (!body.input) return json({ error: "input is required" }, 400);
     return json(await runAgent(body.input, body.agentId, body.modelPreset));
   }
+  const agentMemoryCompactMatch = url.pathname.match(/^\/api\/agents\/([^/]+)\/memories\/compact$/);
+  if (agentMemoryCompactMatch && req.method === "POST") {
+    const [, agentId] = agentMemoryCompactMatch;
+    const body = await readJson<{ maxSource?: number }>(req);
+    return json(compactAgentMemories(agentId, body.maxSource));
+  }
   const agentMemoryMatch = url.pathname.match(/^\/api\/agents\/([^/]+)\/memories$/);
   if (agentMemoryMatch) {
     const [, agentId] = agentMemoryMatch;
     if (req.method === "GET") {
       const query = url.searchParams.get("q") ?? "";
-      const memories = query ? searchAgentMemoriesScored(agentId, query, 80) : listAgentMemories(agentId);
+      const includeArchived = url.searchParams.get("includeArchived") === "1";
+      const memories = query
+        ? searchAgentMemoriesScored(agentId, query, 80)
+        : listAgentMemories(agentId, 80, { includeArchived });
       return json({ memories });
     }
     if (req.method === "POST") {
-      const body = await readJson<{ kind?: "profile" | "task" | "procedure" | "fact"; content?: string; importance?: number }>(req);
+      const body = await readJson<{
+        kind?: "profile" | "task" | "procedure" | "fact" | "summary";
+        content?: string;
+        importance?: number;
+        summary?: string;
+      }>(req);
       if (!body.content?.trim()) return json({ error: "content is required" }, 400);
-      return json({ memory: createAgentMemory({ agentId, kind: body.kind, content: body.content, importance: body.importance }) });
+      return json({
+        memory: createAgentMemory({
+          agentId,
+          kind: body.kind,
+          content: body.content,
+          importance: body.importance,
+          summary: body.summary,
+        }),
+      });
     }
   }
   const memoryMatch = url.pathname.match(/^\/api\/memories\/([^/]+)$/);
@@ -367,7 +390,12 @@ export async function route(req: Request): Promise<Response> {
     const [, id] = memoryMatch;
     try {
       if (req.method === "PATCH") {
-        const body = await readJson<{ kind?: "profile" | "task" | "procedure" | "fact"; content?: string; importance?: number }>(req);
+        const body = await readJson<{
+          kind?: "profile" | "task" | "procedure" | "fact" | "summary";
+          content?: string;
+          importance?: number;
+          summary?: string;
+        }>(req);
         return json({ memory: updateAgentMemory(id, body) });
       }
       if (req.method === "DELETE") return json(deleteAgentMemory(id));

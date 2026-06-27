@@ -36,11 +36,11 @@ This file translates the product goal into independently owned workstreams. The 
 
 ## Agent Memory Agent
 
-- Upgrade memory retrieval beyond simple LIKE search.
-- Add memory summarization/compaction.
-- Add editable memory UI.
+- Maintain scored memory retrieval.
+- Maintain memory summarization, compaction, and archived-source provenance.
+- Keep editable memory UI simple.
 - Keep Hermes/internal agents using the same memory database.
-- Add memory provenance.
+- Add stronger semantic retrieval later.
 
 ## Browser Agent
 

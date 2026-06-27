@@ -1,6 +1,6 @@
 import { db, getDefaultAgent } from "../db.ts";
 import { chatText, estimateMessageTokens } from "../providers/llamaCpp.ts";
-import { createAgentMemory, searchAgentMemoriesScored } from "./memory.ts";
+import { createAgentMemory, maybeCompactAgentMemories, searchAgentMemoriesScored } from "./memory.ts";
 import { getModel } from "./modelRegistry.ts";
 import { localSearch, webSearch } from "./search.ts";
 import { recordUsage } from "./usage.ts";
@@ -63,7 +63,13 @@ export async function runAgent(input: string, agentId?: string, forcedPreset?: s
     const webResults = wantsWeb ? await webSearch(input, 5) : [];
     const model = getModel(forcedPreset ?? agent.modelPreset);
 
-    const memoryBlock = memories.map((memory) => `- [${memory.kind}] ${memory.content}`).join("\n") || "No relevant memories yet.";
+    const memoryBlock =
+      memories
+        .map((memory) => {
+          const provenance = memory.source === "manual" ? "manual" : `${memory.source}${memory.sourceId ? `:${memory.sourceId}` : ""}`;
+          return `- [${memory.kind} | ${provenance}] ${memory.summary || memory.content}\n  ${memory.content}`;
+        })
+        .join("\n") || "No relevant memories yet.";
     const messages: ChatMessage[] = [
       {
         role: "system",
@@ -92,7 +98,11 @@ Rules:
       kind: "task",
       content: `User asked: ${input}\nAgent answered: ${output.slice(0, 900)}`,
       importance: 3,
+      source: "agent_run",
+      sourceId: runId,
+      summary: `Task: ${input.slice(0, 160)}`,
     });
+    const compaction = maybeCompactAgentMemories(agent.id);
     recordUsage({
       kind: "agent",
       model: model.id,
@@ -100,9 +110,9 @@ Rules:
       tokensOut: Math.ceil(output.length / 4),
       latencyMs: Date.now() - started,
       status: "ok",
-      meta: { runId, agentId: agent.id },
+      meta: { runId, agentId: agent.id, compacted: compaction?.archived ?? 0 },
     });
-    return { runId, agent, output, localResults, webResults, memories };
+    return { runId, agent, output, localResults, webResults, memories, compaction };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     db.prepare("UPDATE agent_runs SET output = ?, status = 'failed', completed_at = CURRENT_TIMESTAMP WHERE id = ?").run(message, runId);

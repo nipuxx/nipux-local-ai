@@ -195,7 +195,7 @@ Runs the local agent with memory and search context.
 
 ### `GET /api/agents/:id/memories`
 
-Lists agent memories. Add `?q=query` to search with scored token retrieval.
+Lists active agent memories. Add `?q=query` to search with scored token retrieval. Add `?includeArchived=1` to inspect memories archived by compaction.
 
 ### `POST /api/agents/:id/memories`
 
@@ -203,9 +203,22 @@ Lists agent memories. Add `?q=query` to search with scored token retrieval.
 {
   "kind": "fact",
   "content": "The user prefers local-first defaults.",
-  "importance": 4
+  "importance": 4,
+  "summary": "Local-first defaults matter."
 }
 ```
+
+Supported kinds are `fact`, `profile`, `procedure`, `task`, and `summary`. The server adds source metadata, token count, timestamps, and a generated summary when one is not provided.
+
+### `POST /api/agents/:id/memories/compact`
+
+```json
+{
+  "maxSource": 30
+}
+```
+
+Compacts old active `task` memories into one `summary` memory, archives the source memories, and stores their ids as provenance on the summary.
 
 ### `PATCH /api/memories/:id`
 
@@ -213,7 +226,8 @@ Lists agent memories. Add `?q=query` to search with scored token retrieval.
 {
   "kind": "procedure",
   "content": "Updated memory content.",
-  "importance": 5
+  "importance": 5,
+  "summary": "Updated procedure."
 }
 ```
 

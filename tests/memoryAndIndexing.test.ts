@@ -30,6 +30,9 @@ test("agent memories can be created, searched, and deleted through the API", asy
   });
   expect(created.status).toBe(200);
   const { memory } = await created.json();
+  expect(memory.source).toBe("manual");
+  expect(memory.summary).toContain("preferred local search backend");
+  expect(memory.tokenCount).toBeGreaterThan(0);
 
   const searched = await route(new Request(`http://localhost/api/agents/${agentId}/memories?q=search backend`));
   const data = await searched.json();
@@ -37,6 +40,37 @@ test("agent memories can be created, searched, and deleted through the API", asy
 
   const deleted = await route(new Request(`http://localhost/api/memories/${memory.id}`, { method: "DELETE" }));
   expect(deleted.status).toBe(200);
+});
+
+test("agent memories can be compacted with provenance retained", async () => {
+  const createdAgent = await jsonRequest("/api/agents", { name: "Compaction Agent" });
+  const { agent } = await createdAgent.json();
+
+  for (const index of [1, 2, 3]) {
+    const created = await jsonRequest(`/api/agents/${agent.id}/memories`, {
+      kind: "task",
+      content: `User asked: Remember compaction item ${index}.\nAgent answered: Stored item ${index}.`,
+      importance: 3,
+    });
+    expect(created.status).toBe(200);
+  }
+
+  const compacted = await jsonRequest(`/api/agents/${agent.id}/memories/compact`, { maxSource: 3 });
+  expect(compacted.status).toBe(200);
+  const compactedJson = await compacted.json();
+  expect(compactedJson.archived).toBe(3);
+  expect(compactedJson.memory.kind).toBe("summary");
+  expect(compactedJson.memory.source).toBe("compaction");
+  expect(compactedJson.memory.sourceIds.length).toBe(3);
+
+  const active = await route(new Request(`http://localhost/api/agents/${agent.id}/memories`));
+  const activeJson = await active.json();
+  expect(activeJson.memories.some((item: { kind: string }) => item.kind === "summary")).toBe(true);
+  expect(activeJson.memories.some((item: { kind: string }) => item.kind === "task")).toBe(false);
+
+  const archived = await route(new Request(`http://localhost/api/agents/${agent.id}/memories?includeArchived=1`));
+  const archivedJson = await archived.json();
+  expect(archivedJson.memories.filter((item: { archivedAt?: string | null }) => item.archivedAt).length).toBe(3);
 });
 
 test("file path indexing adds searchable local documents", async () => {

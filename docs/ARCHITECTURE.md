@@ -74,11 +74,14 @@ Each agent has:
 - identity and model preset
 - system prompt
 - durable memory entries
+- memory summaries, token counts, source metadata, and source ids
 - run history
 - local/web search context per run
 - browser session metadata
 
-The first agent implementation is intentionally conservative. It stores task summaries, lets users add/edit/delete durable memories, and retrieves relevant memories with scored token retrieval. Later Hermes integration should wrap the same persistence tables instead of replacing them.
+The memory table keeps active and archived memories. Manual memories use `source=manual`; task memories created after an agent run use `source=agent_run` with the run id; compaction summaries use `source=compaction` with source memory ids retained. Compaction archives source task memories rather than deleting them, so the UI can stay simple while provenance remains inspectable.
+
+The first agent implementation is intentionally conservative. It stores task summaries, lets users add/edit/delete durable memories, retrieves relevant memories with scored token retrieval, and compacts old task memories into summary memories. Later Hermes integration should wrap the same persistence tables instead of replacing them.
 
 ## Local Search
 

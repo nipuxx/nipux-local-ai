@@ -55,10 +55,17 @@ export interface Agent {
 export interface AgentMemory {
   id: string;
   agentId: string;
-  kind: "profile" | "task" | "procedure" | "fact";
+  kind: "profile" | "task" | "procedure" | "fact" | "summary";
   content: string;
   importance: number;
+  source: "manual" | "agent_run" | "compaction" | "import";
+  sourceId?: string | null;
+  sourceIds: string[];
+  summary: string;
+  tokenCount: number;
   createdAt: string;
+  updatedAt: string;
+  archivedAt?: string | null;
 }
 
 export interface SearchResult {

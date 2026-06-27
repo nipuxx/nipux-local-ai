@@ -18,7 +18,7 @@ The first runnable build is intentionally LLM-only. Image/video/audio are capabi
   - Balanced: `google/gemma-4-12B-it-qat-q4_0-gguf:Q4_0`
   - Smart: `google/gemma-4-26B-A4B-it-qat-q4_0-gguf:Q4_0`
 - Local SQLite persistence
-- Agent memory CRUD, scored retrieval, and run history
+- Agent memory CRUD, scored retrieval, summaries, provenance, compaction, and run history
 - Hermes detection/config adapter with internal-memory-agent fallback
 - Agent browser sessions with Playwright-backed open, navigate, screenshot, click, type, key, and close APIs
 - Browser action logs and approval gates for agent-originated risky actions

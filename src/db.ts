@@ -74,7 +74,14 @@ export function migrate() {
       kind TEXT NOT NULL,
       content TEXT NOT NULL,
       importance INTEGER NOT NULL DEFAULT 3,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      source TEXT NOT NULL DEFAULT 'manual',
+      source_id TEXT,
+      source_ids_json TEXT NOT NULL DEFAULT '[]',
+      summary TEXT NOT NULL DEFAULT '',
+      token_count INTEGER NOT NULL DEFAULT 0,
+      archived_at TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS agent_runs (
@@ -143,11 +150,29 @@ export function migrate() {
     );
   `);
 
+  ensureColumn("agent_memories", "source", "TEXT NOT NULL DEFAULT 'manual'");
+  ensureColumn("agent_memories", "source_id", "TEXT");
+  ensureColumn("agent_memories", "source_ids_json", "TEXT NOT NULL DEFAULT '[]'");
+  ensureColumn("agent_memories", "summary", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn("agent_memories", "token_count", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("agent_memories", "archived_at", "TEXT");
+  ensureColumn("agent_memories", "updated_at", "TEXT NOT NULL DEFAULT ''");
+  db.exec("UPDATE agent_memories SET summary = substr(content, 1, 180) WHERE summary = '';");
+  db.exec("UPDATE agent_memories SET token_count = CAST((length(content) + 3) / 4 AS INTEGER) WHERE token_count = 0;");
+  db.exec("UPDATE agent_memories SET updated_at = created_at WHERE updated_at = '';");
+
   try {
     db.exec("CREATE VIRTUAL TABLE IF NOT EXISTS local_documents_fts USING fts5(title, path, body);");
     db.exec("CREATE VIRTUAL TABLE IF NOT EXISTS agent_memories_fts USING fts5(agent_id, kind, content);");
   } catch {
     ftsAvailable = false;
+  }
+}
+
+function ensureColumn(table: string, column: string, definition: string) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (!columns.some((item) => item.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`);
   }
 }
 
@@ -238,10 +263,24 @@ export function searchLocalDocuments(query: string, limit = 8): SearchResult[] {
   return rows.map((row) => ({ title: row.title, path: row.path, snippet: row.snippet ?? "", source: "local" }));
 }
 
-export function upsertAgentMemory(memory: Omit<AgentMemory, "createdAt">) {
+export function upsertAgentMemory(memory: Omit<AgentMemory, "createdAt" | "updatedAt">) {
   db.prepare(
-    "INSERT INTO agent_memories (id, agent_id, kind, content, importance) VALUES (?, ?, ?, ?, ?)",
-  ).run(memory.id, memory.agentId, memory.kind, memory.content, memory.importance);
+    `INSERT INTO agent_memories (
+      id, agent_id, kind, content, importance, source, source_id, source_ids_json, summary, token_count, archived_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+  ).run(
+    memory.id,
+    memory.agentId,
+    memory.kind,
+    memory.content,
+    memory.importance,
+    memory.source,
+    memory.sourceId ?? null,
+    JSON.stringify(memory.sourceIds),
+    memory.summary,
+    memory.tokenCount,
+    memory.archivedAt ?? null,
+  );
   if (ftsAvailable) {
     db.prepare("INSERT INTO agent_memories_fts (agent_id, kind, content) VALUES (?, ?, ?)").run(
       memory.agentId,

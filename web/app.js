@@ -359,14 +359,19 @@ async function loadMemories(query = "") {
           <div>
             <div class="row">
               <select class="memory-kind">
-                ${["fact", "profile", "procedure", "task"]
+                ${["fact", "profile", "procedure", "task", "summary"]
                   .map((kind) => `<option value="${kind}" ${kind === memory.kind ? "selected" : ""}>${kind}</option>`)
                   .join("")}
               </select>
               <input class="memory-importance" type="number" min="1" max="5" value="${h(memory.importance)}" />
             </div>
+            <input class="memory-summary" value="${h(memory.summary || "")}" placeholder="Memory summary" />
             <textarea class="memory-edit-content" rows="3">${h(memory.content)}</textarea>
-            <div class="meta">${h(memory.createdAt)}</div>
+            <div class="meta">
+              ${h(memory.source || "manual")}${memory.sourceId ? ` · ${h(memory.sourceId)}` : ""}
+              · ${h(memory.tokenCount || 0)} tokens
+              · ${memory.archivedAt ? `archived ${h(memory.archivedAt)}` : h(memory.createdAt)}
+            </div>
             <button class="memory-save" data-id="${h(memory.id)}">Save</button>
             <button class="memory-delete" data-id="${h(memory.id)}">Delete</button>
           </div>`,
@@ -604,6 +609,7 @@ document.addEventListener("click", async (event) => {
       body: JSON.stringify({
         kind: card.querySelector(".memory-kind").value,
         importance: Number(card.querySelector(".memory-importance").value),
+        summary: card.querySelector(".memory-summary").value,
         content: card.querySelector(".memory-edit-content").value,
       }),
     });
@@ -675,6 +681,14 @@ $("#chatForm").addEventListener("submit", sendChat);
 $("#agentForm").addEventListener("submit", runAgentForm);
 $("#memoryForm").addEventListener("submit", saveMemory);
 $("#memorySearch").addEventListener("click", () => loadMemories($("#memoryQuery").value.trim()));
+$("#memoryCompact").addEventListener("click", async () => {
+  if (!state.activeAgentId) return;
+  await api(`/api/agents/${state.activeAgentId}/memories/compact`, {
+    method: "POST",
+    body: JSON.stringify({ maxSource: 30 }),
+  });
+  await loadMemories($("#memoryQuery").value.trim());
+});
 $("#searchForm").addEventListener("submit", runSearch);
 $("#documentForm").addEventListener("submit", indexDocument);
 $("#indexPathButton").addEventListener("click", async () => {
