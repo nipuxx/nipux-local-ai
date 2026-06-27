@@ -102,6 +102,10 @@ Returns the everyday setup summary used by the Setup page and `bun run ready`. I
 }
 ```
 
+### `GET /api/diagnostics`
+
+Returns a read-only local diagnostics report for the Usage page. The report includes hardware, setup preflight, readiness, runtime status, local supervisor dry-run plan, launch commands, media runtime plan, model states, recent usage, storage totals, and redacted auth state. API key values are never returned.
+
 ### `GET /api/setup/actions`
 
 Returns structured setup actions used by the Setup page and `bun run setup:actions`. Each action has a status, kind, description, related capability tags, and copyable commands.

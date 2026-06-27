@@ -22,6 +22,7 @@ const state = {
   setupActions: null,
   launchProfile: null,
   localSupervisor: null,
+  diagnostics: null,
 };
 
 const IMPORT_MAX_FILES = 80;
@@ -419,6 +420,13 @@ function supervisorCommand(process) {
   return [...env, ...command].join(" ");
 }
 
+function formatBytes(bytes = 0) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${Math.round(bytes / 1024 / 1024)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
+}
+
 async function loadSetupActions() {
   const data = await api("/api/setup/actions");
   state.setupActions = data;
@@ -523,6 +531,23 @@ async function loadUsage() {
         </div>`,
     )
     .join("");
+}
+
+async function loadDiagnostics() {
+  const data = await api("/api/diagnostics");
+  state.diagnostics = data;
+  const storageBytes = Object.values(data.storage || {}).reduce((total, item) => total + (item.bytes || 0), 0);
+  $("#diagnosticsSummary").innerHTML = [
+    ["Generated", data.generatedAt],
+    ["Readiness", data.readiness?.usable ? "usable" : "needs setup"],
+    ["Runtime", data.runtime?.running ? `running ${data.runtime.pid}` : "stopped"],
+    ["Supervisor", `${data.supervisor?.ready?.length || 0} start · ${data.supervisor?.skipped?.length || 0} skipped`],
+    ["Storage", formatBytes(storageBytes)],
+    ["Auth", data.app?.auth?.configured ? `${data.app.auth.keyCount} key(s)` : "local private mode"],
+  ]
+    .map(([label, value]) => `<div><span>${h(label)}</span><strong>${h(value)}</strong></div>`)
+    .join("");
+  $("#diagnosticsOutput").textContent = JSON.stringify(data, null, 2);
 }
 
 function renderMediaResult(target, payload) {
@@ -1381,7 +1406,24 @@ $("#applyMediaDefaults").addEventListener("click", async () => {
   applySettingsToUi();
   await Promise.all([loadMedia(), loadReadiness(), loadSetupActions(), loadLocalSupervisor()]);
 });
-$("#refreshUsage").addEventListener("click", loadUsage);
+$("#refreshUsage").addEventListener("click", async () => {
+  await Promise.all([loadUsage(), loadDiagnostics()]);
+});
+$("#copyDiagnostics").addEventListener("click", async () => {
+  const button = $("#copyDiagnostics");
+  const original = button.textContent;
+  try {
+    if (!state.diagnostics) await loadDiagnostics();
+    if (!navigator.clipboard?.writeText) throw new Error("Clipboard is not available.");
+    await navigator.clipboard.writeText(JSON.stringify(state.diagnostics, null, 2));
+    button.textContent = "Copied";
+  } catch {
+    button.textContent = "Copy failed";
+  }
+  setTimeout(() => {
+    button.textContent = original;
+  }, 1200);
+});
 $("#refreshReadiness").addEventListener("click", async () => {
   await Promise.all([loadReadiness(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor()]);
 });
@@ -1444,7 +1486,7 @@ $("#createBrowser").addEventListener("click", async () => {
 
 await loadStatus();
 await loadSettings();
-await Promise.all([loadModels(), loadRuntime(), loadReadiness(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor(), loadUsage(), loadAgents(), loadDocuments(), loadMedia()]);
+await Promise.all([loadModels(), loadRuntime(), loadReadiness(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor(), loadUsage(), loadDiagnostics(), loadAgents(), loadDocuments(), loadMedia()]);
 await loadChats();
 if (state.chats[0]) await openChat(state.chats[0].id);
 else await createNewChat();

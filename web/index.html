@@ -247,9 +247,17 @@
         <section id="usage" class="view">
           <header>
             <h1>Usage</h1>
-            <button id="refreshUsage">Refresh</button>
+            <div class="button-row">
+              <button id="copyDiagnostics">Copy Diagnostics</button>
+              <button id="refreshUsage">Refresh</button>
+            </div>
           </header>
           <div id="usageSummary" class="stats"></div>
+          <div class="panel diagnostics-panel">
+            <h2>Diagnostics</h2>
+            <div id="diagnosticsSummary" class="diagnostics-summary"></div>
+            <pre id="diagnosticsOutput" class="dev"></pre>
+          </div>
           <div id="usageTimeline" class="list"></div>
           <pre id="devStatus" class="dev dev-only"></pre>
         </section>

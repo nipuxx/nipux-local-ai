@@ -39,6 +39,7 @@ import { buildChatContext, type ChatCitation } from "./services/chatContext.ts";
 import { indexPath } from "./services/fileIndexer.ts";
 import { getHermesStatus } from "./services/hermes.ts";
 import { detectHardware } from "./services/hardware.ts";
+import { getDiagnosticsReport } from "./services/diagnostics.ts";
 import { getLaunchProfile, writeLaunchProfileFiles } from "./services/launchProfile.ts";
 import { getLocalSupervisorPlan } from "./services/localSupervisor.ts";
 import {
@@ -455,6 +456,7 @@ export async function route(req: Request): Promise<Response> {
     return json({ settings: updateAppSettings(body), env: getSettingsStatus().env });
   }
   if (url.pathname === "/api/readiness" && req.method === "GET") return json(await getReadinessReport());
+  if (url.pathname === "/api/diagnostics" && req.method === "GET") return json(await getDiagnosticsReport());
   if (url.pathname === "/api/setup/actions" && req.method === "GET") return json(await getSetupActions());
   if (url.pathname === "/api/launch/profile" && req.method === "GET") return json(await getLaunchProfile());
   if (url.pathname === "/api/launch/supervisor" && req.method === "GET") return json(getLocalSupervisorPlan());

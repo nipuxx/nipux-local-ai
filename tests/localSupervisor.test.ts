@@ -1,5 +1,7 @@
 import { afterAll, expect, test } from "bun:test";
 
+process.env.NIPUX_FAKE_LLM = "1";
+
 const previous = {
   imageCommand: process.env.NIPUX_IMAGE_COMMAND,
   imageArgs: process.env.NIPUX_IMAGE_ARGS,

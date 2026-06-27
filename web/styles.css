@@ -677,6 +677,36 @@ h2 {
   margin-top: 4px;
 }
 
+.diagnostics-panel {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.diagnostics-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.diagnostics-summary > div {
+  border-top: 1px solid var(--line);
+  padding: 9px 0 0;
+  min-width: 0;
+}
+
+.diagnostics-summary span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.diagnostics-summary strong {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
 .browser-card {
   display: grid;
   gap: 10px;
@@ -753,6 +783,7 @@ h2 {
   .readiness-grid,
   .split,
   .stats,
+  .diagnostics-summary,
   .settings-grid,
   .runtime-status {
     grid-template-columns: 1fr;
