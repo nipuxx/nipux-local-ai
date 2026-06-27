@@ -12,6 +12,7 @@ const state = {
   runtime: null,
   permissions: [],
   browserActions: [],
+  settingsStatus: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -60,6 +61,42 @@ async function fetchWithAuth(path, options = {}) {
 
 function setStatus(text) {
   $("#statusText").textContent = text;
+}
+
+function currentSettings() {
+  return (
+    state.settingsStatus?.settings ||
+    state.status?.settings || {
+      searxngUrl: "",
+      browserHeadless: true,
+      devMode: false,
+      defaultModelPreset: "balanced",
+    }
+  );
+}
+
+function applySettingsToUi() {
+  const settings = currentSettings();
+  document.body.classList.toggle("dev-mode", Boolean(settings.devMode));
+  $("#settingsDefaultPreset").value = settings.defaultModelPreset || "balanced";
+  $("#settingsSearxngUrl").value = settings.searxngUrl || "";
+  $("#settingsBrowserHeadless").checked = settings.browserHeadless !== false;
+  $("#settingsDevMode").checked = Boolean(settings.devMode);
+  $("#settingsApiKey").value = localStorage.getItem("nipuxApiKey") || "";
+
+  const env = state.settingsStatus?.env || {
+    bindHost: state.status?.bindHost,
+    publicApi: state.status?.publicApi,
+    authRequired: state.status?.auth?.required,
+    authConfigured: state.status?.auth?.configured,
+  };
+  $("#settingsAuthStatus").innerHTML = `
+    <div>
+      <strong>${env.authRequired ? "API key required" : "Local private mode"}</strong>
+      <div class="meta">Bind: ${h(env.bindHost || "127.0.0.1")} · Public API: ${env.publicApi ? "on" : "off"}</div>
+      <div class="meta">Server key configured: ${env.authConfigured ? "yes" : "no"}</div>
+    </div>`;
+  $("#settingsStatus").textContent = JSON.stringify({ settings, env }, null, 2);
 }
 
 function addMessage(role, content = "") {
@@ -124,9 +161,37 @@ async function ensureActiveChat() {
 async function loadStatus() {
   state.status = await api("/api/status");
   const hw = state.status.hardware;
-  $("#presetSelect").value = hw.recommendedPreset || "balanced";
-  setStatus(state.status.fakeLlm ? "dev mode" : `${hw.accelerator} ${hw.totalRamGb}GB`);
+  const settings = currentSettings();
+  $("#presetSelect").value = settings.defaultModelPreset || hw.recommendedPreset || "balanced";
+  const label = state.status.fakeLlm ? "dev backend" : `${hw.accelerator} ${hw.totalRamGb}GB`;
+  setStatus(settings.devMode ? `${label} · dev` : label);
   $("#devStatus").textContent = JSON.stringify(state.status, null, 2);
+  if (!state.settingsStatus) state.settingsStatus = { settings: state.status.settings, env: null };
+  applySettingsToUi();
+}
+
+async function loadSettings() {
+  state.settingsStatus = await api("/api/settings");
+  $("#presetSelect").value = state.settingsStatus.settings.defaultModelPreset || $("#presetSelect").value;
+  applySettingsToUi();
+}
+
+async function saveSettings() {
+  const apiKey = $("#settingsApiKey").value.trim();
+  if (apiKey) localStorage.setItem("nipuxApiKey", apiKey);
+  const body = {
+    defaultModelPreset: $("#settingsDefaultPreset").value,
+    searxngUrl: $("#settingsSearxngUrl").value,
+    browserHeadless: $("#settingsBrowserHeadless").checked,
+    devMode: $("#settingsDevMode").checked,
+  };
+  state.settingsStatus = await api("/api/settings", {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+  if (state.status) state.status.settings = state.settingsStatus.settings;
+  $("#presetSelect").value = state.settingsStatus.settings.defaultModelPreset;
+  applySettingsToUi();
 }
 
 async function loadModels() {
@@ -663,6 +728,19 @@ $("#testRuntime").addEventListener("click", async () => {
   }
   await loadUsage();
 });
+$("#saveSettings").addEventListener("click", async () => {
+  $("#settingsStatus").textContent = "Saving...";
+  try {
+    await saveSettings();
+  } catch (error) {
+    $("#settingsStatus").textContent = error instanceof Error ? error.message : String(error);
+  }
+});
+$("#clearApiKey").addEventListener("click", () => {
+  localStorage.removeItem("nipuxApiKey");
+  $("#settingsApiKey").value = "";
+  applySettingsToUi();
+});
 $("#newChat").addEventListener("click", createNewChat);
 $("#createBrowser").addEventListener("click", async () => {
   await api("/api/browsers", { method: "POST", body: JSON.stringify({ label: "Agent Browser" }) });
@@ -670,6 +748,7 @@ $("#createBrowser").addEventListener("click", async () => {
 });
 
 await loadStatus();
+await loadSettings();
 await Promise.all([loadModels(), loadRuntime(), loadUsage(), loadAgents(), loadDocuments()]);
 await loadChats();
 if (state.chats[0]) await openChat(state.chats[0].id);

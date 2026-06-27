@@ -12,6 +12,7 @@ flowchart TD
   Search["Local FTS + SearXNG adapter"]
   Agents["Hermes-style agent layer"]
   Browsers["Browser session broker"]
+  Settings["Persisted app settings"]
 
   UI --> API
   API --> DB
@@ -19,6 +20,8 @@ flowchart TD
   API --> HF
   API --> Search
   API --> Agents
+  API --> Settings
+  Settings --> DB
   Agents --> DB
   Agents --> Search
   Agents --> LLM
@@ -49,8 +52,20 @@ flowchart TD
 - `src/services/fileIndexer.ts`: safe local file/folder indexing into SQLite FTS.
 - `src/services/browserBroker.ts`: Playwright browser sessions for agents and UI takeover.
 - `src/services/search.ts`: local FTS and SearXNG.
+- `src/services/settings.ts`: persisted runtime settings, env-derived boot defaults, and Settings status.
 - `src/services/hardware.ts`: OS/GPU/RAM detection.
 - `src/db.ts`: SQLite schema and persistence helpers.
+
+## Settings And Dev Mode
+
+The Settings page writes user-facing defaults to SQLite. Environment variables still seed first-run values, but saved settings are read at runtime for:
+
+- default Fast/Balanced/Smart mode
+- SearXNG URL
+- Playwright browser headless mode
+- dev-control visibility
+
+Dev mode hides advanced tools from the main experience until enabled. Runtime start/stop/test controls, Hugging Face model search/download, file-path indexing, raw status JSON, and browser action logs are dev-only surfaces. Permission approvals remain visible because they are part of the agent safety flow.
 
 ## Agent Memory
 
@@ -122,7 +137,7 @@ The broker currently supports:
 - type text into the focused page
 - press a key
 
-Default mode is headless with UI screenshots. Set `NIPUX_BROWSER_HEADLESS=0` when the user wants visible Chromium windows they can control directly outside the app.
+Default mode is headless with UI screenshots. Users can switch this in Settings, or set `NIPUX_BROWSER_HEADLESS=0` as the first-run boot default when they want visible Chromium windows they can control directly outside the app.
 
 Agent safety gates still need to be layered above these controls before autonomous browser actions are allowed for purchases, posts, credentials, downloads, uploads, or destructive local actions.
 

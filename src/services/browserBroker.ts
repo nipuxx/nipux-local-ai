@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { NIPUX_HOME } from "../config.ts";
 import { db } from "../db.ts";
 import { assertBrowserActionAllowed, type BrowserActionContext, recordBrowserAction } from "./browserAudit.ts";
+import { getAppSettings } from "./settings.ts";
 import { recordUsage } from "./usage.ts";
 
 export interface BrowserSessionRecord {
@@ -120,7 +121,7 @@ async function ensureRuntimeSession(id: string): Promise<RuntimeSession> {
   const session = getBrowserSession(id);
   const chromium = await loadChromium();
   const context = await chromium.launchPersistentContext(session.userDataDir, {
-    headless: process.env.NIPUX_BROWSER_HEADLESS !== "0",
+    headless: getAppSettings().browserHeadless,
     viewport: { width: 1280, height: 820 },
   });
   const page = context.pages()[0] ?? (await context.newPage());

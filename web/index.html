@@ -22,6 +22,7 @@
           <button class="nav" data-view="models">Models</button>
           <button class="nav" data-view="search">Search</button>
           <button class="nav" data-view="usage">Usage</button>
+          <button class="nav" data-view="settings">Settings</button>
         </nav>
         <div id="chatList" class="chat-list"></div>
         <div class="preset">
@@ -85,8 +86,8 @@
               <div id="browserList" class="list"></div>
               <h2>Approvals</h2>
               <div id="permissionList" class="list"></div>
-              <h2>Browser Actions</h2>
-              <div id="browserActionList" class="list"></div>
+              <h2 class="dev-only">Browser Actions</h2>
+              <div id="browserActionList" class="list dev-only"></div>
             </div>
           </div>
         </section>
@@ -96,7 +97,7 @@
             <h1>Models</h1>
             <button id="refreshModels">Refresh</button>
           </header>
-          <div class="panel runtime-panel">
+          <div class="panel runtime-panel dev-only">
             <h2>Runtime</h2>
             <div id="runtimeStatus" class="runtime-status"></div>
             <div class="row">
@@ -110,7 +111,7 @@
             <pre id="runtimeOutput" class="dev"></pre>
           </div>
           <div id="modelList" class="model-grid"></div>
-          <div class="panel">
+          <div class="panel dev-only">
             <h2>Hugging Face</h2>
             <div class="row">
               <input id="hfQuery" placeholder="Search GGUF models, e.g. gemma 12b q4" />
@@ -135,7 +136,7 @@
               <button type="submit">Index</button>
             </form>
           </div>
-          <div class="panel index-panel">
+          <div class="panel index-panel dev-only">
             <h2>File Index</h2>
             <div class="row">
               <input id="indexPath" placeholder="Folder or file path" />
@@ -154,7 +155,45 @@
           </header>
           <div id="usageSummary" class="stats"></div>
           <div id="usageTimeline" class="list"></div>
-          <pre id="devStatus" class="dev"></pre>
+          <pre id="devStatus" class="dev dev-only"></pre>
+        </section>
+
+        <section id="settings" class="view">
+          <header>
+            <h1>Settings</h1>
+            <button id="saveSettings">Save</button>
+          </header>
+          <div class="settings-grid">
+            <div class="panel settings-panel">
+              <h2>Defaults</h2>
+              <label for="settingsDefaultPreset">Default Mode</label>
+              <select id="settingsDefaultPreset">
+                <option value="fast">Fast</option>
+                <option value="balanced">Balanced</option>
+                <option value="smart">Smart</option>
+              </select>
+              <label for="settingsSearxngUrl">SearXNG URL</label>
+              <input id="settingsSearxngUrl" placeholder="http://127.0.0.1:8888" />
+              <label class="check-row">
+                <input id="settingsBrowserHeadless" type="checkbox" />
+                <span>Run browser sessions headless</span>
+              </label>
+              <label class="check-row">
+                <input id="settingsDevMode" type="checkbox" />
+                <span>Show dev controls</span>
+              </label>
+            </div>
+            <div class="panel settings-panel">
+              <h2>API</h2>
+              <label for="settingsApiKey">Client API Key</label>
+              <input id="settingsApiKey" type="password" placeholder="Stored in this browser only" />
+              <div class="button-row">
+                <button id="clearApiKey">Clear Key</button>
+              </div>
+              <div id="settingsAuthStatus" class="list"></div>
+              <pre id="settingsStatus" class="dev dev-only"></pre>
+            </div>
+          </div>
         </section>
       </main>
     </div>

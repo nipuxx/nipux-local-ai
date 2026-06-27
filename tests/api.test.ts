@@ -13,6 +13,47 @@ test("status route returns hardware and command metadata", async () => {
   const json = await res.json();
   expect(json.app).toBe("Nipux Local AI");
   expect(json.serveCommands.balanced).toContain("gemma-4-12B");
+  expect(json.settings.defaultModelPreset).toBe("balanced");
+});
+
+test("settings route persists app defaults", async () => {
+  const updated = await route(
+    new Request("http://localhost/api/settings", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        searxngUrl: "http://127.0.0.1:8888",
+        browserHeadless: false,
+        devMode: false,
+        defaultModelPreset: "smart",
+      }),
+    }),
+  );
+  expect(updated.status).toBe(200);
+  const updatedJson = await updated.json();
+  expect(updatedJson.settings.defaultModelPreset).toBe("smart");
+  expect(updatedJson.settings.browserHeadless).toBe(false);
+
+  const loaded = await route(new Request("http://localhost/api/settings"));
+  const loadedJson = await loaded.json();
+  expect(loadedJson.settings.searxngUrl).toBe("http://127.0.0.1:8888");
+
+  const status = await route(new Request("http://localhost/api/status"));
+  const statusJson = await status.json();
+  expect(statusJson.settings.defaultModelPreset).toBe("smart");
+
+  await route(
+    new Request("http://localhost/api/settings", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        searxngUrl: "",
+        browserHeadless: true,
+        devMode: true,
+        defaultModelPreset: "balanced",
+      }),
+    }),
+  );
 });
 
 test("OpenAI models route returns model list", async () => {

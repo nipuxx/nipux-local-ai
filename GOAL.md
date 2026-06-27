@@ -33,6 +33,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Local search over indexed files and notes.
 - SearXNG-backed web search.
 - Usage dashboard for requests, tokens, latency, errors, browser actions, and storage.
+- Persisted Settings for default mode, SearXNG, browser headless mode, client API key, and dev controls.
 - API key auth and explicit LAN/public exposure controls.
 - One-command setup on macOS, Windows, and Linux.
 
@@ -67,6 +68,8 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Manual document indexing, file/folder indexing, local search, and SearXNG adapter exist.
 - Playwright browser sessions can open, navigate, screenshot, click, type, press keys, and close.
 - Browser action logs and permission gates for agent-originated risky actions exist.
+- Persisted app settings exist for default mode, SearXNG URL, browser headless mode, and dev mode.
+- The UI has a Settings page and hides advanced controls unless dev mode is enabled.
 - One-command setup CLI and install scripts exist.
 - CI exists for macOS, Linux, and Windows.
 
@@ -77,7 +80,6 @@ The product should be usable by everyday people first. Advanced controls belong 
 3. Add model runtime start/stop/status management.
 4. Improve Hugging Face download/test/start flow.
 5. Add memory summarization/compaction and provenance.
-6. Add Settings and Dev mode surfaces.
-7. Improve install reliability on Windows/Linux/macOS.
-8. Add release packaging.
-9. Add media lanes only after the LLM-first product is solid.
+6. Improve install reliability on Windows/Linux/macOS.
+7. Add release packaging.
+8. Add media lanes only after the LLM-first product is solid.

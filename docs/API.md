@@ -56,7 +56,41 @@ Returns `501` in v0.1 because this build is LLM-only.
 
 ### `GET /api/status`
 
-Hardware profile, llama backend health, SearXNG status, Playwright availability, and generated serve commands.
+Hardware profile, llama backend health, persisted settings, SearXNG status, Playwright availability, and generated serve commands.
+
+### `GET /api/settings`
+
+Returns persisted app settings and non-secret environment status.
+
+```json
+{
+  "settings": {
+    "searxngUrl": "http://127.0.0.1:8888",
+    "browserHeadless": true,
+    "devMode": false,
+    "defaultModelPreset": "balanced"
+  },
+  "env": {
+    "bindHost": "127.0.0.1",
+    "publicApi": false,
+    "authRequired": false,
+    "authConfigured": false
+  }
+}
+```
+
+### `PATCH /api/settings`
+
+```json
+{
+  "searxngUrl": "http://127.0.0.1:8888",
+  "browserHeadless": true,
+  "devMode": false,
+  "defaultModelPreset": "balanced"
+}
+```
+
+Environment variables provide boot defaults; saved settings take precedence at runtime.
 
 ### `GET /api/chats`
 
@@ -323,7 +357,7 @@ Searches indexed local text.
 
 ### `POST /api/search/web`
 
-Searches SearXNG when `NIPUX_SEARXNG_URL` is configured.
+Searches SearXNG when a URL is saved in Settings or provided by `NIPUX_SEARXNG_URL`.
 
 ### `GET /api/usage/summary`
 

@@ -1,5 +1,5 @@
-import { SEARXNG_URL } from "../config.ts";
 import { indexDocument, searchLocalDocuments } from "../db.ts";
+import { getAppSettings } from "./settings.ts";
 import { recordUsage } from "./usage.ts";
 import type { SearchResult } from "../types.ts";
 
@@ -15,17 +15,18 @@ export function localSearch(query: string, limit = 8): SearchResult[] {
 }
 
 export async function webSearch(query: string, limit = 8): Promise<SearchResult[]> {
-  if (!SEARXNG_URL) {
+  const searxngUrl = getAppSettings().searxngUrl.trim();
+  if (!searxngUrl) {
     return [
       {
         title: "SearXNG is not configured",
-        snippet: "Set NIPUX_SEARXNG_URL to a local SearXNG instance, for example http://127.0.0.1:8888.",
+        snippet: "Set a local SearXNG URL in Settings, for example http://127.0.0.1:8888.",
         source: "web",
       },
     ];
   }
   const started = Date.now();
-  const url = new URL("/search", SEARXNG_URL);
+  const url = new URL("/search", searxngUrl);
   url.searchParams.set("q", query);
   url.searchParams.set("format", "json");
   const res = await fetch(url);

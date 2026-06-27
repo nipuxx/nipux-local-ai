@@ -1,6 +1,6 @@
 # Nipux Local AI
 
-A minimal local-first AI workspace: ChatGPT-like chat, local agents with persistent memory, local search, SearXNG web search, Hugging Face model discovery/downloads, usage stats, and an OpenAI-compatible API.
+A minimal local-first AI workspace: ChatGPT-like chat, local agents with persistent memory, local search, SearXNG web search, Hugging Face model discovery/downloads, persisted settings, usage stats, and an OpenAI-compatible API.
 
 The first runnable build is intentionally LLM-only. Image/video/audio are capability lanes for later, but the current app does not require Docker or external model APIs.
 
@@ -27,6 +27,7 @@ The first runnable build is intentionally LLM-only. Image/video/audio are capabi
 - Hugging Face GGUF search, file listing, and direct download hooks
 - llama.cpp runtime status, start, stop, and prompt test controls
 - Usage dashboard
+- Settings page for default mode, SearXNG URL, browser headless mode, client API key, and dev controls
 - Hardware/runtime detection for CPU, Apple Metal, NVIDIA CUDA, AMD ROCm/Vulkan, Intel Vulkan/DirectML
 - Dev fake LLM mode so the UI/API can be tested without a model server
 
@@ -79,7 +80,7 @@ Install the local Chromium runtime:
 bun run browsers:install
 ```
 
-The Agents view can create browser sessions, open them, navigate, capture screenshots, click inside screenshots, type text, press Enter, and close sessions. By default browsers run headless through the UI preview. To open visible Chromium windows:
+The Agents view can create browser sessions, open them, navigate, capture screenshots, click inside screenshots, type text, press Enter, and close sessions. By default browsers run headless through the UI preview. Use Settings to switch browser sessions to visible Chromium windows, or set the boot default with:
 
 ```bash
 NIPUX_BROWSER_HEADLESS=0 bun run start
@@ -111,9 +112,10 @@ Those scripts install Bun if needed, clone the repo, install dependencies, and r
 | `NIPUX_API_KEY` / `NIPUX_API_KEYS` | empty | Required for protected routes when public mode is enabled or keys are configured. |
 | `NIPUX_HOME` | `~/.nipux-local-ai` | Data, models, runtimes |
 | `NIPUX_LLAMA_BASE_URL` | `http://127.0.0.1:8080/v1` | OpenAI-compatible local LLM backend |
-| `NIPUX_SEARXNG_URL` | empty | Local SearXNG URL, such as `http://127.0.0.1:8888` |
+| `NIPUX_SEARXNG_URL` | empty | Boot default for the Settings page SearXNG URL, such as `http://127.0.0.1:8888` |
 | `NIPUX_FAKE_LLM` | `0` | Enable streaming dev backend |
-| `NIPUX_BROWSER_HEADLESS` | `1` | Set to `0` for visible Playwright browser windows |
+| `NIPUX_DEV_UI` | `0` | Boot default for showing dev controls |
+| `NIPUX_BROWSER_HEADLESS` | `1` | Boot default for headless Playwright browser windows. Set to `0` for visible windows. |
 | `HF_TOKEN` | empty | Hugging Face token for gated models |
 
 When API keys are configured, clients can authenticate with either:

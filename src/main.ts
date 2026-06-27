@@ -10,7 +10,6 @@ import {
   LLAMA_BASE_URL,
   PORT,
   PUBLIC_API,
-  SEARXNG_URL,
   WEB_DIR,
 } from "./config.ts";
 import { chatCompletion, estimateMessageTokens, testLlamaBackend } from "./providers/llamaCpp.ts";
@@ -55,11 +54,12 @@ import {
 } from "./services/modelRegistry.ts";
 import { getRuntimeStatus, startModelRuntime, stopModelRuntime, testModelPrompt } from "./services/modelRuntime.ts";
 import { addLocalDocument, localSearch, webSearch } from "./services/search.ts";
+import { getAppSettings, getSettingsStatus, updateAppSettings, type AppSettings } from "./services/settings.ts";
 import { getUsageSummary, getUsageTimeline, recordUsage } from "./services/usage.ts";
 
 const corsHeaders = {
   "access-control-allow-origin": "*",
-  "access-control-allow-methods": "GET,POST,OPTIONS",
+  "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
   "access-control-allow-headers": "authorization,content-type,x-api-key",
 };
 
@@ -179,6 +179,7 @@ export async function route(req: Request): Promise<Response> {
   if (!auth.ok) return json({ error: auth.message }, auth.status ?? 401);
 
   if (url.pathname === "/api/status") {
+    const settings = getAppSettings();
     const [hardware, llama, playwright, hermes] = await Promise.all([
       detectHardware(),
       testLlamaBackend(),
@@ -195,8 +196,9 @@ export async function route(req: Request): Promise<Response> {
         required: API_KEYS.length > 0 || PUBLIC_API,
         configured: API_KEYS.length > 0,
       },
+      settings,
       llamaBaseUrl: LLAMA_BASE_URL,
-      searxngConfigured: Boolean(SEARXNG_URL),
+      searxngConfigured: Boolean(settings.searxngUrl),
       hardware,
       llama,
       hermes,
@@ -207,6 +209,12 @@ export async function route(req: Request): Promise<Response> {
         smart: llamaServeCommand("smart"),
       },
     });
+  }
+
+  if (url.pathname === "/api/settings" && req.method === "GET") return json(getSettingsStatus());
+  if (url.pathname === "/api/settings" && req.method === "PATCH") {
+    const body = await readJson<Partial<AppSettings>>(req);
+    return json({ settings: updateAppSettings(body), env: getSettingsStatus().env });
   }
 
   if (url.pathname === "/api/models" && req.method === "GET") return json({ models: listModels() });
@@ -231,7 +239,7 @@ export async function route(req: Request): Promise<Response> {
   if (url.pathname === "/api/runtime/start" && req.method === "POST") {
     const body = await readJson<{ modelPreset?: string }>(req);
     try {
-      return json(await startModelRuntime(body.modelPreset ?? "balanced"));
+      return json(await startModelRuntime(body.modelPreset ?? getAppSettings().defaultModelPreset));
     } catch (error) {
       return json({ error: error instanceof Error ? error.message : String(error) }, 503);
     }
@@ -241,7 +249,7 @@ export async function route(req: Request): Promise<Response> {
     const body = await readJson<{ prompt?: string; modelPreset?: string }>(req);
     if (!body.prompt) return json({ error: "prompt is required" }, 400);
     try {
-      return json(await testModelPrompt(body.prompt, body.modelPreset ?? "balanced"));
+      return json(await testModelPrompt(body.prompt, body.modelPreset ?? getAppSettings().defaultModelPreset));
     } catch (error) {
       return json({ error: error instanceof Error ? error.message : String(error) }, 503);
     }
@@ -250,7 +258,7 @@ export async function route(req: Request): Promise<Response> {
   if (url.pathname === "/api/chats" && req.method === "GET") return json({ chats: listChats() });
   if (url.pathname === "/api/chats" && req.method === "POST") {
     const body = await readJson<{ title?: string; modelPreset?: string }>(req);
-    return json({ chat: createChat(body.modelPreset ?? "balanced", body.title ?? "New chat") });
+    return json({ chat: createChat(body.modelPreset ?? getAppSettings().defaultModelPreset, body.title ?? "New chat") });
   }
   const chatMessagesMatch = url.pathname.match(/^\/api\/chats\/([^/]+)\/messages$/);
   if (chatMessagesMatch) {
@@ -333,7 +341,7 @@ export async function route(req: Request): Promise<Response> {
   }
   if (url.pathname === "/api/agents" && req.method === "POST") {
     const body = await readJson<{ name?: string; modelPreset?: string }>(req);
-    return json({ agent: createAgent(body.name ?? "Agent", body.modelPreset ?? "balanced") });
+    return json({ agent: createAgent(body.name ?? "Agent", body.modelPreset ?? getAppSettings().defaultModelPreset) });
   }
   if (url.pathname === "/api/agents/run" && req.method === "POST") {
     const body = await readJson<{ input?: string; agentId?: string; modelPreset?: string }>(req);
