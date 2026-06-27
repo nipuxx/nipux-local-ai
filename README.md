@@ -135,11 +135,12 @@ Configured speech worker URLs still take priority, so Kokoro/Piper-style workers
 Voice input in chat records microphone audio in the browser and sends it to `/v1/audio/transcriptions`. That route accepts OpenAI-style multipart uploads and translates them to the configured loopback transcription worker. The repo includes a whisper.cpp-compatible local worker wrapper:
 
 ```bash
-NIPUX_WHISPER_MODEL=/path/to/ggml-base.en.bin bun run worker:transcription
+bun run transcription:install base.en
+NIPUX_WHISPER_MODEL="$HOME/.nipux-local-ai/models/whisper.cpp/ggml-base.en.bin" bun run worker:transcription
 bun run media:defaults
 ```
 
-`NIPUX_WHISPER_COMMAND` defaults to `whisper-cli`. If no local transcription worker is configured or reachable, the UI shows the setup error.
+`bun run transcription:install` downloads the default local Whisper model and prints the exact start command for this machine. `NIPUX_WHISPER_COMMAND` defaults to `whisper-cli`, so the wrapper still expects a whisper.cpp-compatible binary on `PATH`. If no local transcription worker is configured or reachable, the UI shows the setup error.
 
 Inspect the hardware-aware local media runtime plan:
 

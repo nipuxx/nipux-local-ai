@@ -58,14 +58,17 @@ function statusForRuntime(runtime: MediaRuntimePlan): SetupActionStatus {
 
 function mediaAction(runtime: MediaRuntimePlan): SetupAction {
   const status = statusForRuntime(runtime);
+  const installCommand = runtime.commands.find((item) => item.label.toLowerCase().includes("install"))?.command;
+  const startCommand = runtime.commands.find((item) => item.label.toLowerCase().includes("start"))?.command;
   const commands =
     status === "ready"
       ? []
       : [
+          ...(installCommand ? [command("Install model", installCommand)] : []),
           command("Persist default URL", runtime.recommended ? "bun run media:defaults" : "bun run media:defaults --include-optional"),
           command(
             runtime.kind === "transcription" ? "Start bundled worker" : "Environment",
-            runtime.commands[0]?.command || `${runtime.envVar}=${runtime.defaultUrl} bun run start`,
+            startCommand || runtime.commands[0]?.command || `${runtime.envVar}=${runtime.defaultUrl} bun run start`,
           ),
           command("Worker contract", `POST ${runtime.defaultUrl}${runtime.endpoint}`, false),
           command("Refresh planner", "bun run media:runtimes"),

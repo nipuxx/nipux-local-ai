@@ -10,6 +10,7 @@ import { applyRecommendedMediaRuntimeDefaults, formatMediaRuntimePlan, getMediaR
 import { formatReadinessReport, getReadinessReport } from "./services/readiness.ts";
 import { formatSetupActions, getSetupActions } from "./services/setupActions.ts";
 import { formatLaunchProfile, getLaunchProfile, writeLaunchProfileFiles } from "./services/launchProfile.ts";
+import { installWhisperModel, WHISPER_MODEL_PRESETS, whisperInstallCommand, whisperStartCommand } from "./services/transcriptionSetup.ts";
 
 const command = process.argv[2] ?? "help";
 
@@ -26,6 +27,8 @@ Commands:
   bun run setup:actions           Show copyable setup actions
   bun run media:runtimes          Show local media runtime setup plan
   bun run media:defaults          Persist recommended local media worker URLs
+  bun run transcription:install   Download the default local Whisper transcription model
+  bun run src/cli.ts transcription-presets
   bun run worker:transcription    Start bundled whisper.cpp-compatible transcription worker
   bun run launch:profile          Show this machine's launch profile
   bun run launch:write            Write launch profile, env, and launcher scripts
@@ -132,7 +135,8 @@ async function setup() {
   console.log(`  Production:      ${llamaServeCommand(hardware.recommendedPreset)}`);
   console.log(`                   bun run start`);
   console.log(`  Setup actions:   bun run setup:actions`);
-  console.log(`  Voice input:     NIPUX_WHISPER_MODEL=/path/to/ggml-base.en.bin bun run worker:transcription`);
+  console.log(`  Voice model:     ${whisperInstallCommand()}`);
+  console.log(`  Voice input:     ${whisperStartCommand()}`);
   console.log(`  Health check:    bun run doctor`);
   console.log(`  Open:            http://127.0.0.1:${PORT}`);
 }
@@ -227,6 +231,29 @@ async function main() {
     for (const runtime of result.plan.runtimes) {
       console.log(`  [${runtime.status}] ${runtime.label}: ${runtime.health.detail}`);
     }
+    return;
+  }
+
+  if (command === "transcription-install" || command === "transcription:install") {
+    const presetId = process.argv[3] && !process.argv[3].startsWith("--") ? process.argv[3] : undefined;
+    const result = await installWhisperModel(presetId);
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+    console.log(`\nNipux Local AI transcription model`);
+    console.log(`  Model:      ${result.preset.label} (${result.preset.filename})`);
+    console.log(`  Path:       ${result.targetPath}`);
+    console.log(`  Size:       ${(result.sizeBytes / 1024 / 1024).toFixed(1)} MB`);
+    console.log(`  Status:     ${result.downloaded ? "downloaded" : "already installed"}`);
+    console.log(`\nNext steps:`);
+    console.log(`  Start:      ${result.startCommand}`);
+    console.log(`  Configure:  ${result.defaultsCommand}`);
+    return;
+  }
+
+  if (command === "transcription-presets") {
+    console.log(JSON.stringify({ presets: WHISPER_MODEL_PRESETS }, null, 2));
     return;
   }
 

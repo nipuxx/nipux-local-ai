@@ -2,6 +2,7 @@ import type { HardwareProfile } from "../types.ts";
 import { detectHardware } from "./hardware.ts";
 import { getMediaCapabilities, type MediaKind } from "./media.ts";
 import { getAppSettings, updateAppSettings, type AppSettings } from "./settings.ts";
+import { whisperInstallCommand, whisperStartCommand } from "./transcriptionSetup.ts";
 
 type RuntimeStatus = "ready" | "unconfigured" | "invalid" | "offline";
 type MediaSettingKey = "imageWorkerUrl" | "speechWorkerUrl" | "transcriptionWorkerUrl" | "videoWorkerUrl";
@@ -161,9 +162,9 @@ function recommended(kind: MediaKind, hardware: HardwareProfile) {
 function commandsFor(kind: MediaKind, config: (typeof MEDIA_RUNTIME_CONFIG)[MediaKind]): MediaRuntimeCommand[] {
   const url = defaultUrl(config.defaultPort);
   const startCommand = kind === "transcription"
-    ? "NIPUX_WHISPER_MODEL=/path/to/ggml-base.en.bin bun run worker:transcription"
+    ? whisperStartCommand()
     : `${config.envVar}=${url} bun run start`;
-  return [
+  const commands: MediaRuntimeCommand[] = [
     {
       label: kind === "transcription" ? "Start bundled worker" : "macOS/Linux environment",
       command: startCommand,
@@ -181,6 +182,14 @@ function commandsFor(kind: MediaKind, config: (typeof MEDIA_RUNTIME_CONFIG)[Medi
       command: "bun run media:runtimes",
     },
   ];
+  if (kind === "transcription") {
+    commands.splice(0, 0, { label: "Install local model", command: whisperInstallCommand() });
+  }
+  return commands;
+}
+
+function startCommandFor(runtime: MediaRuntimePlan) {
+  return runtime.commands.find((command) => command.label.toLowerCase().includes("start"))?.command ?? runtime.commands[0]?.command;
 }
 
 export async function getMediaRuntimePlan(): Promise<MediaRuntimePlannerResult> {
@@ -226,7 +235,7 @@ export async function getMediaRuntimePlan(): Promise<MediaRuntimePlannerResult> 
     if (runtime.source === "builtin") return [];
     if (runtime.status === "unconfigured" && runtime.recommended) {
       if (runtime.kind === "transcription") {
-        return [`Run ${runtime.commands[0]?.command}, then run bun run media:defaults.`];
+        return [`Run ${whisperInstallCommand()}, then run ${startCommandFor(runtime)}, then run bun run media:defaults.`];
       }
       return [`Start ${runtime.workerLabel} on ${runtime.defaultUrl}, then set ${runtime.envVar}.`];
     }

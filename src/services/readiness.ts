@@ -68,9 +68,12 @@ function mediaDetail(runtime: { status: string; workerLabel: string; workerUrl: 
 
 function mediaFix(runtime: { status: string; setup: string; commands?: Array<{ command: string }> } | undefined) {
   if (!runtime || runtime.status === "ready") return undefined;
-  const startCommand = runtime.commands?.[0]?.command;
+  const startCommand = runtime.commands?.find((item) => item.command.includes("worker:transcription"))?.command;
+  const installCommand = runtime.commands?.find((item) => item.command.includes("transcription:install"))?.command;
   if (startCommand?.includes("worker:transcription")) {
-    return `Run ${startCommand}, then run bun run media:defaults.`;
+    return installCommand
+      ? `Run ${installCommand}, then run ${startCommand}, then run bun run media:defaults.`
+      : `Run ${startCommand}, then run bun run media:defaults.`;
   }
   return runtime.setup;
 }

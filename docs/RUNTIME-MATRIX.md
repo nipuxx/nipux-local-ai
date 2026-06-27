@@ -82,7 +82,7 @@ NIPUX_TRANSCRIPTION_WORKER_URL=http://127.0.0.1:8083
 NIPUX_VIDEO_WORKER_URL=http://127.0.0.1:8084
 ```
 
-The current release does not bundle media models. It records media jobs and gives setup hints until local workers are configured. Remote media worker URLs are blocked. Transcription includes a bundled whisper.cpp-compatible worker wrapper, but still requires a local `whisper-cli` command and model file.
+The current release does not bundle image or video models. It records media jobs and gives setup hints until local workers are configured. Remote media worker URLs are blocked. Transcription includes a bundled whisper.cpp-compatible worker wrapper and a Whisper model installer, but still requires a local `whisper-cli` command.
 
 Use the media runtime planner to see the current worker contracts and hardware fit:
 
@@ -106,7 +106,8 @@ Default worker lanes:
 Start the bundled transcription worker:
 
 ```bash
-NIPUX_WHISPER_MODEL=/path/to/ggml-base.en.bin bun run worker:transcription
+bun run transcription:install base.en
+NIPUX_WHISPER_MODEL="$HOME/.nipux-local-ai/models/whisper.cpp/ggml-base.en.bin" bun run worker:transcription
 ```
 
 Speech also has a built-in local fallback when the OS provides a supported speech command:
