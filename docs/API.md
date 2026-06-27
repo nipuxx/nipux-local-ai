@@ -60,6 +60,17 @@ Proxies to a configured local OpenAI-compatible image worker. Returns `501` with
 }
 ```
 
+### `POST /v1/audio/speech`
+
+Returns local audio bytes. A configured loopback speech worker is used first. If no speech worker is configured, the app uses built-in local system speech when available.
+
+```bash
+curl http://127.0.0.1:3434/v1/audio/speech \
+  -H 'content-type: application/json' \
+  -o speech.wav \
+  -d '{"input":"Local speech works.","voice":"alloy"}'
+```
+
 ## Native Routes
 
 ### `GET /api/status`
@@ -157,6 +168,8 @@ Lists recent media jobs and failed setup attempts.
   "voice": "alloy"
 }
 ```
+
+When no speech worker is configured, this route returns a JSON payload containing base64 audio from the built-in local speech engine if one is available.
 
 ### `POST /api/media/audio/transcriptions`
 

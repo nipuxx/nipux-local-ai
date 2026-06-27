@@ -58,6 +58,7 @@ flowchart TD
 - `src/services/settings.ts`: persisted runtime settings, env-derived boot defaults, and Settings status.
 - `src/services/media.ts`: local-only image/audio/video capability checks, worker calls, and media job records.
 - `src/services/mediaRuntimes.ts`: hardware-aware setup plan for local media worker contracts, default ports, env vars, and fit guidance.
+- `src/services/localSpeech.ts`: built-in local speech fallback through OS speech commands.
 - `src/services/hardware.ts`: OS/GPU/RAM detection.
 - `src/db.ts`: SQLite schema and persistence helpers.
 
@@ -173,3 +174,5 @@ The API gateway has separate local-only worker adapters for:
 Worker URLs must be loopback HTTP(S) URLs. The app rejects remote media workers so it remains local-first and does not hide external API usage. Media requests emit usage events and persistent `media_jobs` records whether they complete, fail, or are missing a configured worker.
 
 `GET /api/media/runtimes` exposes the setup plan that installers and the dev-only Media UI use. It does not install or call remote model providers; it maps each lane to a local worker contract so later bundled runtimes can be automated without changing the public app API.
+
+Speech is the first lane with a built-in local fallback. When no speech worker URL is configured, the app can synthesize speech through macOS `say`, Linux `espeak`, or Windows SAPI if present. Generated audio is still recorded as a normal `media_jobs` row with `worker_url = builtin://system-speech`.

@@ -76,6 +76,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Release packaging creates a source zip, manifest, checksums, and GitHub Actions artifact workflow.
 - Media tab, media job records, and local-only image/audio/video API surfaces exist; bundled media runtimes are still future work.
 - Hardware-aware media runtime planner exists for local image, speech, transcription, and video worker setup.
+- Built-in local speech generation exists when the host OS has a supported system speech engine.
 - One-command setup CLI and install scripts exist.
 - CI exists for macOS, Linux, and Windows.
 

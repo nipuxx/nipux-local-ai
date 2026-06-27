@@ -292,6 +292,11 @@ function renderMediaResult(target, payload) {
   target.textContent = JSON.stringify(payload, null, 2);
 }
 
+function mediaRuntimeSetting(runtime) {
+  if (runtime.source === "builtin") return "Built-in system speech";
+  return `${runtime.envVar}=${runtime.workerUrl || runtime.defaultUrl}`;
+}
+
 async function loadMedia() {
   const [capabilities, runtimePlan, jobs] = await Promise.all([
     api("/api/media/capabilities"),
@@ -311,7 +316,7 @@ async function loadMedia() {
           </div>
           <div class="meta">${h(runtime.workerLabel)}</div>
           <div class="meta">${h(runtime.hardwareFit)}</div>
-          <code>${h(runtime.envVar)}=${h(runtime.workerUrl || runtime.defaultUrl)}</code>
+          <code>${h(mediaRuntimeSetting(runtime))}</code>
           <div class="meta">${h(runtime.endpoint)}</div>
         </div>`,
     )
@@ -322,7 +327,7 @@ async function loadMedia() {
         <div class="stat ${capability.status === "ready" ? "" : "media-warn"}">
           <span>${h(capability.label)}</span>
           <strong>${h(capability.status)}</strong>
-          <div class="meta">${h(capability.workerUrl || capability.setup)}</div>
+          <div class="meta">${h(capability.source === "builtin" ? capability.setup : capability.workerUrl || capability.setup)}</div>
         </div>`,
     )
     .join("");

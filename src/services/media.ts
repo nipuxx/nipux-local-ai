@@ -1,4 +1,5 @@
 import { db } from "../db.ts";
+import { generateLocalSpeech, getLocalSpeechRuntime } from "./localSpeech.ts";
 import { getAppSettings } from "./settings.ts";
 import { recordUsage } from "./usage.ts";
 
@@ -25,6 +26,12 @@ export interface MediaCapability {
   status: "ready" | "unconfigured" | "invalid";
   workerUrl: string;
   setup: string;
+  source: "worker" | "builtin" | "none";
+  builtin?: {
+    engine: string;
+    command: string;
+    outputMime: string;
+  };
   localOnly: true;
 }
 
@@ -134,21 +141,35 @@ function endpointFor(baseUrl: string, endpoint: string) {
 }
 
 export function getMediaCapabilities(): { capabilities: Record<MediaKind, MediaCapability> } {
+  const localSpeech = getLocalSpeechRuntime();
   const capabilities = Object.fromEntries(
     (Object.keys(MEDIA_CONFIG) as MediaKind[]).map((kind) => {
       const config = MEDIA_CONFIG[kind];
       const workerUrl = workerUrlFor(kind);
       const configured = isLocalWorkerUrl(workerUrl);
-      const status: MediaCapability["status"] = configured ? "ready" : workerUrl ? "invalid" : "unconfigured";
+      const builtinSpeech = kind === "speech" && !workerUrl && localSpeech.available;
+      const status: MediaCapability["status"] = configured || builtinSpeech ? "ready" : workerUrl ? "invalid" : "unconfigured";
       return [
         kind,
         {
           kind,
           label: config.label,
-          configured,
+          configured: configured || builtinSpeech,
           status,
-          workerUrl,
-          setup: status === "invalid" ? "Worker URLs must be local loopback HTTP(S) URLs such as http://127.0.0.1:8081." : config.setup,
+          workerUrl: builtinSpeech ? "builtin://system-speech" : workerUrl,
+          setup: status === "invalid"
+            ? "Worker URLs must be local loopback HTTP(S) URLs such as http://127.0.0.1:8081."
+            : builtinSpeech
+              ? localSpeech.setup
+              : config.setup,
+          source: configured ? "worker" : builtinSpeech ? "builtin" : "none",
+          builtin: builtinSpeech
+            ? {
+                engine: localSpeech.engine,
+                command: localSpeech.command,
+                outputMime: localSpeech.outputMime,
+              }
+            : undefined,
           localOnly: true as const,
         },
       ];
@@ -261,11 +282,34 @@ async function callLocalWorker(kind: MediaKind, input: Record<string, unknown>) 
   }
 }
 
+async function callBuiltInSpeech(input: { input?: string; voice?: string; model?: string; response_format?: string }) {
+  const started = Date.now();
+  const job = createMediaJob("speech", { ...input, source: "builtin-system-speech" }, "builtin://system-speech");
+  try {
+    const output = await generateLocalSpeech(input.input ?? "", input.voice);
+    const completed = completeMediaJob(job.id, output);
+    recordUsage({
+      kind: "audio",
+      model: "builtin-system-speech",
+      latencyMs: Date.now() - started,
+      status: "ok",
+      meta: { jobId: job.id, engine: output.engine, source: "builtin" },
+    });
+    return { job: completed, result: output };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const failed = failMediaJob(job.id, message);
+    recordUsage({ kind: "audio", model: "builtin-system-speech", latencyMs: Date.now() - started, status: "error", meta: { jobId: job.id, error: message } });
+    throw new MediaUnavailableError(message, failed, 502);
+  }
+}
+
 export async function generateImage(input: { prompt?: string; model?: string; size?: string; n?: number; response_format?: string }) {
   return callLocalWorker("image", input as Record<string, unknown>);
 }
 
 export async function generateSpeech(input: { input?: string; voice?: string; model?: string; response_format?: string }) {
+  if (!workerUrlFor("speech") && getLocalSpeechRuntime().available) return callBuiltInSpeech(input);
   return callLocalWorker("speech", input as Record<string, unknown>);
 }
 

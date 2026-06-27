@@ -11,6 +11,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
   - `POST /v1/chat/completions`
   - `POST /v1/responses`
   - `GET /v1/models`
+  - `POST /v1/audio/speech`
 - Persisted chat conversations through native `/api/chats` routes
 - Fast / Balanced / Smart model modes
 - Gemma 4 QAT GGUF defaults:
@@ -26,6 +27,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - SearXNG adapter for local web search
 - Media tab plus local-only image, speech, transcription, and video worker API surfaces
 - Hardware-aware media runtime planner for image, speech, transcription, and video workers
+- Built-in local text-to-speech through macOS `say`, Linux `espeak`, or Windows SAPI when available
 - Hugging Face GGUF search, file listing, and direct download hooks
 - llama.cpp runtime status, start, stop, and prompt test controls
 - Usage dashboard
@@ -103,6 +105,14 @@ NIPUX_VIDEO_WORKER_URL=http://127.0.0.1:8084
 ```
 
 Worker URLs must be loopback URLs such as `localhost` or `127.0.0.1`. External media APIs are intentionally rejected.
+
+Speech has a built-in local fallback when the OS has a supported speech command:
+
+- macOS: `say`
+- Linux: `espeak-ng` or `espeak`
+- Windows: System.Speech through PowerShell
+
+Configured speech worker URLs still take priority, so Kokoro/Piper-style workers can replace the built-in voice path.
 
 Inspect the hardware-aware local media runtime plan:
 

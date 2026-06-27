@@ -16,6 +16,7 @@ export interface MediaRuntimePlan {
   label: string;
   workerLabel: string;
   status: RuntimeStatus;
+  source: "worker" | "builtin" | "none";
   recommended: boolean;
   localOnly: true;
   workerUrl: string;
@@ -175,8 +176,9 @@ export async function getMediaRuntimePlan(): Promise<MediaRuntimePlannerResult> 
       id: config.id,
       kind,
       label: config.label,
-      workerLabel: config.workerLabel,
+      workerLabel: capability.source === "builtin" ? "Built-in system speech" : config.workerLabel,
       status: capability.status,
+      source: capability.source,
       recommended: recommended(kind, hardware),
       localOnly: true as const,
       workerUrl: capability.workerUrl,
@@ -186,7 +188,7 @@ export async function getMediaRuntimePlan(): Promise<MediaRuntimePlannerResult> 
       settingKey: config.settingKey,
       envVar: config.envVar,
       hardwareFit: hardwareFit(kind, hardware),
-      setup: capability.status === "invalid" ? capability.setup : config.setup,
+      setup: capability.status === "invalid" || capability.source === "builtin" ? capability.setup : config.setup,
       commands: commandsFor(config),
       notes: config.notes,
     };
@@ -196,6 +198,7 @@ export async function getMediaRuntimePlan(): Promise<MediaRuntimePlannerResult> 
     if (runtime.status === "invalid") {
       return [`Fix ${runtime.label}: ${runtime.envVar} must be a loopback URL such as ${runtime.defaultUrl}.`];
     }
+    if (runtime.source === "builtin") return [];
     if (runtime.status === "unconfigured" && runtime.recommended) {
       return [`Start ${runtime.workerLabel} on ${runtime.defaultUrl}, then set ${runtime.envVar}.`];
     }

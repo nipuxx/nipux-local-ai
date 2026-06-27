@@ -97,3 +97,13 @@ Default worker lanes:
 | Speech | `http://127.0.0.1:8082` | `POST /v1/audio/speech` | CPU-friendly first bundle target |
 | Transcription | `http://127.0.0.1:8083` | `POST /v1/audio/transcriptions` | CPU-friendly with small models |
 | Video | `http://127.0.0.1:8084` | `POST /v1/video/generations` | Experimental, queued, GPU/unified memory preferred |
+
+Speech also has a built-in local fallback when the OS provides a supported speech command:
+
+| OS | Built-In Speech Path |
+| --- | --- |
+| macOS | `say`, converted to WAV when `ffmpeg` is available |
+| Linux | `espeak-ng` or `espeak` WAV output |
+| Windows | PowerShell + System.Speech WAV output |
+
+The configured speech worker URL takes priority over the built-in path.

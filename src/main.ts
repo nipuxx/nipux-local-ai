@@ -197,6 +197,19 @@ function openAiMediaError(error: unknown) {
   return json({ error: { message: error instanceof Error ? error.message : String(error) } }, 502);
 }
 
+function audioResponse(result: unknown) {
+  const payload = result && typeof result === "object" ? (result as Record<string, unknown>) : {};
+  const base64 = typeof payload.base64 === "string" ? payload.base64 : "";
+  const mime = typeof payload.mime === "string" ? payload.mime : "audio/wav";
+  if (!base64) return json({ error: { message: "Speech backend did not return base64 audio." } }, 502);
+  return new Response(Buffer.from(base64, "base64"), {
+    headers: {
+      ...corsHeaders,
+      "content-type": mime,
+    },
+  });
+}
+
 export async function route(req: Request): Promise<Response> {
   const url = new URL(req.url);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
@@ -561,6 +574,16 @@ export async function route(req: Request): Promise<Response> {
     try {
       const { result } = await generateImage(body);
       return json(result);
+    } catch (error) {
+      return openAiMediaError(error);
+    }
+  }
+  if (url.pathname === "/v1/audio/speech" && req.method === "POST") {
+    const body = await readJson<{ input?: string; voice?: string; model?: string; response_format?: string }>(req);
+    if (!body.input?.trim()) return json({ error: { message: "input is required" } }, 400);
+    try {
+      const { result } = await generateSpeech(body);
+      return audioResponse(result);
     } catch (error) {
       return openAiMediaError(error);
     }
