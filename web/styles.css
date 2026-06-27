@@ -160,6 +160,7 @@ main {
 .view {
   display: none;
   max-width: 1160px;
+  min-width: 0;
   margin: 0 auto;
 }
 
@@ -273,7 +274,9 @@ h2 {
   border: 1px solid var(--line);
   background: var(--panel);
   border-radius: 8px;
+  min-width: 0;
   padding: 14px;
+  overflow-wrap: anywhere;
 }
 
 .row {
@@ -432,6 +435,74 @@ h2 {
   background: #fffefa;
   color: var(--text);
   font-size: 12px;
+}
+
+.local-supervisor {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.local-supervisor-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.local-supervisor-counts span {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 9px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.local-process-list {
+  display: grid;
+  gap: 8px;
+}
+
+.local-process {
+  display: grid;
+  gap: 7px;
+  border-left: 3px solid var(--line);
+  padding-left: 10px;
+}
+
+.local-process > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.local-process span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.local-process code {
+  display: block;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  background: #fffefa;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.local-process-ready {
+  border-left-color: #9dc9bb;
+}
+
+.local-process-skipped {
+  border-left-color: #e6c591;
+}
+
+.local-supervisor-steps {
+  display: grid;
+  gap: 4px;
 }
 
 .media-output {

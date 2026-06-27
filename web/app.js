@@ -21,6 +21,7 @@ const state = {
   readiness: null,
   setupActions: null,
   launchProfile: null,
+  localSupervisor: null,
 };
 
 const IMPORT_MAX_FILES = 80;
@@ -310,7 +311,7 @@ async function saveSettings() {
   if (state.status) state.status.settings = state.settingsStatus.settings;
   $("#presetSelect").value = state.settingsStatus.settings.defaultModelPreset;
   applySettingsToUi();
-  await Promise.all([loadReadiness(), loadSetupActions()]);
+  await Promise.all([loadReadiness(), loadSetupActions(), loadLocalSupervisor()]);
 }
 
 async function loadModels() {
@@ -406,6 +407,18 @@ function setupCommandMarkup(item) {
     .join("");
 }
 
+function quotedCommandPart(value = "") {
+  return /\s/.test(value) ? JSON.stringify(value) : value;
+}
+
+function supervisorCommand(process) {
+  const env = Object.entries(process.env || {})
+    .filter(([, value]) => value)
+    .map(([key, value]) => `${key}=${quotedCommandPart(String(value))}`);
+  const command = (process.command || []).map(quotedCommandPart);
+  return [...env, ...command].join(" ");
+}
+
 async function loadSetupActions() {
   const data = await api("/api/setup/actions");
   state.setupActions = data;
@@ -436,6 +449,10 @@ async function loadLaunchProfile() {
       <div class="meta">${h(profile.files.profileJson)}</div>
     </div>
     <div class="launch-command">
+      <span>Local</span>
+      <code>${h(profile.commands.oneCommandLocal)}</code>
+    </div>
+    <div class="launch-command">
       <span>Dev</span>
       <code>${h(profile.commands.oneCommandDev)}</code>
     </div>
@@ -446,6 +463,42 @@ async function loadLaunchProfile() {
     <div class="launch-command">
       <span>API</span>
       <code>${h(profile.apiBaseUrl)}</code>
+    </div>`;
+}
+
+async function loadLocalSupervisor() {
+  const plan = await api("/api/launch/supervisor");
+  state.localSupervisor = plan;
+  $("#localSupervisor").innerHTML = `
+    <div>
+      <h2>Local Supervisor</h2>
+      <div class="meta">${h(plan.appUrl)}</div>
+    </div>
+    <div class="launch-command">
+      <span>Run</span>
+      <code>${h("bun run local")}</code>
+    </div>
+    <div class="local-supervisor-counts">
+      <span>${h(plan.ready.length)} start</span>
+      <span>${h(plan.skipped.length)} skipped</span>
+    </div>
+    <div class="local-process-list">
+      ${plan.processes
+        .map(
+          (process) => `
+            <div class="local-process local-process-${h(process.status)}">
+              <div>
+                <strong>${h(process.label)}</strong>
+                <span>${h(process.status)}</span>
+              </div>
+              <code>${h(supervisorCommand(process))}</code>
+              ${process.reason ? `<div class="meta">${h(process.reason)}</div>` : ""}
+            </div>`,
+        )
+        .join("")}
+    </div>
+    <div class="local-supervisor-steps">
+      ${plan.nextSteps.map((step) => `<div class="meta">${h(step)}</div>`).join("") || `<div class="meta">No local supervisor setup steps.</div>`}
     </div>`;
 }
 
@@ -1326,16 +1379,16 @@ $("#applyMediaDefaults").addEventListener("click", async () => {
   state.settingsStatus = { settings: data.settings, env: state.settingsStatus?.env || null };
   if (state.status) state.status.settings = data.settings;
   applySettingsToUi();
-  await Promise.all([loadMedia(), loadReadiness(), loadSetupActions()]);
+  await Promise.all([loadMedia(), loadReadiness(), loadSetupActions(), loadLocalSupervisor()]);
 });
 $("#refreshUsage").addEventListener("click", loadUsage);
 $("#refreshReadiness").addEventListener("click", async () => {
-  await Promise.all([loadReadiness(), loadSetupActions(), loadLaunchProfile()]);
+  await Promise.all([loadReadiness(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor()]);
 });
 $("#writeLaunchProfile").addEventListener("click", async () => {
   const result = await api("/api/launch/profile/write", { method: "POST", body: "{}" });
   state.launchProfile = result.profile;
-  await loadLaunchProfile();
+  await Promise.all([loadLaunchProfile(), loadLocalSupervisor()]);
 });
 $("#startRuntime").addEventListener("click", async () => {
   $("#runtimeOutput").textContent = "Starting...";
@@ -1391,7 +1444,7 @@ $("#createBrowser").addEventListener("click", async () => {
 
 await loadStatus();
 await loadSettings();
-await Promise.all([loadModels(), loadRuntime(), loadReadiness(), loadSetupActions(), loadLaunchProfile(), loadUsage(), loadAgents(), loadDocuments(), loadMedia()]);
+await Promise.all([loadModels(), loadRuntime(), loadReadiness(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor(), loadUsage(), loadAgents(), loadDocuments(), loadMedia()]);
 await loadChats();
 if (state.chats[0]) await openChat(state.chats[0].id);
 else await createNewChat();
