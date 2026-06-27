@@ -21,6 +21,7 @@ The first runnable build is intentionally LLM-only. Image/video/audio are capabi
 - Agent memory CRUD, scored retrieval, and run history
 - Hermes detection/config adapter with internal-memory-agent fallback
 - Agent browser sessions with Playwright-backed open, navigate, screenshot, click, type, key, and close APIs
+- Browser action logs and approval gates for agent-originated risky actions
 - Manual document indexing plus safe file/folder indexing and local search
 - SearXNG adapter for local web search
 - Hugging Face GGUF search, file listing, and direct download hooks

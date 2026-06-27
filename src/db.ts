@@ -105,6 +105,36 @@ export function migrate() {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS permission_requests (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      status TEXT NOT NULL,
+      browser_session_id TEXT,
+      agent_id TEXT,
+      actor TEXT NOT NULL,
+      action TEXT NOT NULL,
+      risk TEXT NOT NULL,
+      reason TEXT,
+      details_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      resolved_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS browser_action_events (
+      id TEXT PRIMARY KEY,
+      browser_session_id TEXT,
+      agent_id TEXT,
+      actor TEXT NOT NULL,
+      action TEXT NOT NULL,
+      risk TEXT NOT NULL,
+      status TEXT NOT NULL,
+      url TEXT,
+      details_json TEXT NOT NULL DEFAULT '{}',
+      permission_request_id TEXT,
+      error TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   try {

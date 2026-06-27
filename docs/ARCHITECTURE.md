@@ -44,6 +44,7 @@ flowchart TD
 - `src/services/modelRuntime.ts`: app-managed llama.cpp start/stop/status/test path.
 - `src/services/chats.ts`: persisted chat records and messages.
 - `src/services/agents.ts`: agent runs, memory injection, search context.
+- `src/services/browserAudit.ts`: browser action logs and permission requests.
 - `src/services/memory.ts`: memory CRUD and scored token retrieval.
 - `src/services/fileIndexer.ts`: safe local file/folder indexing into SQLite FTS.
 - `src/services/browserBroker.ts`: Playwright browser sessions for agents and UI takeover.
@@ -124,6 +125,17 @@ The broker currently supports:
 Default mode is headless with UI screenshots. Set `NIPUX_BROWSER_HEADLESS=0` when the user wants visible Chromium windows they can control directly outside the app.
 
 Agent safety gates still need to be layered above these controls before autonomous browser actions are allowed for purchases, posts, credentials, downloads, uploads, or destructive local actions.
+
+## Browser Permissions
+
+Browser actions are recorded in `browser_action_events`. User-originated UI actions execute directly and are still logged. Agent-originated risky actions create pending `permission_requests` before execution:
+
+- navigate
+- click
+- type
+- key press
+
+Low-risk actions such as open, screenshot, and close can run without approval. A later autonomous agent runner should call the same browser API with `actor: "agent"` so these gates remain the central safety boundary.
 
 ## Future Capability Ports
 

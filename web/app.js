@@ -10,6 +10,8 @@ const state = {
   browserShots: {},
   browserErrors: {},
   runtime: null,
+  permissions: [],
+  browserActions: [],
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -240,6 +242,41 @@ async function loadAgents() {
       )
       .join("") || `<div class="meta">No browser sessions yet.</div>`;
   if (state.activeAgentId) await loadMemories();
+  await Promise.all([loadPermissions(), loadBrowserActions()]);
+}
+
+async function loadPermissions() {
+  const data = await api("/api/permissions?status=pending");
+  state.permissions = data.requests;
+  $("#permissionList").innerHTML =
+    data.requests
+      .map(
+        (request) => `
+          <div>
+            <strong>${h(request.action)} · ${h(request.risk)}</strong>
+            <div class="meta">${h(request.reason || "No reason provided")}</div>
+            <div class="meta">${h(request.browserSessionId || "")}</div>
+            <button class="permission-approve" data-id="${h(request.id)}">Approve</button>
+            <button class="permission-deny" data-id="${h(request.id)}">Deny</button>
+          </div>`,
+      )
+      .join("") || `<div class="meta">No pending approvals.</div>`;
+}
+
+async function loadBrowserActions() {
+  const data = await api("/api/browser-actions?limit=80");
+  state.browserActions = data.events;
+  $("#browserActionList").innerHTML =
+    data.events
+      .map(
+        (event) => `
+          <div>
+            <strong>${h(event.action)} · ${h(event.status)} · ${h(event.actor)}</strong>
+            <div class="meta">${h(event.risk)} · ${h(event.url || "")}</div>
+            <div class="meta">${h(event.createdAt)}</div>
+          </div>`,
+      )
+      .join("") || `<div class="meta">No browser actions yet.</div>`;
 }
 
 async function loadMemories(query = "") {
@@ -487,6 +524,14 @@ document.addEventListener("click", async (event) => {
   if (target.matches(".chat-item")) await openChat(target.dataset.chatId);
   if (target.matches(".show-files")) await showHfFiles(target);
   if (target.matches(".download-file")) await downloadFile(target);
+  if (target.matches(".permission-approve")) {
+    await api(`/api/permissions/${target.dataset.id}/approve`, { method: "POST", body: "{}" });
+    await Promise.all([loadPermissions(), loadBrowserActions()]);
+  }
+  if (target.matches(".permission-deny")) {
+    await api(`/api/permissions/${target.dataset.id}/deny`, { method: "POST", body: "{}" });
+    await Promise.all([loadPermissions(), loadBrowserActions()]);
+  }
   if (target.matches(".memory-save")) {
     const card = target.closest(".list > div");
     await api(`/api/memories/${target.dataset.id}`, {

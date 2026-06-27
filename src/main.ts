@@ -27,6 +27,14 @@ import {
   screenshotBrowserSession,
   typeInBrowserSession,
 } from "./services/browserBroker.ts";
+import {
+  listBrowserActionEvents,
+  listPermissionRequests,
+  PermissionRequiredError,
+  resolvePermissionRequest,
+  type BrowserActor,
+  type PermissionStatus,
+} from "./services/browserAudit.ts";
 import { addChatMessage, createChat, deleteChat, getChat, listChatMessages, listChats, updateChatModel } from "./services/chats.ts";
 import { indexPath } from "./services/fileIndexer.ts";
 import { getHermesStatus } from "./services/hermes.ts";
@@ -71,6 +79,15 @@ async function staticFile(pathname: string) {
   const filePath = pathname === "/" ? join(WEB_DIR, "index.html") : join(WEB_DIR, pathname.replace(/^\/+/, ""));
   if (!existsSync(filePath)) return null;
   return new Response(Bun.file(filePath));
+}
+
+function browserContext(body: { actor?: string; agentId?: string; reason?: string; permissionRequestId?: string }) {
+  return {
+    actor: body.actor === "agent" ? ("agent" as BrowserActor) : ("user" as BrowserActor),
+    agentId: body.agentId,
+    reason: body.reason,
+    permissionRequestId: body.permissionRequestId,
+  };
 }
 
 function tokenFromRequest(req: Request) {
@@ -356,34 +373,71 @@ export async function route(req: Request): Promise<Response> {
     const body = await readJson<{ agentId?: string; label?: string }>(req);
     return json({ session: createBrowserSession(body.agentId, body.label) });
   }
+  if (url.pathname === "/api/browser-actions" && req.method === "GET") {
+    return json({
+      events: listBrowserActionEvents({
+        browserSessionId: url.searchParams.get("sessionId") ?? undefined,
+        limit: Number(url.searchParams.get("limit") ?? 120),
+      }),
+    });
+  }
+  if (url.pathname === "/api/permissions" && req.method === "GET") {
+    const status = url.searchParams.get("status") as PermissionStatus | null;
+    return json({
+      requests: listPermissionRequests(
+        status && ["pending", "approved", "denied"].includes(status) ? status : undefined,
+      ),
+    });
+  }
+  const permissionAction = url.pathname.match(/^\/api\/permissions\/([^/]+)\/(approve|deny)$/);
+  if (permissionAction && req.method === "POST") {
+    const [, id, action] = permissionAction;
+    return json({ request: resolvePermissionRequest(id, action === "approve" ? "approved" : "denied") });
+  }
   const browserAction = url.pathname.match(/^\/api\/browsers\/([^/]+)\/(open|navigate|screenshot|click|type|key|close)$/);
   if (browserAction) {
     const [, id, action] = browserAction;
     try {
-      if (action === "open" && req.method === "POST") return json({ session: await openBrowserSession(id) });
-      if (action === "navigate" && req.method === "POST") {
-        const body = await readJson<{ url?: string }>(req);
-        if (!body.url) return json({ error: "url is required" }, 400);
-        return json({ session: await navigateBrowserSession(id, body.url) });
+      if (action === "open" && req.method === "POST") {
+        const body = await readJson<{ actor?: string; agentId?: string; reason?: string; permissionRequestId?: string }>(req);
+        return json({ session: await openBrowserSession(id, browserContext(body)) });
       }
-      if (action === "screenshot" && req.method === "GET") return json(await screenshotBrowserSession(id));
+      if (action === "navigate" && req.method === "POST") {
+        const body = await readJson<{ url?: string; actor?: string; agentId?: string; reason?: string; permissionRequestId?: string }>(req);
+        if (!body.url) return json({ error: "url is required" }, 400);
+        return json({ session: await navigateBrowserSession(id, body.url, browserContext(body)) });
+      }
+      if (action === "screenshot" && req.method === "GET") {
+        return json(await screenshotBrowserSession(id, {
+          actor: url.searchParams.get("actor") === "agent" ? "agent" : "user",
+          agentId: url.searchParams.get("agentId"),
+          reason: url.searchParams.get("reason") ?? undefined,
+          permissionRequestId: url.searchParams.get("permissionRequestId") ?? undefined,
+        }));
+      }
       if (action === "click" && req.method === "POST") {
-        const body = await readJson<{ x?: number; y?: number }>(req);
+        const body = await readJson<{ x?: number; y?: number; actor?: string; agentId?: string; reason?: string; permissionRequestId?: string }>(req);
         if (typeof body.x !== "number" || typeof body.y !== "number") return json({ error: "x and y are required" }, 400);
-        return json({ session: await clickBrowserSession(id, body.x, body.y) });
+        return json({ session: await clickBrowserSession(id, body.x, body.y, browserContext(body)) });
       }
       if (action === "type" && req.method === "POST") {
-        const body = await readJson<{ text?: string }>(req);
+        const body = await readJson<{ text?: string; actor?: string; agentId?: string; reason?: string; permissionRequestId?: string }>(req);
         if (typeof body.text !== "string") return json({ error: "text is required" }, 400);
-        return json({ session: await typeInBrowserSession(id, body.text) });
+        return json({ session: await typeInBrowserSession(id, body.text, browserContext(body)) });
       }
       if (action === "key" && req.method === "POST") {
-        const body = await readJson<{ key?: string }>(req);
+        const body = await readJson<{ key?: string; actor?: string; agentId?: string; reason?: string; permissionRequestId?: string }>(req);
         if (!body.key) return json({ error: "key is required" }, 400);
-        return json({ session: await pressBrowserKey(id, body.key) });
+        return json({ session: await pressBrowserKey(id, body.key, browserContext(body)) });
       }
-      if (action === "close" && req.method === "POST") return json({ session: await closeBrowserSession(id) });
+      if (action === "close" && req.method === "POST") {
+        const body = await readJson<{ actor?: string; agentId?: string; reason?: string; permissionRequestId?: string }>(req);
+        return json({ session: await closeBrowserSession(id, browserContext(body)) });
+      }
     } catch (error) {
+      if (error instanceof PermissionRequiredError) {
+        return json({ permissionRequired: true, request: error.request }, 202);
+      }
       return json({ error: error instanceof Error ? error.message : String(error) }, 503);
     }
   }

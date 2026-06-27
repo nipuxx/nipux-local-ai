@@ -66,6 +66,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Agent memory CRUD and scored retrieval exist.
 - Manual document indexing, file/folder indexing, local search, and SearXNG adapter exist.
 - Playwright browser sessions can open, navigate, screenshot, click, type, press keys, and close.
+- Browser action logs and permission gates for agent-originated risky actions exist.
 - One-command setup CLI and install scripts exist.
 - CI exists for macOS, Linux, and Windows.
 
@@ -76,8 +77,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 3. Add model runtime start/stop/status management.
 4. Improve Hugging Face download/test/start flow.
 5. Add memory summarization/compaction and provenance.
-6. Add better browser action logs and permission gates.
-7. Add Settings and Dev mode surfaces.
-8. Improve install reliability on Windows/Linux/macOS.
-9. Add release packaging.
-10. Add media lanes only after the LLM-first product is solid.
+6. Add Settings and Dev mode surfaces.
+7. Improve install reliability on Windows/Linux/macOS.
+8. Add release packaging.
+9. Add media lanes only after the LLM-first product is solid.

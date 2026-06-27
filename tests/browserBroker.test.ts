@@ -33,3 +33,47 @@ test("browser API creates sessions without launching a browser", async () => {
   const json = await res.json();
   expect(json.session.label).toBe("API Browser");
 });
+
+test("agent browser navigation is blocked pending approval and logged", async () => {
+  const created = await route(
+    new Request("http://localhost/api/browsers", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ label: "Approval Browser" }),
+    }),
+  );
+  const { session } = await created.json();
+
+  const blocked = await route(
+    new Request(`http://localhost/api/browsers/${session.id}/navigate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        actor: "agent",
+        url: "example.com",
+        reason: "Verify permission gate.",
+      }),
+    }),
+  );
+  expect(blocked.status).toBe(202);
+  const blockedJson = await blocked.json();
+  expect(blockedJson.permissionRequired).toBe(true);
+  expect(blockedJson.request.status).toBe("pending");
+
+  const permissions = await route(new Request("http://localhost/api/permissions?status=pending"));
+  const permissionsJson = await permissions.json();
+  expect(permissionsJson.requests.some((request: { id: string }) => request.id === blockedJson.request.id)).toBe(true);
+
+  const actions = await route(new Request("http://localhost/api/browser-actions"));
+  const actionsJson = await actions.json();
+  expect(
+    actionsJson.events.some(
+      (event: { permissionRequestId?: string; status: string; action: string }) =>
+        event.permissionRequestId === blockedJson.request.id && event.status === "blocked" && event.action === "navigate",
+    ),
+  ).toBe(true);
+
+  const approved = await route(new Request(`http://localhost/api/permissions/${blockedJson.request.id}/approve`, { method: "POST" }));
+  const approvedJson = await approved.json();
+  expect(approvedJson.request.status).toBe("approved");
+});

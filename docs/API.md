@@ -265,6 +265,33 @@ Types into the focused page element.
 
 Closes the running browser context and keeps the session record.
 
+Agent-originated `navigate`, `click`, `type`, and `key` actions are gated. Pass `"actor": "agent"` in the request body to create a pending permission request instead of executing immediately. Re-run the action with `permissionRequestId` after approval.
+
+### `GET /api/browser-actions`
+
+Lists browser action events. Optional query params:
+
+```text
+sessionId=<browser-session-id>
+limit=120
+```
+
+### `GET /api/permissions`
+
+Lists permission requests. Optional query param:
+
+```text
+status=pending
+```
+
+### `POST /api/permissions/:id/approve`
+
+Approves a pending permission request.
+
+### `POST /api/permissions/:id/deny`
+
+Denies a pending permission request.
+
 ### `POST /api/search/documents`
 
 Adds text to the local search index.

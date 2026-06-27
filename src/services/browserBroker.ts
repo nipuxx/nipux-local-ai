@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { NIPUX_HOME } from "../config.ts";
 import { db } from "../db.ts";
+import { assertBrowserActionAllowed, type BrowserActionContext, recordBrowserAction } from "./browserAudit.ts";
 import { recordUsage } from "./usage.ts";
 
 export interface BrowserSessionRecord {
@@ -132,44 +133,123 @@ async function ensureRuntimeSession(id: string): Promise<RuntimeSession> {
   return runtime;
 }
 
-export async function openBrowserSession(id: string) {
+function actionAgentId(session: BrowserSessionRecord, context?: BrowserActionContext) {
+  return context?.agentId ?? session.agentId ?? null;
+}
+
+export async function openBrowserSession(id: string, context: BrowserActionContext = {}) {
   const started = Date.now();
+  const sessionRecord = getBrowserSession(id);
+  const permission = assertBrowserActionAllowed({
+    browserSessionId: id,
+    agentId: actionAgentId(sessionRecord, context),
+    action: "open",
+    context,
+  });
   try {
     const runtime = await ensureRuntimeSession(id);
     const session = updateBrowserSession(id, { status: "open", url: runtime.page.url() || "about:blank" });
+    recordBrowserAction({
+      browserSessionId: id,
+      agentId: actionAgentId(sessionRecord, context),
+      actor: permission.actor,
+      action: "open",
+      risk: permission.risk,
+      status: "ok",
+      url: session.url,
+      permissionRequestId: permission.permissionRequestId,
+    });
     recordUsage({ kind: "browser", latencyMs: Date.now() - started, status: "ok", meta: { action: "open", id } });
     return session;
   } catch (error) {
     updateBrowserSession(id, { status: "error" });
     const message = error instanceof Error ? error.message : String(error);
+    recordBrowserAction({
+      browserSessionId: id,
+      agentId: actionAgentId(sessionRecord, context),
+      actor: permission.actor,
+      action: "open",
+      risk: permission.risk,
+      status: "error",
+      error: message,
+      permissionRequestId: permission.permissionRequestId,
+    });
     recordUsage({ kind: "browser", latencyMs: Date.now() - started, status: "error", meta: { action: "open", id, error: message } });
     throw new Error(`${message} Run "bun run browsers:install" if Chromium has not been installed yet.`);
   }
 }
 
-export async function navigateBrowserSession(id: string, url: string) {
+export async function navigateBrowserSession(id: string, url: string, context: BrowserActionContext = {}) {
   const started = Date.now();
   const target = normalizeBrowserUrl(url);
+  const sessionRecord = getBrowserSession(id);
+  const permission = assertBrowserActionAllowed({
+    browserSessionId: id,
+    agentId: actionAgentId(sessionRecord, context),
+    action: "navigate",
+    details: { url: target },
+    context,
+  });
   try {
     const runtime = await ensureRuntimeSession(id);
     await runtime.page.goto(target, { waitUntil: "domcontentloaded", timeout: 30000 });
     const session = updateBrowserSession(id, { status: "open", url: runtime.page.url() || target });
+    recordBrowserAction({
+      browserSessionId: id,
+      agentId: actionAgentId(sessionRecord, context),
+      actor: permission.actor,
+      action: "navigate",
+      risk: permission.risk,
+      status: "ok",
+      url: session.url,
+      details: { url: target },
+      permissionRequestId: permission.permissionRequestId,
+    });
     recordUsage({ kind: "browser", latencyMs: Date.now() - started, status: "ok", meta: { action: "navigate", id, url: target } });
     return session;
   } catch (error) {
     updateBrowserSession(id, { status: "error", url: target });
     const message = error instanceof Error ? error.message : String(error);
+    recordBrowserAction({
+      browserSessionId: id,
+      agentId: actionAgentId(sessionRecord, context),
+      actor: permission.actor,
+      action: "navigate",
+      risk: permission.risk,
+      status: "error",
+      url: target,
+      details: { url: target },
+      permissionRequestId: permission.permissionRequestId,
+      error: message,
+    });
     recordUsage({ kind: "browser", latencyMs: Date.now() - started, status: "error", meta: { action: "navigate", id, url: target, error: message } });
     throw error;
   }
 }
 
-export async function screenshotBrowserSession(id: string) {
+export async function screenshotBrowserSession(id: string, context: BrowserActionContext = {}) {
   const started = Date.now();
+  const sessionRecord = getBrowserSession(id);
+  const permission = assertBrowserActionAllowed({
+    browserSessionId: id,
+    agentId: actionAgentId(sessionRecord, context),
+    action: "screenshot",
+    context,
+  });
   try {
     const runtime = await ensureRuntimeSession(id);
     const buffer = await runtime.page.screenshot({ type: "png", fullPage: false });
     const session = updateBrowserSession(id, { status: "open", url: runtime.page.url() || "about:blank" });
+    recordBrowserAction({
+      browserSessionId: id,
+      agentId: actionAgentId(sessionRecord, context),
+      actor: permission.actor,
+      action: "screenshot",
+      risk: permission.risk,
+      status: "ok",
+      url: session.url,
+      permissionRequestId: permission.permissionRequestId,
+    });
     recordUsage({ kind: "browser", latencyMs: Date.now() - started, status: "ok", meta: { action: "screenshot", id } });
     return {
       session,
@@ -180,46 +260,181 @@ export async function screenshotBrowserSession(id: string) {
   } catch (error) {
     updateBrowserSession(id, { status: "error" });
     const message = error instanceof Error ? error.message : String(error);
+    recordBrowserAction({
+      browserSessionId: id,
+      agentId: actionAgentId(sessionRecord, context),
+      actor: permission.actor,
+      action: "screenshot",
+      risk: permission.risk,
+      status: "error",
+      error: message,
+      permissionRequestId: permission.permissionRequestId,
+    });
     recordUsage({ kind: "browser", latencyMs: Date.now() - started, status: "error", meta: { action: "screenshot", id, error: message } });
     throw new Error(`${message} Run "bun run browsers:install" if Chromium has not been installed yet.`);
   }
 }
 
-export async function clickBrowserSession(id: string, x: number, y: number) {
+export async function clickBrowserSession(id: string, x: number, y: number, context: BrowserActionContext = {}) {
   const started = Date.now();
-  const runtime = await ensureRuntimeSession(id);
-  await runtime.page.mouse.click(x, y);
-  const session = updateBrowserSession(id, { status: "open", url: runtime.page.url() || "about:blank" });
-  recordUsage({ kind: "browser", latencyMs: Date.now() - started, status: "ok", meta: { action: "click", id, x, y } });
-  return session;
+  const sessionRecord = getBrowserSession(id);
+  const permission = assertBrowserActionAllowed({
+    browserSessionId: id,
+    agentId: actionAgentId(sessionRecord, context),
+    action: "click",
+    details: { x, y },
+    context,
+  });
+  try {
+    const runtime = await ensureRuntimeSession(id);
+    await runtime.page.mouse.click(x, y);
+    const session = updateBrowserSession(id, { status: "open", url: runtime.page.url() || "about:blank" });
+    recordBrowserAction({
+      browserSessionId: id,
+      agentId: actionAgentId(sessionRecord, context),
+      actor: permission.actor,
+      action: "click",
+      risk: permission.risk,
+      status: "ok",
+      url: session.url,
+      details: { x, y },
+      permissionRequestId: permission.permissionRequestId,
+    });
+    recordUsage({ kind: "browser", latencyMs: Date.now() - started, status: "ok", meta: { action: "click", id, x, y } });
+    return session;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    recordBrowserAction({
+      browserSessionId: id,
+      agentId: actionAgentId(sessionRecord, context),
+      actor: permission.actor,
+      action: "click",
+      risk: permission.risk,
+      status: "error",
+      details: { x, y },
+      permissionRequestId: permission.permissionRequestId,
+      error: message,
+    });
+    recordUsage({ kind: "browser", latencyMs: Date.now() - started, status: "error", meta: { action: "click", id, x, y, error: message } });
+    throw error;
+  }
 }
 
-export async function typeInBrowserSession(id: string, text: string) {
+export async function typeInBrowserSession(id: string, text: string, context: BrowserActionContext = {}) {
   const started = Date.now();
-  const runtime = await ensureRuntimeSession(id);
-  await runtime.page.keyboard.type(text);
-  const session = updateBrowserSession(id, { status: "open", url: runtime.page.url() || "about:blank" });
-  recordUsage({ kind: "browser", latencyMs: Date.now() - started, status: "ok", meta: { action: "type", id, length: text.length } });
-  return session;
+  const sessionRecord = getBrowserSession(id);
+  const permission = assertBrowserActionAllowed({
+    browserSessionId: id,
+    agentId: actionAgentId(sessionRecord, context),
+    action: "type",
+    details: { textLength: text.length },
+    context,
+  });
+  try {
+    const runtime = await ensureRuntimeSession(id);
+    await runtime.page.keyboard.type(text);
+    const session = updateBrowserSession(id, { status: "open", url: runtime.page.url() || "about:blank" });
+    recordBrowserAction({
+      browserSessionId: id,
+      agentId: actionAgentId(sessionRecord, context),
+      actor: permission.actor,
+      action: "type",
+      risk: permission.risk,
+      status: "ok",
+      url: session.url,
+      details: { textLength: text.length },
+      permissionRequestId: permission.permissionRequestId,
+    });
+    recordUsage({ kind: "browser", latencyMs: Date.now() - started, status: "ok", meta: { action: "type", id, length: text.length } });
+    return session;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    recordBrowserAction({
+      browserSessionId: id,
+      agentId: actionAgentId(sessionRecord, context),
+      actor: permission.actor,
+      action: "type",
+      risk: permission.risk,
+      status: "error",
+      details: { textLength: text.length },
+      permissionRequestId: permission.permissionRequestId,
+      error: message,
+    });
+    recordUsage({ kind: "browser", latencyMs: Date.now() - started, status: "error", meta: { action: "type", id, length: text.length, error: message } });
+    throw error;
+  }
 }
 
-export async function pressBrowserKey(id: string, key: string) {
+export async function pressBrowserKey(id: string, key: string, context: BrowserActionContext = {}) {
   const started = Date.now();
-  const runtime = await ensureRuntimeSession(id);
-  await runtime.page.keyboard.press(key);
-  const session = updateBrowserSession(id, { status: "open", url: runtime.page.url() || "about:blank" });
-  recordUsage({ kind: "browser", latencyMs: Date.now() - started, status: "ok", meta: { action: "key", id, key } });
-  return session;
+  const sessionRecord = getBrowserSession(id);
+  const permission = assertBrowserActionAllowed({
+    browserSessionId: id,
+    agentId: actionAgentId(sessionRecord, context),
+    action: "key",
+    details: { key },
+    context,
+  });
+  try {
+    const runtime = await ensureRuntimeSession(id);
+    await runtime.page.keyboard.press(key);
+    const session = updateBrowserSession(id, { status: "open", url: runtime.page.url() || "about:blank" });
+    recordBrowserAction({
+      browserSessionId: id,
+      agentId: actionAgentId(sessionRecord, context),
+      actor: permission.actor,
+      action: "key",
+      risk: permission.risk,
+      status: "ok",
+      url: session.url,
+      details: { key },
+      permissionRequestId: permission.permissionRequestId,
+    });
+    recordUsage({ kind: "browser", latencyMs: Date.now() - started, status: "ok", meta: { action: "key", id, key } });
+    return session;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    recordBrowserAction({
+      browserSessionId: id,
+      agentId: actionAgentId(sessionRecord, context),
+      actor: permission.actor,
+      action: "key",
+      risk: permission.risk,
+      status: "error",
+      details: { key },
+      permissionRequestId: permission.permissionRequestId,
+      error: message,
+    });
+    recordUsage({ kind: "browser", latencyMs: Date.now() - started, status: "error", meta: { action: "key", id, key, error: message } });
+    throw error;
+  }
 }
 
-export async function closeBrowserSession(id: string) {
+export async function closeBrowserSession(id: string, context: BrowserActionContext = {}) {
   const started = Date.now();
+  const sessionRecord = getBrowserSession(id);
+  const permission = assertBrowserActionAllowed({
+    browserSessionId: id,
+    agentId: actionAgentId(sessionRecord, context),
+    action: "close",
+    context,
+  });
   const runtime = activeSessions.get(id);
   if (runtime) {
     await runtime.context.close();
     activeSessions.delete(id);
   }
   const session = updateBrowserSession(id, { status: "closed" });
+  recordBrowserAction({
+    browserSessionId: id,
+    agentId: actionAgentId(sessionRecord, context),
+    actor: permission.actor,
+    action: "close",
+    risk: permission.risk,
+    status: "ok",
+    url: session.url,
+    permissionRequestId: permission.permissionRequestId,
+  });
   recordUsage({ kind: "browser", latencyMs: Date.now() - started, status: "ok", meta: { action: "close", id } });
   return session;
 }
