@@ -179,3 +179,12 @@ test("capability profile route returns machine defaults", async () => {
   expect(json.lanes.some((lane: { id: string }) => lane.id === "chat")).toBe(true);
   expect(json.commands.startLocal).toBe("bun run local");
 });
+
+test("image backend route returns local-only setup presets", async () => {
+  const res = await route(new Request("http://localhost/api/media/images/backends"));
+  expect(res.status).toBe(200);
+  const json = await res.json();
+  expect(json.presets.some((preset: { id: string }) => preset.id === "diffusers-sdxl-turbo")).toBe(true);
+  expect(json.presets.every((preset: { localOnly: boolean }) => preset.localOnly)).toBe(true);
+  expect(json.nextSteps.some((step: string) => step.includes("image:backends"))).toBe(true);
+});

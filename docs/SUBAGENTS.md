@@ -101,7 +101,7 @@ This file translates the product goal into independently owned workstreams. The 
 - Maintain the hardware-aware media runtime planner, default worker ports, endpoint contracts, and setup guidance.
 - Maintain health checks so configured worker URLs only show ready when local processes respond.
 - Maintain built-in local speech fallback while keeping Kokoro/Piper-style workers as the higher-quality replaceable path.
-- Maintain the bundled local image command worker; bundled image model setup remains future work when install/runtime/licensing details are clear.
+- Maintain the bundled local image command worker and hardware-aware image backend presets; bundled image model setup remains opt-in while install/runtime/licensing details vary by backend.
 - Maintain the bundled whisper.cpp-compatible transcription worker and Whisper model setup automation; binary setup automation remains future work.
 - Add Kokoro/Piper setup automation after worker APIs are stable.
 - Maintain the bundled local video command worker; bundled video model setup remains future work and should stay queued, opt-in, and hardware-aware.

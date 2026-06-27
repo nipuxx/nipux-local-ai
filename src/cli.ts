@@ -10,7 +10,7 @@ import { applyRecommendedMediaRuntimeDefaults, formatMediaRuntimePlan, getMediaR
 import { formatReadinessReport, getReadinessReport } from "./services/readiness.ts";
 import { formatSetupActions, getSetupActions } from "./services/setupActions.ts";
 import { formatLaunchProfile, getLaunchProfile, writeLaunchProfileFiles } from "./services/launchProfile.ts";
-import { imageStartCommand } from "./services/imageSetup.ts";
+import { formatImageBackendPlan, getImageBackendPlan, imageStartCommand } from "./services/imageSetup.ts";
 import { formatLocalSupervisorPlan, getLocalSupervisorPlan, runLocalSupervisor } from "./services/localSupervisor.ts";
 import { installWhisperModel, WHISPER_MODEL_PRESETS, whisperInstallCommand, whisperStartCommand } from "./services/transcriptionSetup.ts";
 import { videoStartCommand } from "./services/videoSetup.ts";
@@ -33,6 +33,7 @@ Commands:
   bun run setup:actions           Show copyable setup actions
   bun run media:runtimes          Show local media runtime setup plan
   bun run capabilities            Show this machine's consumer capability profile
+  bun run image:backends          Show local image backend setup presets
   bun run media:defaults          Persist recommended local media worker URLs
   bun run worker:image            Start bundled local image command worker
   bun run transcription:install   Download the default local Whisper transcription model
@@ -249,6 +250,17 @@ async function main() {
     }
     console.log(`\nNipux Local AI capability profile`);
     console.log(formatCapabilityProfile(profile));
+    return;
+  }
+
+  if (command === "image-backends" || command === "image:backends") {
+    const plan = await getImageBackendPlan();
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(plan, null, 2));
+      return;
+    }
+    console.log(`\nNipux Local AI image backend setup`);
+    console.log(formatImageBackendPlan(plan));
     return;
   }
 

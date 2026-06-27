@@ -10,6 +10,7 @@ test("release file collection includes app sources and excludes local artifacts"
   const archivePaths = files.map((file) => file.archivePath);
   expect(archivePaths.some((path) => path.endsWith("/package.json"))).toBe(true);
   expect(archivePaths.some((path) => path.includes("/src/main.ts"))).toBe(true);
+  expect(archivePaths.some((path) => path.includes("/scripts/image-backends/diffusers-image.py"))).toBe(true);
   expect(archivePaths.some((path) => path.includes("/web/index.html"))).toBe(true);
   expect(archivePaths.some((path) => path.includes("/node_modules/"))).toBe(false);
   expect(archivePaths.some((path) => path.includes("/dist/"))).toBe(false);

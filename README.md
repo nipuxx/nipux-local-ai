@@ -134,6 +134,14 @@ bun run media:defaults
 
 The default command argument contract is `{input} {output}`. Set `NIPUX_IMAGE_ARGS` to adapt a local Stable Diffusion, Diffusers, MLX, or other image backend without exposing users to node graphs.
 
+Review hardware-aware local image backend presets:
+
+```bash
+bun run image:backends
+```
+
+The repo includes `scripts/image-backends/diffusers-image.py`, a small Diffusers bridge for the image command worker. It is optional and local-only: it uses local Python packages, downloads model weights through Diffusers on first use, writes an output image file, and never calls hosted image APIs.
+
 Video generation can use the bundled local command worker. It follows the same pattern, but writes a video request JSON file and expects a local backend to write a video file:
 
 ```bash
@@ -165,6 +173,7 @@ Inspect the hardware-aware local media runtime plan:
 
 ```bash
 bun run capabilities
+bun run image:backends
 bun run media:runtimes
 bun run media:runtimes --json
 ```
@@ -292,6 +301,7 @@ bun run doctor
 bun run preflight
 bun run ready
 bun run capabilities
+bun run image:backends
 bun run media:runtimes
 bun run package:release
 ```

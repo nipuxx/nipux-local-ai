@@ -15,6 +15,7 @@ const state = {
   settingsStatus: null,
   mediaCapabilities: null,
   mediaRuntimePlan: null,
+  imageBackendPlan: null,
   mediaJobs: [],
   speechPlayback: null,
   voiceRecorder: null,
@@ -679,13 +680,15 @@ function mediaRuntimeHealth(runtime) {
 }
 
 async function loadMedia() {
-  const [capabilities, runtimePlan, jobs] = await Promise.all([
+  const [capabilities, runtimePlan, imageBackendPlan, jobs] = await Promise.all([
     api("/api/media/capabilities"),
     api("/api/media/runtimes"),
+    api("/api/media/images/backends"),
     api("/api/media/jobs"),
   ]);
   state.mediaCapabilities = capabilities.capabilities;
   state.mediaRuntimePlan = runtimePlan;
+  state.imageBackendPlan = imageBackendPlan;
   state.mediaJobs = jobs.jobs;
   $("#mediaRuntimePlan").innerHTML = state.mediaRuntimePlan.runtimes
     .map(
@@ -700,6 +703,21 @@ async function loadMedia() {
           <code>${h(mediaRuntimeSetting(runtime))}</code>
           <div class="meta">${h(mediaRuntimeHealth(runtime))}</div>
           <div class="meta">${h(runtime.endpoint)}</div>
+        </div>`,
+    )
+    .join("");
+  $("#imageBackendPlan").innerHTML = state.imageBackendPlan.presets
+    .map(
+      (preset) => `
+        <div class="media-runtime ${preset.recommended ? "" : "media-warn"}">
+          <div>
+            <strong>${h(preset.label)}</strong>
+            <span>${preset.recommended ? "recommended" : "optional"}</span>
+          </div>
+          <div class="meta">${h(preset.description)}</div>
+          <div class="meta">${h(preset.hardwareFit)}</div>
+          <code>${h(preset.commands.find((item) => item.label.includes("Start"))?.command || preset.commands[0]?.command || "")}</code>
+          <div class="meta">${h(preset.model)}</div>
         </div>`,
     )
     .join("");

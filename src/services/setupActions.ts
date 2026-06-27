@@ -1,5 +1,6 @@
 import { platform } from "node:os";
 import { PORT } from "../config.ts";
+import { getImageBackendPlan } from "./imageSetup.ts";
 import { getModel, llamaServeCommand } from "./modelRegistry.ts";
 import { getMediaRuntimePlan, type MediaRuntimeCommand, type MediaRuntimePlan } from "./mediaRuntimes.ts";
 import { getSetupPreflight, installGuidanceFor, type SetupCheck } from "./setupChecks.ts";
@@ -90,7 +91,7 @@ function mediaAction(runtime: MediaRuntimePlan): SetupAction {
 }
 
 export async function getSetupActions(): Promise<SetupActionsResult> {
-  const [preflight, media] = await Promise.all([getSetupPreflight(), getMediaRuntimePlan()]);
+  const [preflight, media, imageBackends] = await Promise.all([getSetupPreflight(), getMediaRuntimePlan(), getImageBackendPlan()]);
   const checks = byId(preflight.checks);
   const os = platform();
   const actions: SetupAction[] = [];
@@ -230,6 +231,25 @@ export async function getSetupActions(): Promise<SetupActionsResult> {
   );
 
   for (const runtime of media.runtimes) actions.push(mediaAction(runtime));
+
+  const recommendedImageBackend = imageBackends.presets.find((preset) => preset.id === imageBackends.recommendedPresetId) ?? imageBackends.presets[0];
+  actions.push(
+    action({
+      id: "choose-image-backend",
+      label: "Choose local image backend",
+      kind: "configure",
+      status: recommendedImageBackend?.recommended ? "recommended" : "optional",
+      description: recommendedImageBackend
+        ? `${recommendedImageBackend.label}: ${recommendedImageBackend.description}`
+        : "Review local image backend setup presets.",
+      commands: [
+        command("Review presets", "bun run image:backends"),
+        ...(recommendedImageBackend?.commands.filter((item) => item.copyable).slice(0, 2).map((item) => command(item.label, item.command)) ?? []),
+      ],
+      related: ["image", "backend", "local-only"],
+      reason: "Image generation stays local-only and requires a loopback worker before it is ready.",
+    }),
+  );
 
   actions.push(
     action({

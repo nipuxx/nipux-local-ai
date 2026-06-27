@@ -107,8 +107,10 @@ The current release does not bundle image or video model weights. It records med
 Use the media runtime planner to see the current worker contracts and hardware fit:
 
 ```bash
+bun run image:backends
 bun run media:runtimes
 bun run media:defaults
+GET /api/media/images/backends
 GET /api/media/runtimes
 ```
 
@@ -130,6 +132,8 @@ NIPUX_IMAGE_COMMAND=/path/to/local-image-command bun run worker:image
 ```
 
 The default image command receives `{input} {output}`. The input is a JSON file with prompt, model, size, width, height, seed, and output path fields. Override `NIPUX_IMAGE_ARGS` when a backend needs different flags.
+
+For a direct local Diffusers setup, run `bun run image:backends` and use the recommended preset. The bundled `scripts/image-backends/diffusers-image.py` command can run SDXL Turbo or another Diffusers text-to-image model after Python dependencies are installed. This remains opt-in because local model downloads, VRAM, and model license terms vary by machine.
 
 Start the bundled video command worker:
 
