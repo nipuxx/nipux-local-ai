@@ -38,7 +38,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - llama.cpp runtime status, start, stop, and prompt test controls
 - Usage dashboard
 - Settings page for default mode, SearXNG URL, browser headless mode, client API key, and dev controls
-- Setup page and `bun run ready` readiness summary for everyday local capability status
+- Setup page, `bun run ready`, and `bun run setup:actions` for everyday local capability status and copyable setup commands
 - Launch profile generation with machine-specific env, run commands, and local launcher scripts
 - Hardware/runtime detection for CPU, Apple Metal, NVIDIA CUDA, AMD ROCm/Vulkan, Intel Vulkan/DirectML
 - Platform-aware preflight checks for install/runtime readiness and repair hints
@@ -162,9 +162,10 @@ Run the platform-aware readiness check at any time:
 ```bash
 bun run ready
 bun run preflight
+bun run setup:actions
 ```
 
-`bun run ready` summarizes the user-facing state: chat, browser agents, voice output/input, image/video workers, search, and API exposure. `bun run preflight` keeps the lower-level installer checks.
+`bun run ready` summarizes the user-facing state: chat, browser agents, voice output/input, image/video workers, search, and API exposure. `bun run setup:actions` turns that state into copyable install/start/configure commands. `bun run preflight` keeps the lower-level installer checks.
 
 Generate or rewrite the local launch profile:
 

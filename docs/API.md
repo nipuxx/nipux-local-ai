@@ -102,6 +102,24 @@ Returns the everyday setup summary used by the Setup page and `bun run ready`. I
 }
 ```
 
+### `GET /api/setup/actions`
+
+Returns structured setup actions used by the Setup page and `bun run setup:actions`. Each action has a status, kind, description, related capability tags, and copyable commands.
+
+```json
+{
+  "actions": [
+    {
+      "id": "start-llama",
+      "label": "Start local chat backend",
+      "status": "recommended",
+      "kind": "start",
+      "commands": [{"label": "Command", "command": "llama serve ...", "copyable": true}]
+    }
+  ]
+}
+```
+
 ### `GET /api/launch/profile`
 
 Returns the machine-specific launch profile used by the Setup page and `bun run launch:profile`. It includes local UI/API URLs, hardware, selected model, llama.cpp command, media worker health, non-secret env values, and launcher file paths.

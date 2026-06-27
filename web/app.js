@@ -19,6 +19,7 @@ const state = {
   speechPlayback: null,
   voiceRecorder: null,
   readiness: null,
+  setupActions: null,
   launchProfile: null,
 };
 
@@ -309,6 +310,7 @@ async function saveSettings() {
   if (state.status) state.status.settings = state.settingsStatus.settings;
   $("#presetSelect").value = state.settingsStatus.settings.defaultModelPreset;
   applySettingsToUi();
+  await Promise.all([loadReadiness(), loadSetupActions()]);
 }
 
 async function loadModels() {
@@ -379,6 +381,41 @@ async function loadReadiness() {
     .join("");
   $("#readinessSteps").innerHTML =
     report.nextSteps.map((step) => `<div>${h(step)}</div>`).join("") || `<div class="meta">No setup steps required.</div>`;
+}
+
+function setupCommandMarkup(item) {
+  return item.commands
+    .map(
+      (command) => `
+        <div class="command-row">
+          <div>
+            <span>${h(command.label)}</span>
+            <code>${h(command.command)}</code>
+          </div>
+          ${command.copyable ? `<button class="copy-command" data-command="${h(command.command)}">Copy</button>` : ""}
+        </div>`,
+    )
+    .join("");
+}
+
+async function loadSetupActions() {
+  const data = await api("/api/setup/actions");
+  state.setupActions = data;
+  $("#setupActions").innerHTML =
+    data.actions
+      .map(
+        (item) => `
+          <div class="setup-action setup-action-${h(item.status)}">
+            <div>
+              <strong>${h(item.label)}</strong>
+              <span>${h(item.status)}</span>
+            </div>
+            <div class="meta">${h(item.description)}</div>
+            ${item.reason ? `<div class="meta">${h(item.reason)}</div>` : ""}
+            ${setupCommandMarkup(item)}
+          </div>`,
+      )
+      .join("") || `<div class="meta">No setup actions required.</div>`;
 }
 
 async function loadLaunchProfile() {
@@ -1116,6 +1153,19 @@ document.addEventListener("click", async (event) => {
   if (target.matches(".chat-item")) await openChat(target.dataset.chatId);
   if (target.matches(".show-files")) await showHfFiles(target);
   if (target.matches(".download-file")) await downloadFile(target);
+  if (target.matches(".copy-command")) {
+    const original = target.textContent;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard is not available.");
+      await navigator.clipboard.writeText(target.dataset.command || "");
+      target.textContent = "Copied";
+    } catch {
+      target.textContent = "Copy failed";
+    }
+    setTimeout(() => {
+      target.textContent = original;
+    }, 1200);
+  }
   if (target.matches(".permission-approve")) {
     await api(`/api/permissions/${target.dataset.id}/approve`, { method: "POST", body: "{}" });
     await Promise.all([loadPermissions(), loadBrowserActions()]);
@@ -1244,11 +1294,11 @@ $("#applyMediaDefaults").addEventListener("click", async () => {
   state.settingsStatus = { settings: data.settings, env: state.settingsStatus?.env || null };
   if (state.status) state.status.settings = data.settings;
   applySettingsToUi();
-  await Promise.all([loadMedia(), loadReadiness()]);
+  await Promise.all([loadMedia(), loadReadiness(), loadSetupActions()]);
 });
 $("#refreshUsage").addEventListener("click", loadUsage);
 $("#refreshReadiness").addEventListener("click", async () => {
-  await Promise.all([loadReadiness(), loadLaunchProfile()]);
+  await Promise.all([loadReadiness(), loadSetupActions(), loadLaunchProfile()]);
 });
 $("#writeLaunchProfile").addEventListener("click", async () => {
   const result = await api("/api/launch/profile/write", { method: "POST", body: "{}" });
@@ -1266,12 +1316,12 @@ $("#startRuntime").addEventListener("click", async () => {
   } catch (error) {
     $("#runtimeOutput").textContent = error instanceof Error ? error.message : String(error);
   }
-  await Promise.all([loadRuntime(), loadUsage()]);
+  await Promise.all([loadRuntime(), loadUsage(), loadReadiness(), loadSetupActions()]);
 });
 $("#stopRuntime").addEventListener("click", async () => {
   const data = await api("/api/runtime/stop", { method: "POST", body: "{}" });
   $("#runtimeOutput").textContent = JSON.stringify(data, null, 2);
-  await Promise.all([loadRuntime(), loadUsage()]);
+  await Promise.all([loadRuntime(), loadUsage(), loadReadiness(), loadSetupActions()]);
 });
 $("#testRuntime").addEventListener("click", async () => {
   const prompt = $("#runtimePrompt").value.trim();
@@ -1309,7 +1359,7 @@ $("#createBrowser").addEventListener("click", async () => {
 
 await loadStatus();
 await loadSettings();
-await Promise.all([loadModels(), loadRuntime(), loadReadiness(), loadLaunchProfile(), loadUsage(), loadAgents(), loadDocuments(), loadMedia()]);
+await Promise.all([loadModels(), loadRuntime(), loadReadiness(), loadSetupActions(), loadLaunchProfile(), loadUsage(), loadAgents(), loadDocuments(), loadMedia()]);
 await loadChats();
 if (state.chats[0]) await openChat(state.chats[0].id);
 else await createNewChat();

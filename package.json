@@ -11,6 +11,7 @@
     "doctor": "bun run src/cli.ts doctor",
     "preflight": "bun run src/cli.ts preflight",
     "ready": "bun run src/cli.ts readiness",
+    "setup:actions": "bun run src/cli.ts setup-actions",
     "install:local": "bun run src/cli.ts install",
     "media:runtimes": "bun run src/cli.ts media-runtimes",
     "media:defaults": "bun run src/cli.ts media-defaults",

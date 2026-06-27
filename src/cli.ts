@@ -8,6 +8,7 @@ import { getUsageSummary } from "./services/usage.ts";
 import { formatSetupCheck, getSetupPreflight } from "./services/setupChecks.ts";
 import { applyRecommendedMediaRuntimeDefaults, formatMediaRuntimePlan, getMediaRuntimePlan } from "./services/mediaRuntimes.ts";
 import { formatReadinessReport, getReadinessReport } from "./services/readiness.ts";
+import { formatSetupActions, getSetupActions } from "./services/setupActions.ts";
 import { formatLaunchProfile, getLaunchProfile, writeLaunchProfileFiles } from "./services/launchProfile.ts";
 
 const command = process.argv[2] ?? "help";
@@ -22,6 +23,7 @@ Commands:
   bun run src/cli.ts install      Prepare local folders and print runtime setup
   bun run src/cli.ts preflight    Check install/runtime readiness with repair hints
   bun run ready                   Show everyday readiness summary
+  bun run setup:actions           Show copyable setup actions
   bun run media:runtimes          Show local media runtime setup plan
   bun run media:defaults          Persist recommended local media worker URLs
   bun run launch:profile          Show this machine's launch profile
@@ -127,6 +129,7 @@ async function setup() {
   console.log(`  Dev (no model):  bun run dev`);
   console.log(`  Production:      ${llamaServeCommand(hardware.recommendedPreset)}`);
   console.log(`                   bun run start`);
+  console.log(`  Setup actions:   bun run setup:actions`);
   console.log(`  Health check:    bun run doctor`);
   console.log(`  Open:            http://127.0.0.1:${PORT}`);
 }
@@ -149,6 +152,7 @@ async function main() {
     console.log(`Then start the default model server:\n  ${llamaServeCommand("balanced")}`);
     console.log("Run a readiness check:");
     console.log("  bun run preflight");
+    console.log("  bun run setup:actions");
     return;
   }
 
@@ -175,6 +179,17 @@ async function main() {
     console.log(`\nNipux Local AI readiness`);
     console.log(formatReadinessReport(report));
     if (!report.usable) process.exitCode = 1;
+    return;
+  }
+
+  if (command === "setup-actions" || command === "setup:actions") {
+    const actions = await getSetupActions();
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(actions, null, 2));
+      return;
+    }
+    console.log(`\nNipux Local AI setup actions`);
+    console.log(formatSetupActions(actions));
     return;
   }
 

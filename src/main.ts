@@ -68,6 +68,7 @@ import {
   searchHuggingFace,
 } from "./services/modelRegistry.ts";
 import { getRuntimeStatus, startModelRuntime, stopModelRuntime, testModelPrompt } from "./services/modelRuntime.ts";
+import { getSetupActions } from "./services/setupActions.ts";
 import { getReadinessReport } from "./services/readiness.ts";
 import { addLocalDocument, addLocalDocumentsBulk, localSearch, webSearch, type BulkDocumentInput } from "./services/search.ts";
 import { getAppSettings, getSettingsStatus, updateAppSettings, type AppSettings } from "./services/settings.ts";
@@ -452,6 +453,7 @@ export async function route(req: Request): Promise<Response> {
     return json({ settings: updateAppSettings(body), env: getSettingsStatus().env });
   }
   if (url.pathname === "/api/readiness" && req.method === "GET") return json(await getReadinessReport());
+  if (url.pathname === "/api/setup/actions" && req.method === "GET") return json(await getSetupActions());
   if (url.pathname === "/api/launch/profile" && req.method === "GET") return json(await getLaunchProfile());
   if (url.pathname === "/api/launch/profile/write" && req.method === "POST") return json(await writeLaunchProfileFiles());
 
@@ -836,9 +838,18 @@ export async function route(req: Request): Promise<Response> {
   return json({ error: "not found" }, 404);
 }
 
+export function startServer(options: { port?: number; hostname?: string; log?: boolean } = {}) {
+  const port = options.port ?? PORT;
+  const hostname = options.hostname ?? BIND_HOST;
+  const server = Bun.serve({ port, hostname, fetch: route });
+  if (options.log ?? true) {
+    console.log(`${APP_NAME} is running at http://${hostname}:${server.port}`);
+    if (IS_FAKE_LLM) console.log("Dev fake LLM is enabled.");
+    if (PUBLIC_API && API_KEYS.length === 0) console.log("Public API mode is enabled but protected routes are locked until NIPUX_API_KEY is set.");
+  }
+  return server;
+}
+
 if (import.meta.main) {
-  Bun.serve({ port: PORT, hostname: BIND_HOST, fetch: route });
-  console.log(`${APP_NAME} is running at http://${BIND_HOST}:${PORT}`);
-  if (IS_FAKE_LLM) console.log("Dev fake LLM is enabled.");
-  if (PUBLIC_API && API_KEYS.length === 0) console.log("Public API mode is enabled but protected routes are locked until NIPUX_API_KEY is set.");
+  startServer();
 }

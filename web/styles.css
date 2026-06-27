@@ -349,6 +349,63 @@ h2 {
   font-size: 12px;
 }
 
+.setup-actions {
+  margin-bottom: 18px;
+}
+
+.setup-action {
+  display: grid;
+  gap: 8px;
+}
+
+.setup-action > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.setup-action span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.setup-action-ready {
+  border-color: #9dc9bb;
+}
+
+.setup-action-recommended {
+  border-color: #e6c591;
+}
+
+.setup-action-blocked {
+  border-color: #f1b8b8;
+}
+
+.command-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.command-row code {
+  display: block;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  background: #fffefa;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.command-row button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
 .launch-profile {
   display: grid;
   gap: 10px;
@@ -639,6 +696,7 @@ h2 {
   }
 
   .composer,
+  .command-row,
   .row,
   .memory-search-row,
   .browser-head,
