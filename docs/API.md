@@ -50,7 +50,15 @@ Basic Responses-style wrapper for text input.
 
 ### `POST /v1/images/generations`
 
-Returns `501` in v0.1 because this build is LLM-only.
+Proxies to a configured local OpenAI-compatible image worker. Returns `501` with a Nipux job record when no local image worker is configured.
+
+```json
+{
+  "prompt": "A quiet local AI workstation",
+  "size": "1024x1024",
+  "response_format": "b64_json"
+}
+```
 
 ## Native Routes
 
@@ -68,7 +76,11 @@ Returns persisted app settings and non-secret environment status.
     "searxngUrl": "http://127.0.0.1:8888",
     "browserHeadless": true,
     "devMode": false,
-    "defaultModelPreset": "balanced"
+    "defaultModelPreset": "balanced",
+    "imageWorkerUrl": "http://127.0.0.1:8081",
+    "speechWorkerUrl": "http://127.0.0.1:8082",
+    "transcriptionWorkerUrl": "http://127.0.0.1:8083",
+    "videoWorkerUrl": "http://127.0.0.1:8084"
   },
   "env": {
     "bindHost": "127.0.0.1",
@@ -86,11 +98,64 @@ Returns persisted app settings and non-secret environment status.
   "searxngUrl": "http://127.0.0.1:8888",
   "browserHeadless": true,
   "devMode": false,
-  "defaultModelPreset": "balanced"
+  "defaultModelPreset": "balanced",
+  "imageWorkerUrl": "http://127.0.0.1:8081",
+  "speechWorkerUrl": "http://127.0.0.1:8082",
+  "transcriptionWorkerUrl": "http://127.0.0.1:8083",
+  "videoWorkerUrl": "http://127.0.0.1:8084"
 }
 ```
 
 Environment variables provide boot defaults; saved settings take precedence at runtime.
+
+## Media Routes
+
+Media routes only talk to loopback workers such as `http://127.0.0.1:8081`. Remote URLs are rejected so the product does not silently become an external API wrapper.
+
+### `GET /api/media/capabilities`
+
+Returns image, speech, transcription, and video capability status plus setup hints.
+
+### `GET /api/media/jobs`
+
+Lists recent media jobs and failed setup attempts.
+
+### `POST /api/media/images/generate`
+
+```json
+{
+  "prompt": "A local AI control room",
+  "size": "1024x1024",
+  "response_format": "b64_json"
+}
+```
+
+### `POST /api/media/audio/speech`
+
+```json
+{
+  "input": "Local speech generation is ready.",
+  "voice": "alloy"
+}
+```
+
+### `POST /api/media/audio/transcriptions`
+
+```json
+{
+  "audioBase64": "...",
+  "mime": "audio/wav"
+}
+```
+
+### `POST /api/media/video/generate`
+
+```json
+{
+  "prompt": "A four second product demo shot",
+  "seconds": 4
+}
+```
 
 ### `GET /api/chats`
 

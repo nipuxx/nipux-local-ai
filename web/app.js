@@ -13,6 +13,8 @@ const state = {
   permissions: [],
   browserActions: [],
   settingsStatus: null,
+  mediaCapabilities: null,
+  mediaJobs: [],
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -71,6 +73,10 @@ function currentSettings() {
       browserHeadless: true,
       devMode: false,
       defaultModelPreset: "balanced",
+      imageWorkerUrl: "",
+      speechWorkerUrl: "",
+      transcriptionWorkerUrl: "",
+      videoWorkerUrl: "",
     }
   );
 }
@@ -82,6 +88,10 @@ function applySettingsToUi() {
   $("#settingsSearxngUrl").value = settings.searxngUrl || "";
   $("#settingsBrowserHeadless").checked = settings.browserHeadless !== false;
   $("#settingsDevMode").checked = Boolean(settings.devMode);
+  $("#settingsImageWorkerUrl").value = settings.imageWorkerUrl || "";
+  $("#settingsSpeechWorkerUrl").value = settings.speechWorkerUrl || "";
+  $("#settingsTranscriptionWorkerUrl").value = settings.transcriptionWorkerUrl || "";
+  $("#settingsVideoWorkerUrl").value = settings.videoWorkerUrl || "";
   $("#settingsApiKey").value = localStorage.getItem("nipuxApiKey") || "";
 
   const env = state.settingsStatus?.env || {
@@ -184,6 +194,10 @@ async function saveSettings() {
     searxngUrl: $("#settingsSearxngUrl").value,
     browserHeadless: $("#settingsBrowserHeadless").checked,
     devMode: $("#settingsDevMode").checked,
+    imageWorkerUrl: $("#settingsImageWorkerUrl").value,
+    speechWorkerUrl: $("#settingsSpeechWorkerUrl").value,
+    transcriptionWorkerUrl: $("#settingsTranscriptionWorkerUrl").value,
+    videoWorkerUrl: $("#settingsVideoWorkerUrl").value,
   };
   state.settingsStatus = await api("/api/settings", {
     method: "PATCH",
@@ -253,6 +267,55 @@ async function loadUsage() {
         </div>`,
     )
     .join("");
+}
+
+function renderMediaResult(target, payload) {
+  const result = payload.result || payload;
+  const data = result.data?.[0] || result;
+  if (data.b64_json) {
+    target.innerHTML = `<img class="generated-media" src="data:image/png;base64,${h(data.b64_json)}" alt="Generated image" />`;
+    return;
+  }
+  if (data.dataUrl || result.dataUrl) {
+    const url = data.dataUrl || result.dataUrl;
+    const mime = data.mime || result.mime || "";
+    if (mime.startsWith("audio/")) target.innerHTML = `<audio controls src="${h(url)}"></audio>`;
+    else if (mime.startsWith("video/")) target.innerHTML = `<video controls src="${h(url)}"></video>`;
+    else target.innerHTML = `<a href="${h(url)}" target="_blank" rel="noreferrer">Open generated media</a>`;
+    return;
+  }
+  if (result.text) {
+    target.textContent = result.text;
+    return;
+  }
+  target.textContent = JSON.stringify(payload, null, 2);
+}
+
+async function loadMedia() {
+  const [capabilities, jobs] = await Promise.all([api("/api/media/capabilities"), api("/api/media/jobs")]);
+  state.mediaCapabilities = capabilities.capabilities;
+  state.mediaJobs = jobs.jobs;
+  $("#mediaCapabilities").innerHTML = Object.values(state.mediaCapabilities)
+    .map(
+      (capability) => `
+        <div class="stat ${capability.status === "ready" ? "" : "media-warn"}">
+          <span>${h(capability.label)}</span>
+          <strong>${h(capability.status)}</strong>
+          <div class="meta">${h(capability.workerUrl || capability.setup)}</div>
+        </div>`,
+    )
+    .join("");
+  $("#mediaJobs").innerHTML =
+    state.mediaJobs
+      .map(
+        (job) => `
+          <div>
+            <strong>${h(job.kind)} · ${h(job.status)}</strong>
+            <div class="meta">${h(job.prompt || "no prompt")} · ${h(job.createdAt)}</div>
+            ${job.error ? `<div class="browser-error">${h(job.error)}</div>` : ""}
+          </div>`,
+      )
+      .join("") || `<div class="meta">No media jobs yet.</div>`;
 }
 
 async function loadAgents() {
@@ -527,6 +590,74 @@ async function runSearch(event) {
   await loadUsage();
 }
 
+async function runImage(event) {
+  event.preventDefault();
+  const prompt = $("#imagePrompt").value.trim();
+  if (!prompt) return;
+  $("#imageOutput").textContent = "Generating...";
+  try {
+    const data = await api("/api/media/images/generate", {
+      method: "POST",
+      body: JSON.stringify({ prompt, size: $("#imageSize").value, response_format: "b64_json" }),
+    });
+    renderMediaResult($("#imageOutput"), data);
+  } catch (error) {
+    $("#imageOutput").textContent = error instanceof Error ? error.message : String(error);
+  }
+  await Promise.all([loadMedia(), loadUsage()]);
+}
+
+async function runSpeech(event) {
+  event.preventDefault();
+  const input = $("#speechInput").value.trim();
+  if (!input) return;
+  $("#speechOutput").textContent = "Generating...";
+  try {
+    const data = await api("/api/media/audio/speech", {
+      method: "POST",
+      body: JSON.stringify({ input, voice: $("#speechVoice").value.trim() || "alloy" }),
+    });
+    renderMediaResult($("#speechOutput"), data);
+  } catch (error) {
+    $("#speechOutput").textContent = error instanceof Error ? error.message : String(error);
+  }
+  await Promise.all([loadMedia(), loadUsage()]);
+}
+
+async function runTranscription(event) {
+  event.preventDefault();
+  const audioBase64 = $("#transcriptionAudio").value.trim();
+  if (!audioBase64) return;
+  $("#transcriptionOutput").textContent = "Transcribing...";
+  try {
+    const data = await api("/api/media/audio/transcriptions", {
+      method: "POST",
+      body: JSON.stringify({ audioBase64, mime: $("#transcriptionMime").value.trim() || "audio/wav" }),
+    });
+    renderMediaResult($("#transcriptionOutput"), data);
+  } catch (error) {
+    $("#transcriptionOutput").textContent = error instanceof Error ? error.message : String(error);
+  }
+  await Promise.all([loadMedia(), loadUsage()]);
+}
+
+async function runVideo(event) {
+  event.preventDefault();
+  const prompt = $("#videoPrompt").value.trim();
+  if (!prompt) return;
+  $("#videoOutput").textContent = "Generating...";
+  try {
+    const data = await api("/api/media/video/generate", {
+      method: "POST",
+      body: JSON.stringify({ prompt, seconds: Number($("#videoSeconds").value || 4) }),
+    });
+    renderMediaResult($("#videoOutput"), data);
+  } catch (error) {
+    $("#videoOutput").textContent = error instanceof Error ? error.message : String(error);
+  }
+  await Promise.all([loadMedia(), loadUsage()]);
+}
+
 async function indexDocument(event) {
   event.preventDefault();
   await api("/api/search/documents", {
@@ -690,6 +821,10 @@ $("#memoryCompact").addEventListener("click", async () => {
   await loadMemories($("#memoryQuery").value.trim());
 });
 $("#searchForm").addEventListener("submit", runSearch);
+$("#imageForm").addEventListener("submit", runImage);
+$("#speechForm").addEventListener("submit", runSpeech);
+$("#transcriptionForm").addEventListener("submit", runTranscription);
+$("#videoForm").addEventListener("submit", runVideo);
 $("#documentForm").addEventListener("submit", indexDocument);
 $("#indexPathButton").addEventListener("click", async () => {
   const path = $("#indexPath").value.trim();
@@ -708,6 +843,7 @@ $("#indexPathButton").addEventListener("click", async () => {
 });
 $("#hfSearch").addEventListener("click", searchHf);
 $("#refreshModels").addEventListener("click", loadModels);
+$("#refreshMedia").addEventListener("click", loadMedia);
 $("#refreshUsage").addEventListener("click", loadUsage);
 $("#startRuntime").addEventListener("click", async () => {
   $("#runtimeOutput").textContent = "Starting...";
@@ -763,7 +899,7 @@ $("#createBrowser").addEventListener("click", async () => {
 
 await loadStatus();
 await loadSettings();
-await Promise.all([loadModels(), loadRuntime(), loadUsage(), loadAgents(), loadDocuments()]);
+await Promise.all([loadModels(), loadRuntime(), loadUsage(), loadAgents(), loadDocuments(), loadMedia()]);
 await loadChats();
 if (state.chats[0]) await openChat(state.chats[0].id);
 else await createNewChat();

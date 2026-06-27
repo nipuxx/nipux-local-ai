@@ -21,6 +21,7 @@
           <button class="nav" data-view="agents">Agents</button>
           <button class="nav" data-view="models">Models</button>
           <button class="nav" data-view="search">Search</button>
+          <button class="nav" data-view="media">Media</button>
           <button class="nav" data-view="usage">Usage</button>
           <button class="nav" data-view="settings">Settings</button>
         </nav>
@@ -150,6 +151,50 @@
           <div id="searchResults" class="list"></div>
         </section>
 
+        <section id="media" class="view">
+          <header>
+            <h1>Media</h1>
+            <button id="refreshMedia">Refresh</button>
+          </header>
+          <div id="mediaCapabilities" class="media-capabilities"></div>
+          <div class="media-grid">
+            <form id="imageForm" class="panel stack">
+              <h2>Image</h2>
+              <textarea id="imagePrompt" placeholder="Describe an image..." rows="4"></textarea>
+              <select id="imageSize">
+                <option value="1024x1024">1024 x 1024</option>
+                <option value="1024x768">1024 x 768</option>
+                <option value="768x1024">768 x 1024</option>
+              </select>
+              <button type="submit">Generate</button>
+              <div id="imageOutput" class="media-output"></div>
+            </form>
+            <form id="speechForm" class="panel stack">
+              <h2>Speech</h2>
+              <textarea id="speechInput" placeholder="Text to speak..." rows="4"></textarea>
+              <input id="speechVoice" placeholder="Voice, e.g. alloy" />
+              <button type="submit">Speak</button>
+              <div id="speechOutput" class="media-output"></div>
+            </form>
+            <form id="transcriptionForm" class="panel stack">
+              <h2>Transcription</h2>
+              <textarea id="transcriptionAudio" placeholder="Base64 audio from a local capture or file..." rows="4"></textarea>
+              <input id="transcriptionMime" placeholder="audio/wav" />
+              <button type="submit">Transcribe</button>
+              <div id="transcriptionOutput" class="media-output"></div>
+            </form>
+            <form id="videoForm" class="panel stack">
+              <h2>Video</h2>
+              <textarea id="videoPrompt" placeholder="Describe a short video..." rows="4"></textarea>
+              <input id="videoSeconds" type="number" min="1" max="12" value="4" />
+              <button type="submit">Generate</button>
+              <div id="videoOutput" class="media-output"></div>
+            </form>
+          </div>
+          <h2>Jobs</h2>
+          <div id="mediaJobs" class="list"></div>
+        </section>
+
         <section id="usage" class="view">
           <header>
             <h1>Usage</h1>
@@ -194,6 +239,17 @@
               </div>
               <div id="settingsAuthStatus" class="list"></div>
               <pre id="settingsStatus" class="dev dev-only"></pre>
+            </div>
+            <div class="panel settings-panel dev-only">
+              <h2>Local Media Workers</h2>
+              <label for="settingsImageWorkerUrl">Image Worker URL</label>
+              <input id="settingsImageWorkerUrl" placeholder="http://127.0.0.1:8081/v1" />
+              <label for="settingsSpeechWorkerUrl">Speech Worker URL</label>
+              <input id="settingsSpeechWorkerUrl" placeholder="http://127.0.0.1:8082/v1" />
+              <label for="settingsTranscriptionWorkerUrl">Transcription Worker URL</label>
+              <input id="settingsTranscriptionWorkerUrl" placeholder="http://127.0.0.1:8083/v1" />
+              <label for="settingsVideoWorkerUrl">Video Worker URL</label>
+              <input id="settingsVideoWorkerUrl" placeholder="http://127.0.0.1:8084/v1" />
             </div>
           </div>
         </section>

@@ -16,7 +16,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Agents have persistent memory, search, browser sessions, action logs, and permission gates.
 - CPU-only systems must still work with smaller models.
 - GPU/unified-memory systems should auto-detect the best available acceleration path.
-- Image/audio/video are future capability lanes; the working baseline remains LLM-first until the core app is reliable.
+- Image/audio/video use local-only worker surfaces until bundled local media runtimes are reliable.
 
 ## Baseline v1
 
@@ -32,6 +32,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Agent browser sessions with user-visible screenshot controls.
 - Local search over indexed files and notes.
 - SearXNG-backed web search.
+- Local-only media worker surfaces for images, speech, transcription, and video.
 - Usage dashboard for requests, tokens, latency, errors, browser actions, and storage.
 - Persisted Settings for default mode, SearXNG, browser headless mode, client API key, and dev controls.
 - API key auth and explicit LAN/public exposure controls.
@@ -73,6 +74,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Platform-aware install preflight exists for Bun, git, local folders, llama.cpp, Playwright Chromium, and SearXNG.
 - macOS/Linux and Windows installer scripts clone the pushed repo, use the lockfile, run setup, and optionally install Playwright Chromium.
 - Release packaging creates a source zip, manifest, checksums, and GitHub Actions artifact workflow.
+- Media tab, media job records, and local-only image/audio/video API surfaces exist; bundled media runtimes are still future work.
 - One-command setup CLI and install scripts exist.
 - CI exists for macOS, Linux, and Windows.
 
@@ -82,4 +84,4 @@ The product should be usable by everyday people first. Advanced controls belong 
 2. Add API keys and public/LAN exposure guardrails.
 3. Add model runtime start/stop/status management.
 4. Improve Hugging Face download/test/start flow.
-5. Add media lanes only after the LLM-first product is solid.
+5. Add bundled local media runtimes and hardware-aware media model setup.

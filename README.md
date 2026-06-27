@@ -1,8 +1,8 @@
 # Nipux Local AI
 
-A minimal local-first AI workspace: ChatGPT-like chat, local agents with persistent memory, local search, SearXNG web search, Hugging Face model discovery/downloads, persisted settings, usage stats, and an OpenAI-compatible API.
+A minimal local-first AI workspace: ChatGPT-like chat, local agents with persistent memory, local search, SearXNG web search, local-only media worker surfaces, Hugging Face model discovery/downloads, persisted settings, usage stats, and an OpenAI-compatible API.
 
-The first runnable build is intentionally LLM-only. Image/video/audio are capability lanes for later, but the current app does not require Docker or external model APIs.
+The first runnable build is still LLM-first. Image/audio/video routes and UI surfaces exist, but they require local loopback workers; the app does not call external media APIs.
 
 ## What Works Now
 
@@ -24,6 +24,7 @@ The first runnable build is intentionally LLM-only. Image/video/audio are capabi
 - Browser action logs and approval gates for agent-originated risky actions
 - Manual document indexing plus safe file/folder indexing and local search
 - SearXNG adapter for local web search
+- Media tab plus local-only image, speech, transcription, and video worker API surfaces
 - Hugging Face GGUF search, file listing, and direct download hooks
 - llama.cpp runtime status, start, stop, and prompt test controls
 - Usage dashboard
@@ -89,6 +90,19 @@ The Agents view can create browser sessions, open them, navigate, capture screen
 NIPUX_BROWSER_HEADLESS=0 bun run start
 ```
 
+## Media Workers
+
+Media routes are local-only. Set worker URLs in Settings dev mode or through environment variables:
+
+```bash
+NIPUX_IMAGE_WORKER_URL=http://127.0.0.1:8081
+NIPUX_SPEECH_WORKER_URL=http://127.0.0.1:8082
+NIPUX_TRANSCRIPTION_WORKER_URL=http://127.0.0.1:8083
+NIPUX_VIDEO_WORKER_URL=http://127.0.0.1:8084
+```
+
+Worker URLs must be loopback URLs such as `localhost` or `127.0.0.1`. External media APIs are intentionally rejected.
+
 ## One-Command Installer Shape
 
 The repo includes scripts for eventual public install:
@@ -132,6 +146,10 @@ This writes a source zip, JSON manifest, and `SHA256SUMS.txt` into `dist/`. See 
 | `NIPUX_HOME` | `~/.nipux-local-ai` | Data, models, runtimes |
 | `NIPUX_LLAMA_BASE_URL` | `http://127.0.0.1:8080/v1` | OpenAI-compatible local LLM backend |
 | `NIPUX_SEARXNG_URL` | empty | Boot default for the Settings page SearXNG URL, such as `http://127.0.0.1:8888` |
+| `NIPUX_IMAGE_WORKER_URL` | empty | Local OpenAI-compatible image worker URL |
+| `NIPUX_SPEECH_WORKER_URL` | empty | Local text-to-speech worker URL |
+| `NIPUX_TRANSCRIPTION_WORKER_URL` | empty | Local speech-to-text worker URL |
+| `NIPUX_VIDEO_WORKER_URL` | empty | Local video generation worker URL |
 | `NIPUX_FAKE_LLM` | `0` | Enable streaming dev backend |
 | `NIPUX_DEV_UI` | `0` | Boot default for showing dev controls |
 | `NIPUX_BROWSER_HEADLESS` | `1` | Boot default for headless Playwright browser windows. Set to `0` for visible windows. |

@@ -13,6 +13,7 @@ flowchart TD
   Agents["Hermes-style agent layer"]
   Browsers["Browser session broker"]
   Settings["Persisted app settings"]
+  Media["Local-only media worker adapters"]
 
   UI --> API
   API --> DB
@@ -21,7 +22,9 @@ flowchart TD
   API --> Search
   API --> Agents
   API --> Settings
+  API --> Media
   Settings --> DB
+  Media --> DB
   Agents --> DB
   Agents --> Search
   Agents --> LLM
@@ -37,7 +40,7 @@ flowchart TD
 - Advanced model search/download lives in the Models view.
 - Agents have persistent memory and run history from day one.
 - Browser automation is a brokered capability, not unrestricted agent power.
-- Image/video/audio remain future capability lanes; v0.1 is LLM-only.
+- Image/video/audio use local-only worker adapters until bundled local runtimes are reliable.
 
 ## Main Processes
 
@@ -53,6 +56,7 @@ flowchart TD
 - `src/services/browserBroker.ts`: Playwright browser sessions for agents and UI takeover.
 - `src/services/search.ts`: local FTS and SearXNG.
 - `src/services/settings.ts`: persisted runtime settings, env-derived boot defaults, and Settings status.
+- `src/services/media.ts`: local-only image/audio/video capability checks, worker calls, and media job records.
 - `src/services/hardware.ts`: OS/GPU/RAM detection.
 - `src/db.ts`: SQLite schema and persistence helpers.
 
@@ -64,6 +68,7 @@ The Settings page writes user-facing defaults to SQLite. Environment variables s
 - SearXNG URL
 - Playwright browser headless mode
 - dev-control visibility
+- local media worker URLs
 
 Dev mode hides advanced tools from the main experience until enabled. Runtime start/stop/test controls, Hugging Face model search/download, file-path indexing, raw status JSON, and browser action logs are dev-only surfaces. Permission approvals remain visible because they are part of the agent safety flow.
 
@@ -155,13 +160,13 @@ Browser actions are recorded in `browser_action_events`. User-originated UI acti
 
 Low-risk actions such as open, screenshot, and close can run without approval. A later autonomous agent runner should call the same browser API with `actor: "agent"` so these gates remain the central safety boundary.
 
-## Future Capability Ports
+## Media Workers
 
-The API gateway should gain separate worker adapters for:
+The API gateway has separate local-only worker adapters for:
 
-- `image.generate` with Ideogram or another local image backend
-- `audio.transcribe` with whisper.cpp
-- `audio.speech` with Kokoro/Piper
-- `video.generate` with a queued, opt-in worker
+- `image.generate` through an OpenAI-compatible local image endpoint
+- `audio.transcribe` through a local transcription endpoint such as whisper.cpp
+- `audio.speech` through a local TTS endpoint such as Kokoro/Piper
+- `video.generate` through a queued, opt-in local video worker
 
-Those should all emit usage events and job records through the same database path.
+Worker URLs must be loopback HTTP(S) URLs. The app rejects remote media workers so it remains local-first and does not hide external API usage. Media requests emit usage events and persistent `media_jobs` records whether they complete, fail, or are missing a configured worker.

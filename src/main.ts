@@ -39,6 +39,15 @@ import { indexPath } from "./services/fileIndexer.ts";
 import { getHermesStatus } from "./services/hermes.ts";
 import { detectHardware } from "./services/hardware.ts";
 import {
+  generateImage,
+  generateSpeech,
+  generateVideo,
+  getMediaCapabilities,
+  listMediaJobs,
+  MediaUnavailableError,
+  transcribeAudio,
+} from "./services/media.ts";
+import {
   createAgentMemory,
   compactAgentMemories,
   deleteAgentMemory,
@@ -171,6 +180,20 @@ async function handleResponses(req: Request) {
     model: body.model ?? "balanced",
     output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: outputText }] }],
   });
+}
+
+function mediaError(error: unknown) {
+  if (error instanceof MediaUnavailableError) {
+    return json({ error: error.message, job: error.job }, error.status);
+  }
+  return json({ error: error instanceof Error ? error.message : String(error) }, 502);
+}
+
+function openAiMediaError(error: unknown) {
+  if (error instanceof MediaUnavailableError) {
+    return json({ error: { message: error.message }, nipux: { job: error.job } }, error.status);
+  }
+  return json({ error: { message: error instanceof Error ? error.message : String(error) } }, 502);
 }
 
 export async function route(req: Request): Promise<Response> {
@@ -480,6 +503,45 @@ export async function route(req: Request): Promise<Response> {
 
   if (url.pathname === "/api/usage/summary") return json({ summary: getUsageSummary(), timeline: getUsageTimeline() });
 
+  if (url.pathname === "/api/media/capabilities" && req.method === "GET") return json(getMediaCapabilities());
+  if (url.pathname === "/api/media/jobs" && req.method === "GET") return json({ jobs: listMediaJobs(Number(url.searchParams.get("limit") ?? 80)) });
+  if (url.pathname === "/api/media/images/generate" && req.method === "POST") {
+    const body = await readJson<{ prompt?: string; model?: string; size?: string; n?: number; response_format?: string }>(req);
+    if (!body.prompt?.trim()) return json({ error: "prompt is required" }, 400);
+    try {
+      return json(await generateImage(body));
+    } catch (error) {
+      return mediaError(error);
+    }
+  }
+  if (url.pathname === "/api/media/audio/speech" && req.method === "POST") {
+    const body = await readJson<{ input?: string; voice?: string; model?: string; response_format?: string }>(req);
+    if (!body.input?.trim()) return json({ error: "input is required" }, 400);
+    try {
+      return json(await generateSpeech(body));
+    } catch (error) {
+      return mediaError(error);
+    }
+  }
+  if (url.pathname === "/api/media/audio/transcriptions" && req.method === "POST") {
+    const body = await readJson<{ audioBase64?: string; mime?: string; language?: string; prompt?: string }>(req);
+    if (!body.audioBase64?.trim()) return json({ error: "audioBase64 is required" }, 400);
+    try {
+      return json(await transcribeAudio(body));
+    } catch (error) {
+      return mediaError(error);
+    }
+  }
+  if (url.pathname === "/api/media/video/generate" && req.method === "POST") {
+    const body = await readJson<{ prompt?: string; seconds?: number; width?: number; height?: number; model?: string }>(req);
+    if (!body.prompt?.trim()) return json({ error: "prompt is required" }, 400);
+    try {
+      return json(await generateVideo(body));
+    } catch (error) {
+      return mediaError(error);
+    }
+  }
+
   if (url.pathname === "/v1/models") {
     return json({
       object: "list",
@@ -491,8 +553,15 @@ export async function route(req: Request): Promise<Response> {
   }
   if (url.pathname === "/v1/chat/completions" && req.method === "POST") return handleOpenAiChat(req);
   if (url.pathname === "/v1/responses" && req.method === "POST") return handleResponses(req);
-  if (url.pathname === "/v1/images/generations") {
-    return json({ error: { message: "Image generation is intentionally disabled in the first LLM-only build." } }, 501);
+  if (url.pathname === "/v1/images/generations" && req.method === "POST") {
+    const body = await readJson<{ prompt?: string; model?: string; size?: string; n?: number; response_format?: string }>(req);
+    if (!body.prompt?.trim()) return json({ error: { message: "prompt is required" } }, 400);
+    try {
+      const { result } = await generateImage(body);
+      return json(result);
+    } catch (error) {
+      return openAiMediaError(error);
+    }
   }
 
   const file = await staticFile(url.pathname);

@@ -2,7 +2,7 @@ import { db } from "../db.ts";
 import type { UsageSummary } from "../types.ts";
 
 export function recordUsage(input: {
-  kind: "chat" | "agent" | "search" | "model" | "browser";
+  kind: "chat" | "agent" | "search" | "model" | "browser" | "image" | "audio" | "video";
   model?: string;
   tokensIn?: number;
   tokensOut?: number;

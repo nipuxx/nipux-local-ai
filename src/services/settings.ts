@@ -1,9 +1,13 @@
 import {
   API_KEYS,
   BIND_HOST,
+  IMAGE_WORKER_URL,
   IS_DEV_UI,
   PUBLIC_API,
   SEARXNG_URL,
+  SPEECH_WORKER_URL,
+  TRANSCRIPTION_WORKER_URL,
+  VIDEO_WORKER_URL,
 } from "../config.ts";
 import { db } from "../db.ts";
 
@@ -12,6 +16,10 @@ export interface AppSettings {
   browserHeadless: boolean;
   devMode: boolean;
   defaultModelPreset: "fast" | "balanced" | "smart";
+  imageWorkerUrl: string;
+  speechWorkerUrl: string;
+  transcriptionWorkerUrl: string;
+  videoWorkerUrl: string;
 }
 
 const DEFAULTS: AppSettings = {
@@ -19,6 +27,10 @@ const DEFAULTS: AppSettings = {
   browserHeadless: process.env.NIPUX_BROWSER_HEADLESS !== "0",
   devMode: IS_DEV_UI,
   defaultModelPreset: "balanced",
+  imageWorkerUrl: IMAGE_WORKER_URL,
+  speechWorkerUrl: SPEECH_WORKER_URL,
+  transcriptionWorkerUrl: TRANSCRIPTION_WORKER_URL,
+  videoWorkerUrl: VIDEO_WORKER_URL,
 };
 
 const KEYS: Record<keyof AppSettings, string> = {
@@ -26,6 +38,10 @@ const KEYS: Record<keyof AppSettings, string> = {
   browserHeadless: "browser_headless",
   devMode: "dev_mode",
   defaultModelPreset: "default_model_preset",
+  imageWorkerUrl: "image_worker_url",
+  speechWorkerUrl: "speech_worker_url",
+  transcriptionWorkerUrl: "transcription_worker_url",
+  videoWorkerUrl: "video_worker_url",
 };
 
 function encode(value: string | boolean) {
@@ -60,6 +76,10 @@ export function getAppSettings(): AppSettings {
     defaultModelPreset: ["fast", "balanced", "smart"].includes(modelPreset)
       ? (modelPreset as AppSettings["defaultModelPreset"])
       : DEFAULTS.defaultModelPreset,
+    imageWorkerUrl: getRawSetting(KEYS.imageWorkerUrl, DEFAULTS.imageWorkerUrl),
+    speechWorkerUrl: getRawSetting(KEYS.speechWorkerUrl, DEFAULTS.speechWorkerUrl),
+    transcriptionWorkerUrl: getRawSetting(KEYS.transcriptionWorkerUrl, DEFAULTS.transcriptionWorkerUrl),
+    videoWorkerUrl: getRawSetting(KEYS.videoWorkerUrl, DEFAULTS.videoWorkerUrl),
   };
 }
 
@@ -70,6 +90,10 @@ export function updateAppSettings(patch: Partial<AppSettings>) {
   if (patch.defaultModelPreset && ["fast", "balanced", "smart"].includes(patch.defaultModelPreset)) {
     setRawSetting(KEYS.defaultModelPreset, patch.defaultModelPreset);
   }
+  if (typeof patch.imageWorkerUrl === "string") setRawSetting(KEYS.imageWorkerUrl, patch.imageWorkerUrl.trim());
+  if (typeof patch.speechWorkerUrl === "string") setRawSetting(KEYS.speechWorkerUrl, patch.speechWorkerUrl.trim());
+  if (typeof patch.transcriptionWorkerUrl === "string") setRawSetting(KEYS.transcriptionWorkerUrl, patch.transcriptionWorkerUrl.trim());
+  if (typeof patch.videoWorkerUrl === "string") setRawSetting(KEYS.videoWorkerUrl, patch.videoWorkerUrl.trim());
   return getAppSettings();
 }
 

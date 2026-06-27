@@ -68,3 +68,16 @@ Default mode is headless with screenshot/control through the UI. Set `NIPUX_BROW
 - purchases/payments
 - credential access
 - file writes/deletes
+
+## Media Workers
+
+Image, speech, transcription, and video are local worker surfaces. They are configured with loopback URLs in Settings dev mode or environment variables:
+
+```bash
+NIPUX_IMAGE_WORKER_URL=http://127.0.0.1:8081
+NIPUX_SPEECH_WORKER_URL=http://127.0.0.1:8082
+NIPUX_TRANSCRIPTION_WORKER_URL=http://127.0.0.1:8083
+NIPUX_VIDEO_WORKER_URL=http://127.0.0.1:8084
+```
+
+The current release does not bundle media models. It records media jobs and gives setup hints until local workers are configured. Remote media worker URLs are blocked.

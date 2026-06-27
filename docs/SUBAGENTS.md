@@ -89,6 +89,7 @@ This file translates the product goal into independently owned workstreams. The 
 ## Future Media Agent
 
 - Keep image/audio/video API surfaces separate from the LLM-first path.
-- Add local image generation only when install/runtime/licensing details are clear.
-- Add Whisper.cpp and Kokoro/Piper after core chat/agents/search are solid.
-- Add video generation last.
+- Maintain local-only image, speech, transcription, and video worker APIs.
+- Add bundled local image generation when install/runtime/licensing details are clear.
+- Add Whisper.cpp and Kokoro/Piper setup automation after worker APIs are stable.
+- Add video generation as queued, hardware-aware jobs.
