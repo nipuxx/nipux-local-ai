@@ -787,7 +787,7 @@ async function runAgentForm(event) {
   $("#agentOutput").textContent = "Running...";
   const data = await api("/api/agents/run", {
     method: "POST",
-    body: JSON.stringify({ input, modelPreset: $("#presetSelect").value }),
+    body: JSON.stringify({ input, agentId: state.activeAgentId, modelPreset: $("#presetSelect").value }),
   });
   $("#agentOutput").textContent = data.output;
   $("#agentInput").value = "";
@@ -1138,7 +1138,7 @@ $("#clearApiKey").addEventListener("click", () => {
 });
 $("#newChat").addEventListener("click", createNewChat);
 $("#createBrowser").addEventListener("click", async () => {
-  await api("/api/browsers", { method: "POST", body: JSON.stringify({ label: "Agent Browser" }) });
+  await api("/api/browsers", { method: "POST", body: JSON.stringify({ label: "Agent Browser", agentId: state.activeAgentId }) });
   await loadAgents();
 });
 

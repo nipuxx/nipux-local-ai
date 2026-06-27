@@ -1,8 +1,8 @@
 import { db, getDefaultAgent } from "../db.ts";
 import { chatText, estimateMessageTokens } from "../providers/llamaCpp.ts";
+import { formatAgentToolEvents, runAgentTools } from "./agentTools.ts";
 import { createAgentMemory, maybeCompactAgentMemories, searchAgentMemoriesScored } from "./memory.ts";
 import { getModel } from "./modelRegistry.ts";
-import { localSearch, webSearch } from "./search.ts";
 import { recordUsage } from "./usage.ts";
 import type { Agent, ChatMessage } from "../types.ts";
 
@@ -43,13 +43,6 @@ function readAgent(agentId?: string): Agent {
   return agent ?? getDefaultAgent();
 }
 
-function formatResults(title: string, results: Array<{ title: string; snippet: string; url?: string; path?: string }>) {
-  if (!results.length) return `${title}: none`;
-  return `${title}:\n${results
-    .map((result, index) => `${index + 1}. ${result.title}${result.url ? ` (${result.url})` : result.path ? ` (${result.path})` : ""}\n${result.snippet}`)
-    .join("\n")}`;
-}
-
 export async function runAgent(input: string, agentId?: string, forcedPreset?: string) {
   const agent = readAgent(agentId);
   const runId = crypto.randomUUID();
@@ -58,9 +51,7 @@ export async function runAgent(input: string, agentId?: string, forcedPreset?: s
 
   try {
     const memories = searchAgentMemoriesScored(agent.id, input, 8);
-    const localResults = localSearch(input, 5);
-    const wantsWeb = /\b(web|internet|search|latest|current|news|look up)\b/i.test(input);
-    const webResults = wantsWeb ? await webSearch(input, 5) : [];
+    const toolRun = await runAgentTools(input, agent);
     const model = getModel(forcedPreset ?? agent.modelPreset);
 
     const memoryBlock =
@@ -78,13 +69,12 @@ export async function runAgent(input: string, agentId?: string, forcedPreset?: s
 Persistent memory:
 ${memoryBlock}
 
-Available context:
-${formatResults("Local search", localResults)}
-
-${formatResults("Web search", webResults)}
+Available tool context:
+${toolRun.contextBlock}
 
 Rules:
-- Treat web search as unavailable if the result says SearXNG is not configured.
+- Treat the tool activity above as the authoritative record of what actually happened.
+- Treat web search as unavailable if the tool activity or result says SearXNG is not configured.
 - Store only durable, reusable facts in memory.
 - Do not claim browser actions were executed unless a browser session event exists.`,
       },
@@ -92,11 +82,13 @@ Rules:
     ];
 
     const output = await chatText(messages, model.id);
-    db.prepare("UPDATE agent_runs SET output = ?, status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = ?").run(output, runId);
+    const activity = formatAgentToolEvents(toolRun.events);
+    const finalOutput = activity ? `${output}\n\n${activity}` : output;
+    db.prepare("UPDATE agent_runs SET output = ?, status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = ?").run(finalOutput, runId);
     createAgentMemory({
       agentId: agent.id,
       kind: "task",
-      content: `User asked: ${input}\nAgent answered: ${output.slice(0, 900)}`,
+      content: `User asked: ${input}\nAgent answered: ${finalOutput.slice(0, 900)}`,
       importance: 3,
       source: "agent_run",
       sourceId: runId,
@@ -107,12 +99,27 @@ Rules:
       kind: "agent",
       model: model.id,
       tokensIn: estimateMessageTokens(messages),
-      tokensOut: Math.ceil(output.length / 4),
+      tokensOut: Math.ceil(finalOutput.length / 4),
       latencyMs: Date.now() - started,
       status: "ok",
-      meta: { runId, agentId: agent.id, compacted: compaction?.archived ?? 0 },
+      meta: {
+        runId,
+        agentId: agent.id,
+        compacted: compaction?.archived ?? 0,
+        tools: toolRun.events.map((event) => ({ tool: event.tool, status: event.status })),
+      },
     });
-    return { runId, agent, output, localResults, webResults, memories, compaction };
+    return {
+      runId,
+      agent,
+      output: finalOutput,
+      localResults: toolRun.localResults,
+      webResults: toolRun.webResults,
+      browserSessions: toolRun.browserSessions,
+      toolEvents: toolRun.events,
+      memories,
+      compaction,
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     db.prepare("UPDATE agent_runs SET output = ?, status = 'failed', completed_at = CURRENT_TIMESTAMP WHERE id = ?").run(message, runId);

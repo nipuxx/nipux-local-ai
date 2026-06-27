@@ -23,6 +23,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
   - Smart: `google/gemma-4-26B-A4B-it-qat-q4_0-gguf:Q4_0`
 - Local SQLite persistence
 - Agent memory CRUD, scored retrieval, summaries, provenance, compaction, and run history
+- Agent tool activity for local search, SearXNG web search, and browser-session creation
 - Hermes detection/config adapter with internal-memory-agent fallback
 - Agent browser sessions with Playwright-backed open, navigate, screenshot, click, type, key, and close APIs
 - Browser action logs and approval gates for agent-originated risky actions
@@ -96,6 +97,8 @@ The Agents view can create browser sessions, open them, navigate, capture screen
 ```bash
 NIPUX_BROWSER_HEADLESS=0 bun run start
 ```
+
+Agent runs can also create assigned browser sessions from natural-language tasks. If a task asks the agent to visit a URL, the session is created and navigation is queued behind the same user approval gate as other agent-originated browser actions.
 
 ## Media Workers
 

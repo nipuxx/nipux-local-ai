@@ -309,11 +309,12 @@ Uses `HF_TOKEN` when present.
 ```json
 {
   "input": "Search my local notes for product requirements and summarize them.",
+  "agentId": "optional-agent-id",
   "modelPreset": "balanced"
 }
 ```
 
-Runs the local agent with memory and search context.
+Runs the local agent with memory and local tool context. The response includes `toolEvents`, `localResults`, `webResults`, and any created `browserSessions`. Natural-language requests for local search, web search, or browser use are executed through the agent tool layer; agent browser navigation creates a pending approval instead of navigating immediately.
 
 ### `GET /api/agents/:id/memories`
 

@@ -41,14 +41,14 @@ interface RuntimePage {
 
 const activeSessions = new Map<string, RuntimeSession>();
 
-export function createBrowserSession(agentId?: string, label = "Agent Browser") {
+export function createBrowserSession(agentId?: string, label = "Agent Browser"): BrowserSessionRecord {
   const id = crypto.randomUUID();
   const userDataDir = join(NIPUX_HOME, "browsers", id);
   db.prepare(
     `INSERT INTO browser_sessions (id, agent_id, label, status, url, user_data_dir)
      VALUES (?, ?, ?, ?, ?, ?)`,
   ).run(id, agentId ?? null, label, "ready", "about:blank", userDataDir);
-  return { id, agentId, label, status: "ready", url: "about:blank", userDataDir };
+  return { id, agentId: agentId ?? null, label, status: "ready", url: "about:blank", userDataDir };
 }
 
 export function listBrowserSessions(): BrowserSessionRecord[] {

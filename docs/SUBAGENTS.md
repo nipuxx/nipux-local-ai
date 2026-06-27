@@ -48,6 +48,7 @@ This file translates the product goal into independently owned workstreams. The 
 - Keep Playwright sessions reliable.
 - Add browser action logs.
 - Add agent/session assignment.
+- Maintain natural-language browser-session creation from agent runs.
 - Add permission gates for risky actions.
 - Add visible-browser mode and screenshot mode without confusing users.
 
@@ -55,6 +56,7 @@ This file translates the product goal into independently owned workstreams. The 
 
 - Add file/folder indexing.
 - Add PDF, Markdown, text, and doc ingestion.
+- Maintain agent tool activity for local and web search.
 - Improve SearXNG setup and status checks.
 - Add result citations for chat/agent answers.
 - Add semantic/vector search later.
