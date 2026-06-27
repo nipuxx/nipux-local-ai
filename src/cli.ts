@@ -1,5 +1,6 @@
-import { mkdirSync } from "node:fs";
-import { MODEL_DIR, NIPUX_HOME, PORT, RUNTIME_DIR } from "./config.ts";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { DATA_DIR, MODEL_DIR, NIPUX_HOME, PORT, RUNTIME_DIR } from "./config.ts";
 import { detectHardware } from "./services/hardware.ts";
 import { downloadHuggingFaceFile, listHuggingFaceFiles, listModels, llamaServeCommand } from "./services/modelRegistry.ts";
 import { testLlamaBackend } from "./providers/llamaCpp.ts";
@@ -7,20 +8,95 @@ import { getUsageSummary } from "./services/usage.ts";
 
 const command = process.argv[2] ?? "help";
 
+const BROWSERS_DIR = join(NIPUX_HOME, "browsers");
+
 function printHelp() {
   console.log(`Nipux Local AI
 
 Commands:
-  bun run src/cli.ts install              Prepare local folders and print runtime setup
-  bun run src/cli.ts doctor               Detect hardware and backend health
-  bun run src/cli.ts models               List built-in model presets
+  bun run setup                   One-command setup: creates dirs, detects hardware, checks backends
+  bun run src/cli.ts install      Prepare local folders and print runtime setup
+  bun run src/cli.ts doctor       Detect hardware and backend health
+  bun run src/cli.ts models       List built-in model presets
   bun run src/cli.ts llama-command [id]   Print the llama.cpp serve command
-  bun run src/cli.ts files <repo>         List GGUF files from Hugging Face
+  bun run src/cli.ts files <repo> List GGUF files from Hugging Face
   bun run src/cli.ts download <repo> <file>
 `);
 }
 
+function step(n: number, label: string) {
+  console.log(`\n[${n}] ${label}`);
+}
+
+async function setup() {
+  console.log(`\nNipux Local AI — Setup`);
+  console.log(`Home: ${NIPUX_HOME}`);
+
+  step(1, "Creating directories");
+  const dirs = [NIPUX_HOME, DATA_DIR, MODEL_DIR, RUNTIME_DIR, BROWSERS_DIR];
+  for (const dir of dirs) {
+    mkdirSync(dir, { recursive: true });
+    console.log(`  ✓ ${dir}`);
+  }
+
+  step(2, "Detecting hardware");
+  const hardware = await detectHardware();
+  console.log(`  OS:          ${hardware.os} (${hardware.arch})`);
+  console.log(`  RAM:         ${hardware.totalRamGb} GB`);
+  console.log(`  GPUs:        ${hardware.gpuVendors.join(", ") || "none detected"}`);
+  console.log(`  Accelerator: ${hardware.accelerator}`);
+  console.log(`  Recommended: ${hardware.recommendedPreset} mode`);
+  for (const note of hardware.notes) console.log(`  ⚠ ${note}`);
+
+  step(3, "Seeding model registry");
+  const models = listModels();
+  for (const model of models) {
+    console.log(`  ${model.label}: ${model.llamaRef} ${model.state}`);
+  }
+
+  step(4, "Checking llama.cpp backend");
+  const llama = await testLlamaBackend();
+  if (llama.ok) {
+    console.log(`  ✓ Backend available (${llama.mode})`);
+  } else {
+    console.log(`  ✗ Backend not reachable`);
+    console.log(`  llama.cpp not running. Install and serve a model to use live inference:`);
+    console.log(`    macOS/Linux: curl -LsSf https://llama.app/install.sh | sh`);
+    console.log(`    Windows:     winget install llama.cpp`);
+    console.log(`    Then:        ${llamaServeCommand(hardware.recommendedPreset)}`);
+    console.log(`  Dev mode (no model needed): bun run dev`);
+  }
+
+  step(5, "Writing .env example");
+  const envPath = join(NIPUX_HOME, ".env.example");
+  writeFileSync(
+    envPath,
+    [
+      "NIPUX_PORT=3434",
+      `NIPUX_HOME=${NIPUX_HOME}`,
+      "NIPUX_LLAMA_BASE_URL=http://127.0.0.1:8080/v1",
+      "NIPUX_SEARXNG_URL=",
+      "NIPUX_FAKE_LLM=0",
+      "HF_TOKEN=",
+    ].join("\n") + "\n",
+  );
+  console.log(`  ✓ ${envPath}`);
+
+  console.log(`\n✓ Setup complete.`);
+  console.log(`\nNext steps:`);
+  console.log(`  Dev (no model):  bun run dev`);
+  console.log(`  Production:      ${llamaServeCommand(hardware.recommendedPreset)}`);
+  console.log(`                   bun run start`);
+  console.log(`  Health check:    bun run doctor`);
+  console.log(`  Open:            http://127.0.0.1:${PORT}`);
+}
+
 async function main() {
+  if (command === "setup") {
+    await setup();
+    return;
+  }
+
   if (command === "install") {
     mkdirSync(NIPUX_HOME, { recursive: true });
     mkdirSync(MODEL_DIR, { recursive: true });

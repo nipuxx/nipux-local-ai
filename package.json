@@ -5,9 +5,9 @@
   "type": "module",
   "description": "A minimal local-first AI workspace with chat, agents, model management, search, usage stats, and an OpenAI-compatible API.",
   "scripts": {
+    "setup": "bun run src/cli.ts setup",
     "start": "bun run src/main.ts",
     "dev": "bun --watch src/dev.ts",
-    "browsers:install": "bunx playwright install chromium",
     "doctor": "bun run src/cli.ts doctor",
     "install:local": "bun run src/cli.ts install",
     "models": "bun run src/cli.ts models",

@@ -24,7 +24,7 @@ if (-not (Test-Path (Join-Path $InstallDir ".git"))) {
 
 Set-Location $InstallDir
 bun install
-bun run install:local
+bun run setup
 
 Write-Host ""
 Write-Host "Start dev mode:"

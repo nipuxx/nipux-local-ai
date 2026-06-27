@@ -24,7 +24,7 @@ fi
 
 cd "$INSTALL_DIR"
 bun install
-bun run install:local
+bun run setup
 
 echo
 echo "Start dev mode:"
