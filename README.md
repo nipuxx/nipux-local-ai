@@ -31,6 +31,7 @@ The first runnable build is intentionally LLM-only. Image/video/audio are capabi
 - Hardware/runtime detection for CPU, Apple Metal, NVIDIA CUDA, AMD ROCm/Vulkan, Intel Vulkan/DirectML
 - Platform-aware preflight checks for install/runtime readiness and repair hints
 - macOS/Linux and Windows install scripts with optional Playwright Chromium setup
+- Release zip, manifest, checksum generation, and GitHub Actions artifact workflow
 - Dev fake LLM mode so the UI/API can be tested without a model server
 
 ## Quick Start
@@ -110,6 +111,16 @@ Run the platform-aware readiness check at any time:
 bun run preflight
 ```
 
+## Release Packaging
+
+Build distributable release artifacts:
+
+```bash
+bun run package:release
+```
+
+This writes a source zip, JSON manifest, and `SHA256SUMS.txt` into `dist/`. See [Release Packaging](docs/RELEASE.md).
+
 ## Environment
 
 | Variable | Default | Purpose |
@@ -140,6 +151,7 @@ bun run check
 bun test
 bun run doctor
 bun run preflight
+bun run package:release
 ```
 
-See [Architecture](docs/ARCHITECTURE.md), [API](docs/API.md), and [Runtime Matrix](docs/RUNTIME-MATRIX.md).
+See [Architecture](docs/ARCHITECTURE.md), [API](docs/API.md), [Runtime Matrix](docs/RUNTIME-MATRIX.md), and [Release Packaging](docs/RELEASE.md).

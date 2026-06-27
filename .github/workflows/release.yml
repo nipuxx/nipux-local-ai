@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: bun test
+      - run: bun run preflight --json
+      - run: bun run package:release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nipux-local-ai-release
+          path: |
+            dist/*.zip
+            dist/*-manifest.json
+            dist/SHA256SUMS.txt

@@ -84,7 +84,7 @@ This file translates the product goal into independently owned workstreams. The 
 - Add browser tests that can run in CI.
 - Add migration tests.
 - Keep macOS/Linux/Windows CI green.
-- Add release packaging and update paths.
+- Maintain release packaging, checksums, manifests, and update paths.
 
 ## Future Media Agent
 

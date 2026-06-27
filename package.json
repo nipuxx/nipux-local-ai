@@ -12,6 +12,7 @@
     "preflight": "bun run src/cli.ts preflight",
     "install:local": "bun run src/cli.ts install",
     "browsers:install": "bunx playwright install chromium",
+    "package:release": "bun run scripts/package-release.ts",
     "models": "bun run src/cli.ts models",
     "check": "tsc --noEmit",
     "test": "bun test"
