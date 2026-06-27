@@ -214,6 +214,29 @@ h2 {
   border-color: #bdded8;
 }
 
+.message-content {
+  white-space: pre-wrap;
+}
+
+.message-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  white-space: normal;
+}
+
+.chat-speak {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.speech-status {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .composer {
   position: sticky;
   bottom: 0;

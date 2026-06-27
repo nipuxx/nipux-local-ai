@@ -77,6 +77,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Media tab, media job records, and local-only image/audio/video API surfaces exist; bundled media runtimes are still future work.
 - Hardware-aware media runtime planner exists for local image, speech, transcription, and video worker setup.
 - Built-in local speech generation exists when the host OS has a supported system speech engine.
+- Assistant chat messages can be played through the local speech route.
 - One-command setup CLI and install scripts exist.
 - CI exists for macOS, Linux, and Windows.
 

@@ -107,6 +107,8 @@ This keeps local indexing useful without accidentally crawling huge build output
 
 The OpenAI-compatible routes stay stateless for client compatibility. The web app uses native `/api/chats` routes to persist chat records and messages around the streaming `/v1/chat/completions` call.
 
+Assistant messages in the web chat can be played through `/v1/audio/speech`. That keeps voice playback on the same local speech path as API clients: configured loopback speech workers first, built-in system speech second.
+
 This keeps external API behavior predictable while giving the UI normal chat-app behavior across reloads.
 
 ## API Exposure

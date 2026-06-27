@@ -16,6 +16,7 @@ const state = {
   mediaCapabilities: null,
   mediaRuntimePlan: null,
   mediaJobs: [],
+  speechPlayback: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -66,6 +67,36 @@ function setStatus(text) {
   $("#statusText").textContent = text;
 }
 
+function messageBody(el) {
+  return el.querySelector(".message-content") || el;
+}
+
+function messageText(el) {
+  return messageBody(el).textContent || "";
+}
+
+function setMessageText(el, content = "") {
+  messageBody(el).textContent = content;
+  const button = el.querySelector(".chat-speak");
+  if (button) button.disabled = !content.trim();
+}
+
+function setMessageSpeechStatus(el, text = "") {
+  const status = el.querySelector(".speech-status");
+  if (status) status.textContent = text;
+}
+
+function stopSpeechPlayback() {
+  if (!state.speechPlayback) return;
+  state.speechPlayback.audio.pause();
+  state.speechPlayback.audio.currentTime = 0;
+  URL.revokeObjectURL(state.speechPlayback.url);
+  state.speechPlayback.button.textContent = "Play";
+  state.speechPlayback.button.disabled = false;
+  setMessageSpeechStatus(state.speechPlayback.message, "");
+  state.speechPlayback = null;
+}
+
 function currentSettings() {
   return (
     state.settingsStatus?.settings ||
@@ -113,7 +144,18 @@ function applySettingsToUi() {
 function addMessage(role, content = "") {
   const el = document.createElement("div");
   el.className = `message ${role}`;
-  el.textContent = content;
+  const body = document.createElement("div");
+  body.className = "message-content";
+  body.textContent = content;
+  el.appendChild(body);
+  if (role === "assistant") {
+    const tools = document.createElement("div");
+    tools.className = "message-tools";
+    tools.innerHTML = `
+      <button class="chat-speak" type="button" title="Play locally generated speech" ${content.trim() ? "" : "disabled"}>Play</button>
+      <span class="speech-status" aria-live="polite"></span>`;
+    el.appendChild(tools);
+  }
   $("#messages").appendChild(el);
   el.scrollIntoView({ block: "end" });
   return el;
@@ -495,6 +537,54 @@ async function refreshBrowserScreenshot(id) {
   await Promise.all([loadAgents(), loadUsage()]);
 }
 
+async function playChatSpeech(button) {
+  const message = button.closest(".message");
+  if (!message) return;
+  const input = messageText(message).trim();
+  if (!input) return;
+
+  if (state.speechPlayback?.button === button) {
+    stopSpeechPlayback();
+    return;
+  }
+  stopSpeechPlayback();
+
+  button.disabled = true;
+  button.textContent = "Wait";
+  setMessageSpeechStatus(message, "Preparing");
+  try {
+    const res = await fetchWithAuth("/v1/audio/speech", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ input, voice: "alloy" }),
+    });
+    if (!res.ok) throw new Error((await res.text()) || res.statusText);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    state.speechPlayback = { audio, url, button, message };
+    audio.addEventListener("ended", () => {
+      if (state.speechPlayback?.audio === audio) stopSpeechPlayback();
+    }, { once: true });
+    audio.addEventListener("error", () => {
+      if (state.speechPlayback?.audio !== audio) return;
+      stopSpeechPlayback();
+      setMessageSpeechStatus(message, "Playback failed");
+    }, { once: true });
+    button.disabled = false;
+    button.textContent = "Stop";
+    setMessageSpeechStatus(message, "Playing");
+    await audio.play();
+    await loadUsage();
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    stopSpeechPlayback();
+    button.textContent = "Play";
+    button.disabled = false;
+    setMessageSpeechStatus(message, errorMessage);
+  }
+}
+
 function browserCard(target) {
   return target.closest(".browser-card");
 }
@@ -526,7 +616,7 @@ async function sendChat(event) {
   });
 
   if (!res.ok || !res.body) {
-    assistant.textContent = await res.text();
+    setMessageText(assistant, await res.text());
     return;
   }
 
@@ -548,7 +638,7 @@ async function sendChat(event) {
         const json = JSON.parse(data);
         const delta = json.choices?.[0]?.delta?.content || "";
         full += delta;
-        assistant.textContent = full;
+        setMessageText(assistant, full);
       } catch {
         // Ignore malformed SSE fragments from alternate backends.
       }
@@ -780,6 +870,7 @@ document.addEventListener("click", async (event) => {
     await api(`/api/search/documents/${target.dataset.id}`, { method: "DELETE" });
     await loadDocuments();
   }
+  if (target.matches(".chat-speak")) await playChatSpeech(target);
   if (target.matches(".browser-open")) {
     const id = target.dataset.id;
     try {

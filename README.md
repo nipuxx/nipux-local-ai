@@ -13,6 +13,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
   - `GET /v1/models`
   - `POST /v1/audio/speech`
 - Persisted chat conversations through native `/api/chats` routes
+- Local speech playback for assistant chat messages
 - Fast / Balanced / Smart model modes
 - Gemma 4 QAT GGUF defaults:
   - Fast: `google/gemma-4-E4B-it-qat-q4_0-gguf:Q4_0`
