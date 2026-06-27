@@ -35,6 +35,7 @@ import {
   type PermissionStatus,
 } from "./services/browserAudit.ts";
 import { addChatMessage, createChat, deleteChat, getChat, listChatMessages, listChats, updateChatModel } from "./services/chats.ts";
+import { buildChatContext, type ChatCitation } from "./services/chatContext.ts";
 import { indexPath } from "./services/fileIndexer.ts";
 import { getHermesStatus } from "./services/hermes.ts";
 import { detectHardware } from "./services/hardware.ts";
@@ -234,6 +235,159 @@ function audioResponse(result: unknown) {
   });
 }
 
+function chatChunk(model: string, content: string) {
+  return {
+    id: `chatcmpl-${crypto.randomUUID()}`,
+    object: "chat.completion.chunk",
+    created: Math.floor(Date.now() / 1000),
+    model,
+    choices: [{ index: 0, delta: { content }, finish_reason: null }],
+  };
+}
+
+function doneChunk(model: string) {
+  return {
+    id: `chatcmpl-${crypto.randomUUID()}`,
+    object: "chat.completion.chunk",
+    created: Math.floor(Date.now() / 1000),
+    model,
+    choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+  };
+}
+
+function streamNativeChat(input: {
+  chatId: string;
+  model: string;
+  upstream: Response;
+  sourceAppendix: string;
+  citations: ChatCitation[];
+  started: number;
+  tokensIn: number;
+}) {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  const reader = input.upstream.body?.getReader();
+  let buffer = "";
+  let output = "";
+
+  return new Response(
+    new ReadableStream({
+      async start(controller) {
+        try {
+          while (reader) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+            for (const line of lines) {
+              if (!line.startsWith("data: ")) continue;
+              const data = line.slice(6).trim();
+              if (!data || data === "[DONE]") continue;
+              try {
+                const parsed = JSON.parse(data);
+                const delta = parsed.choices?.[0]?.delta?.content || "";
+                output += delta;
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(parsed)}\n\n`));
+              } catch {
+                // Ignore malformed SSE fragments from alternate local backends.
+              }
+            }
+          }
+
+          if (input.sourceAppendix) {
+            const appendix = `\n\n${input.sourceAppendix}`;
+            output += appendix;
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(chatChunk(input.model, appendix))}\n\n`));
+          }
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(doneChunk(input.model))}\n\n`));
+          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          if (output.trim()) addChatMessage(input.chatId, "assistant", output);
+          recordUsage({
+            kind: "chat",
+            model: input.model,
+            tokensIn: input.tokensIn,
+            tokensOut: Math.ceil(output.length / 4),
+            latencyMs: Date.now() - input.started,
+            status: "ok",
+            meta: { native: true, stream: true, citations: input.citations.length },
+          });
+          controller.close();
+        } catch (error) {
+          recordUsage({
+            kind: "chat",
+            model: input.model,
+            tokensIn: input.tokensIn,
+            latencyMs: Date.now() - input.started,
+            status: "error",
+            meta: { native: true, stream: true, error: error instanceof Error ? error.message : String(error) },
+          });
+          controller.error(error);
+        }
+      },
+    }),
+    {
+      headers: {
+        ...corsHeaders,
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        "x-nipux-citations": String(input.citations.length),
+      },
+    },
+  );
+}
+
+async function handleNativeChatRespond(chatId: string, req: Request) {
+  const started = Date.now();
+  const body = await readJson<{ content?: string; modelPreset?: string; stream?: boolean; useLocalSearch?: boolean }>(req);
+  const content = body.content?.trim();
+  if (!content) return json({ error: "content is required" }, 400);
+
+  const model = body.modelPreset ?? getAppSettings().defaultModelPreset;
+  updateChatModel(chatId, model);
+  addChatMessage(chatId, "user", content);
+  const storedMessages = listChatMessages(chatId).map((message) => ({ role: message.role, content: message.content }));
+  const context = body.useLocalSearch === false
+    ? { citations: [] as ChatCitation[], messages: storedMessages, sourceAppendix: "" }
+    : buildChatContext(content, storedMessages);
+  const tokensIn = estimateMessageTokens(context.messages);
+
+  try {
+    const upstream = await chatCompletion({ model, messages: context.messages, stream: body.stream !== false });
+    if (body.stream !== false) {
+      if (!upstream.body) throw new Error("Chat backend did not return a stream.");
+      return streamNativeChat({
+        chatId,
+        model,
+        upstream,
+        sourceAppendix: context.sourceAppendix,
+        citations: context.citations,
+        started,
+        tokensIn,
+      });
+    }
+
+    const payload = (await upstream.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const modelOutput = payload.choices?.[0]?.message?.content ?? "";
+    const output = context.sourceAppendix ? `${modelOutput}\n\n${context.sourceAppendix}` : modelOutput;
+    const message = output.trim() ? addChatMessage(chatId, "assistant", output) : null;
+    recordUsage({
+      kind: "chat",
+      model,
+      tokensIn,
+      tokensOut: Math.ceil(output.length / 4),
+      latencyMs: Date.now() - started,
+      status: "ok",
+      meta: { native: true, stream: false, citations: context.citations.length },
+    });
+    return json({ chat: getChat(chatId), message, output, citations: context.citations });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    recordUsage({ kind: "chat", model, tokensIn, latencyMs: Date.now() - started, status: "error", meta: { native: true, error: message } });
+    return json({ error: message }, 503);
+  }
+}
+
 async function readTranscriptionInput(req: Request) {
   const contentType = req.headers.get("content-type") ?? "";
   if (contentType.includes("multipart/form-data")) {
@@ -343,6 +497,15 @@ export async function route(req: Request): Promise<Response> {
   if (url.pathname === "/api/chats" && req.method === "POST") {
     const body = await readJson<{ title?: string; modelPreset?: string }>(req);
     return json({ chat: createChat(body.modelPreset ?? getAppSettings().defaultModelPreset, body.title ?? "New chat") });
+  }
+  const chatRespondMatch = url.pathname.match(/^\/api\/chats\/([^/]+)\/respond$/);
+  if (chatRespondMatch && req.method === "POST") {
+    const [, chatId] = chatRespondMatch;
+    try {
+      return await handleNativeChatRespond(chatId, req);
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : String(error) }, 404);
+    }
   }
   const chatMessagesMatch = url.pathname.match(/^\/api\/chats\/([^/]+)\/messages$/);
   if (chatMessagesMatch) {

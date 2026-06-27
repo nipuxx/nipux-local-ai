@@ -752,23 +752,15 @@ async function sendChat(event) {
   if (!content) return;
   const chatId = await ensureActiveChat();
   input.value = "";
-  await api(`/api/chats/${chatId}`, {
-    method: "PATCH",
-    body: JSON.stringify({ modelPreset: $("#presetSelect").value }),
-  });
-  await api(`/api/chats/${chatId}/messages`, {
-    method: "POST",
-    body: JSON.stringify({ role: "user", content }),
-  });
   state.messages.push({ role: "user", content });
   addMessage("user", content);
   const assistant = addMessage("assistant", "");
   const model = $("#presetSelect").value;
 
-  const res = await fetchWithAuth("/v1/chat/completions", {
+  const res = await fetchWithAuth(`/api/chats/${chatId}/respond`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ model, stream: true, messages: state.messages }),
+    body: JSON.stringify({ modelPreset: model, content, stream: true }),
   });
 
   if (!res.ok || !res.body) {
@@ -801,12 +793,6 @@ async function sendChat(event) {
     }
   }
   state.messages.push({ role: "assistant", content: full });
-  if (full) {
-    await api(`/api/chats/${chatId}/messages`, {
-      method: "POST",
-      body: JSON.stringify({ role: "assistant", content: full }),
-    });
-  }
   await Promise.all([loadUsage(), loadChats()]);
 }
 

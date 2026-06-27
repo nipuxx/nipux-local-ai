@@ -14,6 +14,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
   - `POST /v1/audio/speech`
   - `POST /v1/audio/transcriptions`
 - Persisted chat conversations through native `/api/chats` routes
+- Main chat can retrieve indexed local documents and append source citations
 - Local speech playback for assistant chat messages
 - Microphone recording in chat that transcribes through a configured local transcription worker
 - Fast / Balanced / Smart model modes

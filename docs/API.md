@@ -277,6 +277,21 @@ Returns a chat and its messages.
 }
 ```
 
+### `POST /api/chats/:id/respond`
+
+Runs the app-native chat flow: persists the user message, searches indexed local documents, injects relevant local context into the model prompt, streams or returns the assistant response, appends deterministic source lines, and persists the assistant message.
+
+```json
+{
+  "content": "Search local notes for the launch requirements.",
+  "modelPreset": "balanced",
+  "stream": true,
+  "useLocalSearch": true
+}
+```
+
+Set `stream` to `false` for a JSON response with `output` and `citations`.
+
 ### `DELETE /api/chats/:id`
 
 Deletes a persisted chat and messages.

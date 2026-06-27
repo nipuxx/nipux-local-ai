@@ -109,7 +109,9 @@ This keeps local indexing useful without accidentally crawling huge build output
 
 ## Chat Persistence
 
-The OpenAI-compatible routes stay stateless for client compatibility. The web app uses native `/api/chats` routes to persist chat records and messages around the streaming `/v1/chat/completions` call.
+The OpenAI-compatible routes stay stateless for client compatibility. The web app uses native `/api/chats` routes to persist chat records and `/api/chats/:id/respond` for the app-native chat flow.
+
+The native responder searches indexed local documents for the latest user message, injects relevant context into the model prompt, streams the assistant response, appends source lines, and persists the assistant message. This keeps normal chat useful with local files while preserving the plain `/v1/chat/completions` contract for API clients.
 
 Assistant messages in the web chat can be played through `/v1/audio/speech`. That keeps voice playback on the same local speech path as API clients: configured loopback speech workers first, built-in system speech second.
 

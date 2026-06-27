@@ -31,6 +31,7 @@ This file translates the product goal into independently owned workstreams. The 
 ## Chat/API Agent
 
 - Persist chats and messages.
+- Maintain app-native chat retrieval and source citations over indexed local content.
 - Keep `/v1/chat/completions`, `/v1/responses`, and `/v1/models` compatible enough for real local clients.
 - Support streaming.
 - Add API keys and LAN/public mode behavior.

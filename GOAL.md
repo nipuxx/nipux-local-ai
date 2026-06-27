@@ -61,6 +61,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - SQLite persistence exists for models, agents, memory, usage, local docs, and browser sessions.
 - llama.cpp-compatible chat proxy exists.
 - Dev fake LLM streaming exists.
+- Main chat can use indexed local search context and persist cited assistant responses.
 - Gemma 4 Fast/Balanced/Smart model presets exist.
 - Hugging Face GGUF search/list/download hooks exist.
 - Hermes status/config adapter exists.
