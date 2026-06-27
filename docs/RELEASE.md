@@ -47,3 +47,5 @@ bun run setup
 bun run preflight
 bun run dev
 ```
+
+`bun run setup` writes a launch profile, env file, and local launcher scripts under `NIPUX_HOME`. Recreate them later with `bun run launch:write`.

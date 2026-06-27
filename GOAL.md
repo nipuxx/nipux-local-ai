@@ -83,6 +83,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Assistant chat messages can be played through the local speech route.
 - Chat microphone input records audio and transcribes through the configured local transcription worker.
 - Setup page and `bun run ready` summarize everyday local capability readiness.
+- Launch profile generation exists for machine-specific env, commands, and local launcher scripts.
 - One-command setup CLI and install scripts exist.
 - CI exists for macOS, Linux, and Windows.
 

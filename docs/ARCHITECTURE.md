@@ -60,6 +60,7 @@ flowchart TD
 - `src/services/mediaRuntimes.ts`: hardware-aware setup plan for local media worker contracts, default ports, env vars, and fit guidance.
 - `src/services/localSpeech.ts`: built-in local speech fallback through OS speech commands.
 - `src/services/readiness.ts`: user-facing readiness summary that combines setup checks, media runtimes, local chat, search, and API exposure.
+- `src/services/launchProfile.ts`: machine-specific launch profile, env, and local launcher script generation.
 - `src/services/hardware.ts`: OS/GPU/RAM detection.
 - `src/db.ts`: SQLite schema and persistence helpers.
 
@@ -75,7 +76,7 @@ The Settings page writes user-facing defaults to SQLite. Environment variables s
 
 Dev mode hides advanced tools from the main experience until enabled. Runtime start/stop/test controls, Hugging Face model search/download, file-path indexing, raw status JSON, and browser action logs are dev-only surfaces. Permission approvals remain visible because they are part of the agent safety flow.
 
-The Setup page is the non-dev status surface. It calls `/api/readiness` and shows capability status plus next steps without exposing raw diagnostics by default.
+The Setup page is the non-dev status surface. It calls `/api/readiness` and `/api/launch/profile`, then shows capability status, launch commands, and next steps without exposing raw diagnostics by default.
 
 ## Agent Memory
 

@@ -38,6 +38,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - Usage dashboard
 - Settings page for default mode, SearXNG URL, browser headless mode, client API key, and dev controls
 - Setup page and `bun run ready` readiness summary for everyday local capability status
+- Launch profile generation with machine-specific env, run commands, and local launcher scripts
 - Hardware/runtime detection for CPU, Apple Metal, NVIDIA CUDA, AMD ROCm/Vulkan, Intel Vulkan/DirectML
 - Platform-aware preflight checks for install/runtime readiness and repair hints
 - macOS/Linux and Windows install scripts with optional Playwright Chromium setup
@@ -163,6 +164,15 @@ bun run preflight
 ```
 
 `bun run ready` summarizes the user-facing state: chat, browser agents, voice output/input, image/video workers, search, and API exposure. `bun run preflight` keeps the lower-level installer checks.
+
+Generate or rewrite the local launch profile:
+
+```bash
+bun run launch:profile
+bun run launch:write
+```
+
+`bun run setup` also writes `launch-profile.json`, `nipux.env`, `start-dev.sh`, `start-local.sh`, `start-dev.ps1`, and `start-local.ps1` under `~/.nipux-local-ai`.
 
 ## Release Packaging
 

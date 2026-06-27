@@ -102,6 +102,14 @@ Returns the everyday setup summary used by the Setup page and `bun run ready`. I
 }
 ```
 
+### `GET /api/launch/profile`
+
+Returns the machine-specific launch profile used by the Setup page and `bun run launch:profile`. It includes local UI/API URLs, hardware, selected model, llama.cpp command, media worker health, non-secret env values, and launcher file paths.
+
+### `POST /api/launch/profile/write`
+
+Writes `launch-profile.json`, `nipux.env`, and local launcher scripts under `NIPUX_HOME`, then returns the profile and written file list. This does not write API keys.
+
 ### `GET /api/settings`
 
 Returns persisted app settings and non-secret environment status.

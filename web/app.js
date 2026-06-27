@@ -19,6 +19,7 @@ const state = {
   speechPlayback: null,
   voiceRecorder: null,
   readiness: null,
+  launchProfile: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -339,6 +340,29 @@ async function loadReadiness() {
     .join("");
   $("#readinessSteps").innerHTML =
     report.nextSteps.map((step) => `<div>${h(step)}</div>`).join("") || `<div class="meta">No setup steps required.</div>`;
+}
+
+async function loadLaunchProfile() {
+  const profile = await api("/api/launch/profile");
+  state.launchProfile = profile;
+  $("#launchProfile").innerHTML = `
+    <div>
+      <h2>Launch Profile</h2>
+      <div class="meta">${h(profile.mode)} · ${h(profile.hardware.accelerator)} · ${h(profile.hardware.totalRamGb)}GB RAM</div>
+      <div class="meta">${h(profile.files.profileJson)}</div>
+    </div>
+    <div class="launch-command">
+      <span>Dev</span>
+      <code>${h(profile.commands.oneCommandDev)}</code>
+    </div>
+    <div class="launch-command">
+      <span>Model</span>
+      <code>${h(profile.commands.model)}</code>
+    </div>
+    <div class="launch-command">
+      <span>API</span>
+      <code>${h(profile.apiBaseUrl)}</code>
+    </div>`;
 }
 
 async function loadUsage() {
@@ -1102,7 +1126,14 @@ $("#applyMediaDefaults").addEventListener("click", async () => {
   await Promise.all([loadMedia(), loadReadiness()]);
 });
 $("#refreshUsage").addEventListener("click", loadUsage);
-$("#refreshReadiness").addEventListener("click", loadReadiness);
+$("#refreshReadiness").addEventListener("click", async () => {
+  await Promise.all([loadReadiness(), loadLaunchProfile()]);
+});
+$("#writeLaunchProfile").addEventListener("click", async () => {
+  const result = await api("/api/launch/profile/write", { method: "POST", body: "{}" });
+  state.launchProfile = result.profile;
+  await loadLaunchProfile();
+});
 $("#startRuntime").addEventListener("click", async () => {
   $("#runtimeOutput").textContent = "Starting...";
   try {
@@ -1157,7 +1188,7 @@ $("#createBrowser").addEventListener("click", async () => {
 
 await loadStatus();
 await loadSettings();
-await Promise.all([loadModels(), loadRuntime(), loadReadiness(), loadUsage(), loadAgents(), loadDocuments(), loadMedia()]);
+await Promise.all([loadModels(), loadRuntime(), loadReadiness(), loadLaunchProfile(), loadUsage(), loadAgents(), loadDocuments(), loadMedia()]);
 await loadChats();
 if (state.chats[0]) await openChat(state.chats[0].id);
 else await createNewChat();

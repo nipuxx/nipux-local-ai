@@ -334,6 +334,34 @@ h2 {
   font-size: 12px;
 }
 
+.launch-profile {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.launch-command {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.launch-command span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.launch-command code {
+  overflow-wrap: anywhere;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  background: #fffefa;
+  color: var(--text);
+  font-size: 12px;
+}
+
 .media-output {
   min-height: 44px;
   color: var(--muted);

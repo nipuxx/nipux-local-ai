@@ -8,6 +8,7 @@ import { getUsageSummary } from "./services/usage.ts";
 import { formatSetupCheck, getSetupPreflight } from "./services/setupChecks.ts";
 import { applyRecommendedMediaRuntimeDefaults, formatMediaRuntimePlan, getMediaRuntimePlan } from "./services/mediaRuntimes.ts";
 import { formatReadinessReport, getReadinessReport } from "./services/readiness.ts";
+import { formatLaunchProfile, getLaunchProfile, writeLaunchProfileFiles } from "./services/launchProfile.ts";
 
 const command = process.argv[2] ?? "help";
 
@@ -23,6 +24,8 @@ Commands:
   bun run ready                   Show everyday readiness summary
   bun run media:runtimes          Show local media runtime setup plan
   bun run media:defaults          Persist recommended local media worker URLs
+  bun run launch:profile          Show this machine's launch profile
+  bun run launch:write            Write launch profile, env, and launcher scripts
   bun run src/cli.ts doctor       Detect hardware and backend health
   bun run src/cli.ts models       List built-in model presets
   bun run src/cli.ts llama-command [id]   Print the llama.cpp serve command
@@ -108,6 +111,13 @@ async function setup() {
   step(7, "Install preflight");
   const preflight = await getSetupPreflight();
   for (const check of preflight.checks) console.log(`  ${formatSetupCheck(check).replaceAll("\n", "\n  ")}`);
+
+  step(8, "Writing launch profile");
+  const launch = await writeLaunchProfileFiles();
+  console.log(`  Profile: ${launch.profile.files.profileJson}`);
+  console.log(`  Env:     ${launch.profile.files.envFile}`);
+  console.log(`  Dev:     ${launch.profile.files.startDevSh}`);
+  console.log(`  Local:   ${launch.profile.files.startLocalSh}`);
 
   console.log(`\n✓ Setup complete.`);
   if (!preflight.ready) {
@@ -199,6 +209,29 @@ async function main() {
     for (const runtime of result.plan.runtimes) {
       console.log(`  [${runtime.status}] ${runtime.label}: ${runtime.health.detail}`);
     }
+    return;
+  }
+
+  if (command === "launch-profile") {
+    const profile = await getLaunchProfile();
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(profile, null, 2));
+      return;
+    }
+    console.log(formatLaunchProfile(profile));
+    return;
+  }
+
+  if (command === "launch-write") {
+    const result = await writeLaunchProfileFiles();
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+    console.log(formatLaunchProfile(result.profile));
+    console.log("");
+    console.log("Written:");
+    for (const file of result.written) console.log(`  - ${file}`);
     return;
   }
 

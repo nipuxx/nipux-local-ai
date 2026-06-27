@@ -14,6 +14,8 @@
     "install:local": "bun run src/cli.ts install",
     "media:runtimes": "bun run src/cli.ts media-runtimes",
     "media:defaults": "bun run src/cli.ts media-defaults",
+    "launch:profile": "bun run src/cli.ts launch-profile",
+    "launch:write": "bun run src/cli.ts launch-write",
     "browsers:install": "bunx playwright install chromium",
     "package:release": "bun run scripts/package-release.ts",
     "models": "bun run src/cli.ts models",
