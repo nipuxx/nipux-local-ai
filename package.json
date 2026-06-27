@@ -10,6 +10,7 @@
     "dev": "bun --watch src/dev.ts",
     "doctor": "bun run src/cli.ts doctor",
     "preflight": "bun run src/cli.ts preflight",
+    "ready": "bun run src/cli.ts readiness",
     "install:local": "bun run src/cli.ts install",
     "media:runtimes": "bun run src/cli.ts media-runtimes",
     "browsers:install": "bunx playwright install chromium",

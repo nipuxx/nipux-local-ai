@@ -18,6 +18,7 @@ const state = {
   mediaJobs: [],
   speechPlayback: null,
   voiceRecorder: null,
+  readiness: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -306,6 +307,38 @@ async function loadRuntime() {
     null,
     2,
   );
+}
+
+async function loadReadiness() {
+  const report = await api("/api/readiness");
+  state.readiness = report;
+  $("#readinessHero").innerHTML = `
+    <div>
+      <strong>${h(report.usable ? "Ready" : "Needs setup")}</strong>
+      <div class="meta">${h(report.headline)}</div>
+      <div class="meta">${h(report.localUrl)} · ${h(report.bindHost)}${report.publicApi ? " · public API" : ""}</div>
+    </div>
+    <div class="readiness-counts">
+      <span>${h(report.counts.ready)} ready</span>
+      <span>${h(report.counts.needs_setup)} setup</span>
+      <span>${h(report.counts.optional)} optional</span>
+      <span>${h(report.counts.blocked)} blocked</span>
+    </div>`;
+  $("#readinessGrid").innerHTML = report.items
+    .map(
+      (item) => `
+        <div class="readiness-item readiness-${h(item.status)}">
+          <div>
+            <strong>${h(item.label)}</strong>
+            <span>${h(item.status.replace("_", " "))}</span>
+          </div>
+          <div class="meta">${h(item.detail)}</div>
+          ${item.fix ? `<div class="meta">Fix: ${h(item.fix)}</div>` : ""}
+        </div>`,
+    )
+    .join("");
+  $("#readinessSteps").innerHTML =
+    report.nextSteps.map((step) => `<div>${h(step)}</div>`).join("") || `<div class="meta">No setup steps required.</div>`;
 }
 
 async function loadUsage() {
@@ -1056,6 +1089,7 @@ $("#hfSearch").addEventListener("click", searchHf);
 $("#refreshModels").addEventListener("click", loadModels);
 $("#refreshMedia").addEventListener("click", loadMedia);
 $("#refreshUsage").addEventListener("click", loadUsage);
+$("#refreshReadiness").addEventListener("click", loadReadiness);
 $("#startRuntime").addEventListener("click", async () => {
   $("#runtimeOutput").textContent = "Starting...";
   try {
@@ -1110,7 +1144,7 @@ $("#createBrowser").addEventListener("click", async () => {
 
 await loadStatus();
 await loadSettings();
-await Promise.all([loadModels(), loadRuntime(), loadUsage(), loadAgents(), loadDocuments(), loadMedia()]);
+await Promise.all([loadModels(), loadRuntime(), loadReadiness(), loadUsage(), loadAgents(), loadDocuments(), loadMedia()]);
 await loadChats();
 if (state.chats[0]) await openChat(state.chats[0].id);
 else await createNewChat();

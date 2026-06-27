@@ -65,6 +65,7 @@ import {
   searchHuggingFace,
 } from "./services/modelRegistry.ts";
 import { getRuntimeStatus, startModelRuntime, stopModelRuntime, testModelPrompt } from "./services/modelRuntime.ts";
+import { getReadinessReport } from "./services/readiness.ts";
 import { addLocalDocument, localSearch, webSearch } from "./services/search.ts";
 import { getAppSettings, getSettingsStatus, updateAppSettings, type AppSettings } from "./services/settings.ts";
 import { getUsageSummary, getUsageTimeline, recordUsage } from "./services/usage.ts";
@@ -294,6 +295,7 @@ export async function route(req: Request): Promise<Response> {
     const body = await readJson<Partial<AppSettings>>(req);
     return json({ settings: updateAppSettings(body), env: getSettingsStatus().env });
   }
+  if (url.pathname === "/api/readiness" && req.method === "GET") return json(await getReadinessReport());
 
   if (url.pathname === "/api/models" && req.method === "GET") return json({ models: listModels() });
   if (url.pathname === "/api/models/test" && req.method === "POST") {

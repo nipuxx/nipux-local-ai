@@ -18,6 +18,7 @@
         </div>
         <nav>
           <button class="nav active" data-view="chat">Chat</button>
+          <button class="nav" data-view="setup">Setup</button>
           <button class="nav" data-view="agents">Agents</button>
           <button class="nav" data-view="models">Models</button>
           <button class="nav" data-view="search">Search</button>
@@ -95,6 +96,17 @@
               <div id="browserActionList" class="list dev-only"></div>
             </div>
           </div>
+        </section>
+
+        <section id="setup" class="view">
+          <header>
+            <h1>Setup</h1>
+            <button id="refreshReadiness">Refresh</button>
+          </header>
+          <div id="readinessHero" class="setup-hero"></div>
+          <div id="readinessGrid" class="readiness-grid"></div>
+          <h2>Next Steps</h2>
+          <div id="readinessSteps" class="list"></div>
         </section>
 
         <section id="models" class="view">

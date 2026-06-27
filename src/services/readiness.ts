@@ -1,0 +1,174 @@
+import { API_KEYS, BIND_HOST, IS_FAKE_LLM, PORT, PUBLIC_API } from "../config.ts";
+import { getMediaRuntimePlan } from "./mediaRuntimes.ts";
+import { getSetupPreflight, type SetupCheck } from "./setupChecks.ts";
+
+export type ReadinessStatus = "ready" | "needs_setup" | "optional" | "blocked";
+
+export interface ReadinessItem {
+  id: string;
+  label: string;
+  status: ReadinessStatus;
+  detail: string;
+  fix?: string;
+}
+
+export interface ReadinessReport {
+  usable: boolean;
+  headline: string;
+  localUrl: string;
+  publicApi: boolean;
+  bindHost: string;
+  counts: Record<ReadinessStatus, number>;
+  items: ReadinessItem[];
+  nextSteps: string[];
+}
+
+function checkById(checks: SetupCheck[], id: string) {
+  return checks.find((check) => check.id === id);
+}
+
+function itemFromCheck(id: string, label: string, check: SetupCheck | undefined, optional = false): ReadinessItem {
+  if (!check) {
+    return { id, label, status: optional ? "optional" : "needs_setup", detail: "Status was not reported." };
+  }
+  if (check.status === "ok") return { id, label, status: "ready", detail: check.detail };
+  return {
+    id,
+    label,
+    status: optional ? "optional" : "needs_setup",
+    detail: check.detail,
+    fix: check.fix,
+  };
+}
+
+function countItems(items: ReadinessItem[]) {
+  return items.reduce<Record<ReadinessStatus, number>>(
+    (counts, item) => {
+      counts[item.status] += 1;
+      return counts;
+    },
+    { ready: 0, needs_setup: 0, optional: 0, blocked: 0 },
+  );
+}
+
+function unique(values: string[]) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+export async function getReadinessReport(): Promise<ReadinessReport> {
+  const [preflight, media] = await Promise.all([getSetupPreflight(), getMediaRuntimePlan()]);
+  const checks = preflight.checks;
+  const llama = checkById(checks, "llama");
+  const playwright = checkById(checks, "playwright");
+  const searxng = checkById(checks, "searxng");
+  const speech = media.runtimes.find((runtime) => runtime.kind === "speech");
+  const transcription = media.runtimes.find((runtime) => runtime.kind === "transcription");
+  const image = media.runtimes.find((runtime) => runtime.kind === "image");
+  const video = media.runtimes.find((runtime) => runtime.kind === "video");
+
+  const chatReady = IS_FAKE_LLM || llama?.status === "ok";
+  const publicApiLocked = PUBLIC_API && API_KEYS.length === 0;
+  const items: ReadinessItem[] = [
+    {
+      id: "chat",
+      label: "Chat",
+      status: chatReady ? "ready" : "needs_setup",
+      detail: IS_FAKE_LLM
+        ? "Dev local backend is enabled."
+        : llama?.status === "ok"
+          ? "Local llama.cpp backend is reachable."
+          : "Install/start llama.cpp for live local inference.",
+      fix: chatReady ? undefined : llama?.fix,
+    },
+    itemFromCheck("browser", "Browser Agents", playwright, false),
+    {
+      id: "voice-output",
+      label: "Voice Output",
+      status: speech?.status === "ready" ? "ready" : "needs_setup",
+      detail: speech?.status === "ready"
+        ? `${speech.workerLabel} is available.`
+        : "Configure a local speech worker or supported built-in speech engine.",
+      fix: speech?.status === "ready" ? undefined : speech?.setup,
+    },
+    {
+      id: "voice-input",
+      label: "Voice Input",
+      status: transcription?.status === "ready" ? "ready" : "needs_setup",
+      detail: transcription?.status === "ready"
+        ? "Local transcription worker is configured."
+        : "Configure a local transcription worker for microphone input.",
+      fix: transcription?.status === "ready" ? undefined : transcription?.setup,
+    },
+    {
+      id: "image",
+      label: "Image Generation",
+      status: image?.status === "ready" ? "ready" : "needs_setup",
+      detail: image?.status === "ready" ? "Local image worker is configured." : "Configure a local OpenAI-compatible image worker.",
+      fix: image?.status === "ready" ? undefined : image?.setup,
+    },
+    {
+      id: "video",
+      label: "Video Generation",
+      status: video?.status === "ready" ? "ready" : "optional",
+      detail: video?.status === "ready" ? "Local video worker is configured." : "Video remains optional and hardware-sensitive.",
+      fix: video?.status === "ready" ? undefined : video?.setup,
+    },
+    itemFromCheck("web-search", "Web Search", searxng, true),
+    {
+      id: "local-search",
+      label: "Local Search",
+      status: "ready",
+      detail: "SQLite local document index is available.",
+    },
+    {
+      id: "api",
+      label: "API",
+      status: publicApiLocked ? "blocked" : "ready",
+      detail: publicApiLocked
+        ? "Public API mode is enabled without an API key."
+        : API_KEYS.length > 0
+          ? "Protected API key mode is enabled."
+          : "Local private API mode is enabled.",
+      fix: publicApiLocked ? "Set NIPUX_API_KEY or NIPUX_API_KEYS before using public mode." : undefined,
+    },
+  ];
+
+  const counts = countItems(items);
+  const usable = counts.blocked === 0 && items.find((item) => item.id === "chat")?.status === "ready";
+  const headline = usable
+    ? "Ready for local chat. Some optional capabilities may still need setup."
+    : "Setup needs attention before the main local AI experience is ready.";
+  const nextSteps = unique([
+    ...items.filter((item) => item.status === "blocked" || item.status === "needs_setup").map((item) => item.fix || item.detail),
+    ...preflight.nextSteps,
+    ...media.nextSteps,
+  ]);
+
+  return {
+    usable,
+    headline,
+    localUrl: `http://127.0.0.1:${PORT}`,
+    publicApi: PUBLIC_API,
+    bindHost: BIND_HOST,
+    counts,
+    items,
+    nextSteps,
+  };
+}
+
+export function formatReadinessReport(report: ReadinessReport) {
+  const lines = [
+    report.headline,
+    `Local URL: ${report.localUrl}`,
+    `Bind: ${report.bindHost}${report.publicApi ? " public-api" : ""}`,
+    "",
+    "Capabilities:",
+  ];
+  for (const item of report.items) {
+    lines.push(`  [${item.status}] ${item.label}: ${item.detail}`);
+    if (item.fix) lines.push(`    Fix: ${item.fix}`);
+  }
+  lines.push("", "Next steps:");
+  for (const step of report.nextSteps) lines.push(`  - ${step}`);
+  return lines.join("\n");
+}

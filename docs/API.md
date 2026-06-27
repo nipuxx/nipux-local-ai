@@ -87,6 +87,21 @@ curl http://127.0.0.1:3434/v1/audio/transcriptions \
 
 Hardware profile, llama backend health, persisted settings, SearXNG status, Playwright availability, and generated serve commands.
 
+### `GET /api/readiness`
+
+Returns the everyday setup summary used by the Setup page and `bun run ready`. It aggregates chat, browser agents, voice output/input, image/video workers, web search, local search, and API exposure.
+
+```json
+{
+  "usable": true,
+  "headline": "Ready for local chat. Some optional capabilities may still need setup.",
+  "items": [
+    { "id": "chat", "label": "Chat", "status": "ready" }
+  ],
+  "nextSteps": ["Configure a local transcription worker for microphone input."]
+}
+```
+
 ### `GET /api/settings`
 
 Returns persisted app settings and non-secret environment status.

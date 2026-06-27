@@ -7,6 +7,7 @@ import { testLlamaBackend } from "./providers/llamaCpp.ts";
 import { getUsageSummary } from "./services/usage.ts";
 import { formatSetupCheck, getSetupPreflight } from "./services/setupChecks.ts";
 import { formatMediaRuntimePlan, getMediaRuntimePlan } from "./services/mediaRuntimes.ts";
+import { formatReadinessReport, getReadinessReport } from "./services/readiness.ts";
 
 const command = process.argv[2] ?? "help";
 
@@ -19,6 +20,7 @@ Commands:
   bun run setup                   One-command setup: creates dirs, detects hardware, checks backends
   bun run src/cli.ts install      Prepare local folders and print runtime setup
   bun run src/cli.ts preflight    Check install/runtime readiness with repair hints
+  bun run ready                   Show everyday readiness summary
   bun run media:runtimes          Show local media runtime setup plan
   bun run src/cli.ts doctor       Detect hardware and backend health
   bun run src/cli.ts models       List built-in model presets
@@ -150,6 +152,18 @@ async function main() {
     console.log("\nNext steps:");
     for (const step of preflight.nextSteps) console.log(`  ${step}`);
     if (!preflight.ready) process.exitCode = 1;
+    return;
+  }
+
+  if (command === "readiness" || command === "ready") {
+    const report = await getReadinessReport();
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(report, null, 2));
+      return;
+    }
+    console.log(`\nNipux Local AI readiness`);
+    console.log(formatReadinessReport(report));
+    if (!report.usable) process.exitCode = 1;
     return;
   }
 

@@ -14,6 +14,7 @@ This file translates the product goal into independently owned workstreams. The 
 
 - Maintain `scripts/install.sh`, `scripts/install.ps1`, and the setup CLI.
 - Validate Bun, git, llama.cpp, Playwright Chromium, SearXNG, and model directories through preflight.
+- Maintain the user-facing readiness summary for the Setup page and `bun run ready`.
 - Detect OS, RAM, GPU vendor, and recommended mode.
 - Keep Docker out of the required path.
 - Produce human-readable setup failures.
