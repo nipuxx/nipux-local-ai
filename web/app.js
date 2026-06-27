@@ -14,6 +14,7 @@ const state = {
   browserActions: [],
   settingsStatus: null,
   mediaCapabilities: null,
+  mediaRuntimePlan: null,
   mediaJobs: [],
 };
 
@@ -292,9 +293,29 @@ function renderMediaResult(target, payload) {
 }
 
 async function loadMedia() {
-  const [capabilities, jobs] = await Promise.all([api("/api/media/capabilities"), api("/api/media/jobs")]);
+  const [capabilities, runtimePlan, jobs] = await Promise.all([
+    api("/api/media/capabilities"),
+    api("/api/media/runtimes"),
+    api("/api/media/jobs"),
+  ]);
   state.mediaCapabilities = capabilities.capabilities;
+  state.mediaRuntimePlan = runtimePlan;
   state.mediaJobs = jobs.jobs;
+  $("#mediaRuntimePlan").innerHTML = state.mediaRuntimePlan.runtimes
+    .map(
+      (runtime) => `
+        <div class="media-runtime ${runtime.status === "ready" ? "" : "media-warn"}">
+          <div>
+            <strong>${h(runtime.label)}</strong>
+            <span>${h(runtime.status)} · ${runtime.recommended ? "recommended" : "optional"}</span>
+          </div>
+          <div class="meta">${h(runtime.workerLabel)}</div>
+          <div class="meta">${h(runtime.hardwareFit)}</div>
+          <code>${h(runtime.envVar)}=${h(runtime.workerUrl || runtime.defaultUrl)}</code>
+          <div class="meta">${h(runtime.endpoint)}</div>
+        </div>`,
+    )
+    .join("");
   $("#mediaCapabilities").innerHTML = Object.values(state.mediaCapabilities)
     .map(
       (capability) => `

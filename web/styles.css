@@ -269,11 +269,39 @@ h2 {
 }
 
 .media-grid,
-.media-capabilities {
+.media-capabilities,
+.media-runtime-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 18px;
+}
+
+.media-runtime {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 14px;
+  display: grid;
+  gap: 7px;
+}
+
+.media-runtime span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 3px;
+}
+
+.media-runtime code {
+  display: block;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  background: #fffefa;
+  color: var(--text);
+  font-size: 12px;
 }
 
 .media-output {
@@ -450,6 +478,7 @@ h2 {
   .model-grid,
   .media-grid,
   .media-capabilities,
+  .media-runtime-grid,
   .split,
   .stats,
   .settings-grid,

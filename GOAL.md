@@ -75,6 +75,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - macOS/Linux and Windows installer scripts clone the pushed repo, use the lockfile, run setup, and optionally install Playwright Chromium.
 - Release packaging creates a source zip, manifest, checksums, and GitHub Actions artifact workflow.
 - Media tab, media job records, and local-only image/audio/video API surfaces exist; bundled media runtimes are still future work.
+- Hardware-aware media runtime planner exists for local image, speech, transcription, and video worker setup.
 - One-command setup CLI and install scripts exist.
 - CI exists for macOS, Linux, and Windows.
 

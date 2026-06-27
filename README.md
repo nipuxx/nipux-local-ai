@@ -25,6 +25,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - Manual document indexing plus safe file/folder indexing and local search
 - SearXNG adapter for local web search
 - Media tab plus local-only image, speech, transcription, and video worker API surfaces
+- Hardware-aware media runtime planner for image, speech, transcription, and video workers
 - Hugging Face GGUF search, file listing, and direct download hooks
 - llama.cpp runtime status, start, stop, and prompt test controls
 - Usage dashboard
@@ -103,6 +104,15 @@ NIPUX_VIDEO_WORKER_URL=http://127.0.0.1:8084
 
 Worker URLs must be loopback URLs such as `localhost` or `127.0.0.1`. External media APIs are intentionally rejected.
 
+Inspect the hardware-aware local media runtime plan:
+
+```bash
+bun run media:runtimes
+bun run media:runtimes --json
+```
+
+The planner reports the expected worker contract, default local port, environment variable, current configured status, and whether the detected hardware is a reasonable fit for each lane.
+
 ## One-Command Installer Shape
 
 The repo includes scripts for eventual public install:
@@ -169,6 +179,7 @@ bun run check
 bun test
 bun run doctor
 bun run preflight
+bun run media:runtimes
 bun run package:release
 ```
 

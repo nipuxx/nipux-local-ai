@@ -57,6 +57,7 @@ flowchart TD
 - `src/services/search.ts`: local FTS and SearXNG.
 - `src/services/settings.ts`: persisted runtime settings, env-derived boot defaults, and Settings status.
 - `src/services/media.ts`: local-only image/audio/video capability checks, worker calls, and media job records.
+- `src/services/mediaRuntimes.ts`: hardware-aware setup plan for local media worker contracts, default ports, env vars, and fit guidance.
 - `src/services/hardware.ts`: OS/GPU/RAM detection.
 - `src/db.ts`: SQLite schema and persistence helpers.
 
@@ -170,3 +171,5 @@ The API gateway has separate local-only worker adapters for:
 - `video.generate` through a queued, opt-in local video worker
 
 Worker URLs must be loopback HTTP(S) URLs. The app rejects remote media workers so it remains local-first and does not hide external API usage. Media requests emit usage events and persistent `media_jobs` records whether they complete, fail, or are missing a configured worker.
+
+`GET /api/media/runtimes` exposes the setup plan that installers and the dev-only Media UI use. It does not install or call remote model providers; it maps each lane to a local worker contract so later bundled runtimes can be automated without changing the public app API.

@@ -6,6 +6,7 @@ import { downloadHuggingFaceFile, listHuggingFaceFiles, listModels, llamaServeCo
 import { testLlamaBackend } from "./providers/llamaCpp.ts";
 import { getUsageSummary } from "./services/usage.ts";
 import { formatSetupCheck, getSetupPreflight } from "./services/setupChecks.ts";
+import { formatMediaRuntimePlan, getMediaRuntimePlan } from "./services/mediaRuntimes.ts";
 
 const command = process.argv[2] ?? "help";
 
@@ -18,6 +19,7 @@ Commands:
   bun run setup                   One-command setup: creates dirs, detects hardware, checks backends
   bun run src/cli.ts install      Prepare local folders and print runtime setup
   bun run src/cli.ts preflight    Check install/runtime readiness with repair hints
+  bun run media:runtimes          Show local media runtime setup plan
   bun run src/cli.ts doctor       Detect hardware and backend health
   bun run src/cli.ts models       List built-in model presets
   bun run src/cli.ts llama-command [id]   Print the llama.cpp serve command
@@ -93,7 +95,14 @@ async function setup() {
   );
   console.log(`  ✓ ${envPath}`);
 
-  step(6, "Install preflight");
+  step(6, "Media runtime plan");
+  const mediaPlan = await getMediaRuntimePlan();
+  for (const runtime of mediaPlan.runtimes) {
+    console.log(`  ${runtime.label}: ${runtime.status} (${runtime.hardwareFit})`);
+  }
+  console.log(`  Full plan: bun run media:runtimes`);
+
+  step(7, "Install preflight");
   const preflight = await getSetupPreflight();
   for (const check of preflight.checks) console.log(`  ${formatSetupCheck(check).replaceAll("\n", "\n  ")}`);
 
@@ -144,9 +153,25 @@ async function main() {
     return;
   }
 
+  if (command === "media-runtimes") {
+    const plan = await getMediaRuntimePlan();
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(plan, null, 2));
+      return;
+    }
+    console.log(`\nNipux Local AI media runtime plan`);
+    console.log(formatMediaRuntimePlan(plan));
+    return;
+  }
+
   if (command === "doctor") {
-    const [hardware, llama, preflight] = await Promise.all([detectHardware(), testLlamaBackend(), getSetupPreflight()]);
-    console.log(JSON.stringify({ home: NIPUX_HOME, port: PORT, hardware, llama, preflight, usage: getUsageSummary() }, null, 2));
+    const [hardware, llama, preflight, mediaRuntimes] = await Promise.all([
+      detectHardware(),
+      testLlamaBackend(),
+      getSetupPreflight(),
+      getMediaRuntimePlan(),
+    ]);
+    console.log(JSON.stringify({ home: NIPUX_HOME, port: PORT, hardware, llama, preflight, mediaRuntimes, usage: getUsageSummary() }, null, 2));
     return;
   }
 

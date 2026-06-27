@@ -116,6 +116,25 @@ Media routes only talk to loopback workers such as `http://127.0.0.1:8081`. Remo
 
 Returns image, speech, transcription, and video capability status plus setup hints.
 
+### `GET /api/media/runtimes`
+
+Returns the hardware-aware local media runtime plan. Each runtime includes the capability kind, current worker status, default loopback URL, endpoint contract, setting key, environment variable, hardware fit, and setup notes.
+
+```json
+{
+  "runtimes": [
+    {
+      "kind": "image",
+      "status": "unconfigured",
+      "defaultUrl": "http://127.0.0.1:8081",
+      "endpoint": "/v1/images/generations",
+      "envVar": "NIPUX_IMAGE_WORKER_URL",
+      "localOnly": true
+    }
+  ]
+}
+```
+
 ### `GET /api/media/jobs`
 
 Lists recent media jobs and failed setup attempts.

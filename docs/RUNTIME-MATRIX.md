@@ -81,3 +81,19 @@ NIPUX_VIDEO_WORKER_URL=http://127.0.0.1:8084
 ```
 
 The current release does not bundle media models. It records media jobs and gives setup hints until local workers are configured. Remote media worker URLs are blocked.
+
+Use the media runtime planner to see the current worker contracts and hardware fit:
+
+```bash
+bun run media:runtimes
+GET /api/media/runtimes
+```
+
+Default worker lanes:
+
+| Lane | Default URL | Contract | Default Fit |
+| --- | --- | --- | --- |
+| Image | `http://127.0.0.1:8081` | `POST /v1/images/generations` | GPU or strong unified memory preferred |
+| Speech | `http://127.0.0.1:8082` | `POST /v1/audio/speech` | CPU-friendly first bundle target |
+| Transcription | `http://127.0.0.1:8083` | `POST /v1/audio/transcriptions` | CPU-friendly with small models |
+| Video | `http://127.0.0.1:8084` | `POST /v1/video/generations` | Experimental, queued, GPU/unified memory preferred |
