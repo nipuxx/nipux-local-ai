@@ -266,6 +266,51 @@ h2 {
   margin-top: 4px;
 }
 
+.browser-card {
+  display: grid;
+  gap: 10px;
+}
+
+.browser-head,
+.browser-controls {
+  display: grid;
+  gap: 8px;
+  align-items: center;
+}
+
+.browser-head {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.browser-controls {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+
+.browser-preview {
+  width: 100%;
+  aspect-ratio: 1280 / 820;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #111;
+  cursor: crosshair;
+}
+
+.browser-empty,
+.browser-error {
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  padding: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.browser-error {
+  border-color: #f1b8b8;
+  color: var(--danger);
+  background: #fff7f7;
+}
+
 .dev {
   overflow: auto;
   background: #1f1f1f;
@@ -296,7 +341,9 @@ h2 {
   }
 
   .composer,
-  .row {
+  .row,
+  .browser-head,
+  .browser-controls {
     grid-template-columns: 1fr;
   }
 }

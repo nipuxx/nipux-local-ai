@@ -7,13 +7,16 @@
   "scripts": {
     "start": "bun run src/main.ts",
     "dev": "bun --watch src/dev.ts",
+    "browsers:install": "bunx playwright install chromium",
     "doctor": "bun run src/cli.ts doctor",
     "install:local": "bun run src/cli.ts install",
     "models": "bun run src/cli.ts models",
     "check": "tsc --noEmit",
     "test": "bun test"
   },
-  "dependencies": {},
+  "dependencies": {
+    "playwright": "^1.61.1"
+  },
   "devDependencies": {
     "@types/bun": "^1.2.22",
     "typescript": "^5.9.3"

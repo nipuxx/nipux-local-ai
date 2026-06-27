@@ -2,9 +2,17 @@ const state = {
   status: null,
   models: [],
   messages: [],
+  browserShots: {},
+  browserErrors: {},
 };
 
 const $ = (selector) => document.querySelector(selector);
+const h = (value = "") =>
+  String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 
 async function api(path, options = {}) {
   const res = await fetch(path, {
@@ -92,12 +100,53 @@ async function loadAgents() {
     browsers.sessions
       .map(
         (session) => `
-          <div>
-            <strong>${session.label}</strong>
-            <div class="meta">${session.status} · ${session.url || "about:blank"}</div>
+          <div class="browser-card" data-browser-id="${h(session.id)}">
+            <div class="browser-head">
+              <div>
+                <strong>${h(session.label)}</strong>
+                <div class="meta">${h(session.status)} · ${h(session.url || "about:blank")}</div>
+              </div>
+              <button class="browser-close" data-id="${h(session.id)}">Close</button>
+            </div>
+            <div class="browser-controls">
+              <button class="browser-open" data-id="${h(session.id)}">Open</button>
+              <input class="browser-url" value="${h(session.url || "about:blank")}" />
+              <button class="browser-go" data-id="${h(session.id)}">Go</button>
+              <button class="browser-refresh" data-id="${h(session.id)}">Shot</button>
+            </div>
+            <div class="browser-controls">
+              <input class="browser-text" placeholder="Type into focused page element" />
+              <button class="browser-type" data-id="${h(session.id)}">Type</button>
+              <button class="browser-enter" data-id="${h(session.id)}">Enter</button>
+            </div>
+            ${
+              state.browserErrors[session.id]
+                ? `<div class="browser-error">${h(state.browserErrors[session.id])}</div>`
+                : ""
+            }
+            ${
+              state.browserShots[session.id]
+                ? `<img class="browser-preview" data-id="${h(session.id)}" src="${state.browserShots[session.id]}" alt="Browser preview" />`
+                : `<div class="browser-empty">No screenshot yet</div>`
+            }
           </div>`,
       )
       .join("") || `<div class="meta">No browser sessions yet.</div>`;
+}
+
+async function refreshBrowserScreenshot(id) {
+  try {
+    const data = await api(`/api/browsers/${id}/screenshot`);
+    state.browserShots[id] = data.dataUrl;
+    delete state.browserErrors[id];
+  } catch (error) {
+    state.browserErrors[id] = error instanceof Error ? error.message : String(error);
+  }
+  await Promise.all([loadAgents(), loadUsage()]);
+}
+
+function browserCard(target) {
+  return target.closest(".browser-card");
 }
 
 async function sendChat(event) {
@@ -250,6 +299,58 @@ document.addEventListener("click", async (event) => {
   }
   if (target.matches(".show-files")) await showHfFiles(target);
   if (target.matches(".download-file")) await downloadFile(target);
+  if (target.matches(".browser-open")) {
+    const id = target.dataset.id;
+    try {
+      await api(`/api/browsers/${id}/open`, { method: "POST", body: "{}" });
+      delete state.browserErrors[id];
+      await refreshBrowserScreenshot(id);
+    } catch (error) {
+      state.browserErrors[id] = error instanceof Error ? error.message : String(error);
+      await loadAgents();
+    }
+  }
+  if (target.matches(".browser-go")) {
+    const id = target.dataset.id;
+    const card = browserCard(target);
+    const url = card.querySelector(".browser-url").value;
+    try {
+      await api(`/api/browsers/${id}/navigate`, { method: "POST", body: JSON.stringify({ url }) });
+      delete state.browserErrors[id];
+      await refreshBrowserScreenshot(id);
+    } catch (error) {
+      state.browserErrors[id] = error instanceof Error ? error.message : String(error);
+      await loadAgents();
+    }
+  }
+  if (target.matches(".browser-refresh")) await refreshBrowserScreenshot(target.dataset.id);
+  if (target.matches(".browser-close")) {
+    const id = target.dataset.id;
+    await api(`/api/browsers/${id}/close`, { method: "POST", body: "{}" });
+    delete state.browserShots[id];
+    delete state.browserErrors[id];
+    await Promise.all([loadAgents(), loadUsage()]);
+  }
+  if (target.matches(".browser-type")) {
+    const id = target.dataset.id;
+    const card = browserCard(target);
+    const text = card.querySelector(".browser-text").value;
+    await api(`/api/browsers/${id}/type`, { method: "POST", body: JSON.stringify({ text }) });
+    card.querySelector(".browser-text").value = "";
+    await refreshBrowserScreenshot(id);
+  }
+  if (target.matches(".browser-enter")) {
+    const id = target.dataset.id;
+    await api(`/api/browsers/${id}/key`, { method: "POST", body: JSON.stringify({ key: "Enter" }) });
+    await refreshBrowserScreenshot(id);
+  }
+  if (target.matches(".browser-preview")) {
+    const rect = target.getBoundingClientRect();
+    const x = Math.round(((event.clientX - rect.left) / rect.width) * target.naturalWidth);
+    const y = Math.round(((event.clientY - rect.top) / rect.height) * target.naturalHeight);
+    await api(`/api/browsers/${target.dataset.id}/click`, { method: "POST", body: JSON.stringify({ x, y }) });
+    await refreshBrowserScreenshot(target.dataset.id);
+  }
 });
 
 $("#chatForm").addEventListener("submit", sendChat);

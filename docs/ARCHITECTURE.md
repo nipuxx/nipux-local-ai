@@ -42,6 +42,7 @@ flowchart TD
 - `src/providers/llamaCpp.ts`: llama.cpp proxy and fake dev backend.
 - `src/services/modelRegistry.ts`: Gemma presets and Hugging Face integration.
 - `src/services/agents.ts`: agent runs, memory injection, search context.
+- `src/services/browserBroker.ts`: Playwright browser sessions for agents and UI takeover.
 - `src/services/search.ts`: local FTS and SearXNG.
 - `src/services/hardware.ts`: OS/GPU/RAM detection.
 - `src/db.ts`: SQLite schema and persistence helpers.
@@ -76,6 +77,24 @@ hermes config set model.default google/gemma-4-12B-it-qat-q4_0-gguf:Q4_0
 ```
 
 When Hermes is unavailable, the app uses the built-in internal memory agent so agents still work out of the box. A future live Hermes runner should execute through this adapter and keep the same database memory tables as the product source of truth.
+
+## Browser Broker
+
+Browser sessions are persisted before Chromium starts. That keeps the UI fast and lets the app show planned/closed/error states even if the browser runtime is missing.
+
+The broker currently supports:
+
+- create/list sessions
+- open/close a persistent Chromium context
+- navigate
+- screenshot
+- click screenshot coordinates
+- type text into the focused page
+- press a key
+
+Default mode is headless with UI screenshots. Set `NIPUX_BROWSER_HEADLESS=0` when the user wants visible Chromium windows they can control directly outside the app.
+
+Agent safety gates still need to be layered above these controls before autonomous browser actions are allowed for purchases, posts, credentials, downloads, uploads, or destructive local actions.
 
 ## Future Capability Ports
 

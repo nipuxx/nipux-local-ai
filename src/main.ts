@@ -3,7 +3,18 @@ import { join } from "node:path";
 import { APP_NAME, IS_DEV_UI, IS_FAKE_LLM, LLAMA_BASE_URL, PORT, SEARXNG_URL, WEB_DIR } from "./config.ts";
 import { chatCompletion, estimateMessageTokens, testLlamaBackend } from "./providers/llamaCpp.ts";
 import { createAgent, listAgentRuns, listAgents, runAgent } from "./services/agents.ts";
-import { createBrowserSession, isPlaywrightAvailable, listBrowserSessions } from "./services/browserBroker.ts";
+import {
+  clickBrowserSession,
+  closeBrowserSession,
+  createBrowserSession,
+  isPlaywrightAvailable,
+  listBrowserSessions,
+  navigateBrowserSession,
+  openBrowserSession,
+  pressBrowserKey,
+  screenshotBrowserSession,
+  typeInBrowserSession,
+} from "./services/browserBroker.ts";
 import { getHermesStatus } from "./services/hermes.ts";
 import { detectHardware } from "./services/hardware.ts";
 import {
@@ -167,6 +178,37 @@ export async function route(req: Request): Promise<Response> {
   if (url.pathname === "/api/browsers" && req.method === "POST") {
     const body = await readJson<{ agentId?: string; label?: string }>(req);
     return json({ session: createBrowserSession(body.agentId, body.label) });
+  }
+  const browserAction = url.pathname.match(/^\/api\/browsers\/([^/]+)\/(open|navigate|screenshot|click|type|key|close)$/);
+  if (browserAction) {
+    const [, id, action] = browserAction;
+    try {
+      if (action === "open" && req.method === "POST") return json({ session: await openBrowserSession(id) });
+      if (action === "navigate" && req.method === "POST") {
+        const body = await readJson<{ url?: string }>(req);
+        if (!body.url) return json({ error: "url is required" }, 400);
+        return json({ session: await navigateBrowserSession(id, body.url) });
+      }
+      if (action === "screenshot" && req.method === "GET") return json(await screenshotBrowserSession(id));
+      if (action === "click" && req.method === "POST") {
+        const body = await readJson<{ x?: number; y?: number }>(req);
+        if (typeof body.x !== "number" || typeof body.y !== "number") return json({ error: "x and y are required" }, 400);
+        return json({ session: await clickBrowserSession(id, body.x, body.y) });
+      }
+      if (action === "type" && req.method === "POST") {
+        const body = await readJson<{ text?: string }>(req);
+        if (typeof body.text !== "string") return json({ error: "text is required" }, 400);
+        return json({ session: await typeInBrowserSession(id, body.text) });
+      }
+      if (action === "key" && req.method === "POST") {
+        const body = await readJson<{ key?: string }>(req);
+        if (!body.key) return json({ error: "key is required" }, 400);
+        return json({ session: await pressBrowserKey(id, body.key) });
+      }
+      if (action === "close" && req.method === "POST") return json({ session: await closeBrowserSession(id) });
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : String(error) }, 503);
+    }
   }
 
   if (url.pathname === "/api/usage/summary") return json({ summary: getUsageSummary(), timeline: getUsageTimeline() });

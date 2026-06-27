@@ -19,6 +19,7 @@ The first runnable build is intentionally LLM-only. Image/video/audio are capabi
 - Local SQLite persistence
 - Agent memory and run history
 - Hermes detection/config adapter with internal-memory-agent fallback
+- Agent browser sessions with Playwright-backed open, navigate, screenshot, click, type, key, and close APIs
 - Local document indexing/search
 - SearXNG adapter for local web search
 - Hugging Face GGUF search, file listing, and direct download hooks
@@ -65,6 +66,20 @@ bun run start
 
 The app proxies `/v1/chat/completions` to `http://127.0.0.1:8080/v1` by default.
 
+## Browser Agents
+
+Install the local Chromium runtime:
+
+```bash
+bun run browsers:install
+```
+
+The Agents view can create browser sessions, open them, navigate, capture screenshots, click inside screenshots, type text, press Enter, and close sessions. By default browsers run headless through the UI preview. To open visible Chromium windows:
+
+```bash
+NIPUX_BROWSER_HEADLESS=0 bun run start
+```
+
 ## One-Command Installer Shape
 
 The repo includes scripts for eventual public install:
@@ -90,6 +105,7 @@ Those scripts install Bun if needed, clone the repo, install dependencies, and r
 | `NIPUX_LLAMA_BASE_URL` | `http://127.0.0.1:8080/v1` | OpenAI-compatible local LLM backend |
 | `NIPUX_SEARXNG_URL` | empty | Local SearXNG URL, such as `http://127.0.0.1:8888` |
 | `NIPUX_FAKE_LLM` | `0` | Enable streaming dev backend |
+| `NIPUX_BROWSER_HEADLESS` | `1` | Set to `0` for visible Playwright browser windows |
 | `HF_TOKEN` | empty | Hugging Face token for gated models |
 
 ## Development

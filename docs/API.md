@@ -83,6 +83,80 @@ Runs the local agent with memory and search context.
 
 Detects whether Hermes is installed and returns setup commands for wiring Hermes to the local model backend.
 
+## Browser Sessions
+
+Browser sessions are designed for agents but are also directly controllable from the UI/API. Install Chromium first:
+
+```bash
+bun run browsers:install
+```
+
+### `GET /api/browsers`
+
+Lists browser sessions.
+
+### `POST /api/browsers`
+
+```json
+{
+  "label": "Agent Browser",
+  "agentId": "optional-agent-id"
+}
+```
+
+Creates a session without launching Chromium.
+
+### `POST /api/browsers/:id/open`
+
+Launches or attaches to the session.
+
+### `POST /api/browsers/:id/navigate`
+
+```json
+{
+  "url": "example.com"
+}
+```
+
+Plain domains are normalized to `https://`.
+
+### `GET /api/browsers/:id/screenshot`
+
+Returns a PNG data URL for the current page.
+
+### `POST /api/browsers/:id/click`
+
+```json
+{
+  "x": 240,
+  "y": 180
+}
+```
+
+Coordinates are page screenshot pixels.
+
+### `POST /api/browsers/:id/type`
+
+```json
+{
+  "text": "hello"
+}
+```
+
+Types into the focused page element.
+
+### `POST /api/browsers/:id/key`
+
+```json
+{
+  "key": "Enter"
+}
+```
+
+### `POST /api/browsers/:id/close`
+
+Closes the running browser context and keeps the session record.
+
 ### `POST /api/search/documents`
 
 Adds text to the local search index.

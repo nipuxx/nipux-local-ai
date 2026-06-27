@@ -33,7 +33,13 @@ The app stays usable if SearXNG is not configured; web search returns a setup hi
 
 ## Browser Agents
 
-Browser sessions are represented in v0.1 and designed for a Playwright-backed worker. Full live browser streaming/control should be added behind explicit user permission gates:
+Browser sessions use Playwright Chromium:
+
+```bash
+bun run browsers:install
+```
+
+Default mode is headless with screenshot/control through the UI. Set `NIPUX_BROWSER_HEADLESS=0` for visible Chromium windows. Autonomous browser actions must stay behind explicit user permission gates:
 
 - navigation
 - form entry
