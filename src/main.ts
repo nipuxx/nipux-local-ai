@@ -13,6 +13,7 @@ import {
   WEB_DIR,
 } from "./config.ts";
 import { chatCompletion, estimateMessageTokens, testLlamaBackend } from "./providers/llamaCpp.ts";
+import { activeStoredApiKeyCount, createApiKey, listApiKeys, revokeApiKey, verifyStoredApiKey } from "./services/apiKeys.ts";
 import { createAgent, listAgentRuns, listAgents, runAgent } from "./services/agents.ts";
 import {
   clickBrowserSession,
@@ -130,9 +131,11 @@ export function authorizeRequest(
 ) {
   const apiKeys = config.apiKeys ?? API_KEYS;
   const publicApi = config.publicApi ?? PUBLIC_API;
-  const required = apiKeys.length > 0 || publicApi;
+  const useStoredKeys = config.apiKeys === undefined;
+  const storedKeyCount = useStoredKeys ? activeStoredApiKeyCount() : 0;
+  const required = apiKeys.length > 0 || storedKeyCount > 0 || publicApi;
   if (!required || !authRequired(pathname)) return { ok: true, required };
-  if (publicApi && apiKeys.length === 0) {
+  if (publicApi && apiKeys.length === 0 && storedKeyCount === 0) {
     return {
       ok: false,
       required,
@@ -141,7 +144,7 @@ export function authorizeRequest(
     };
   }
   const token = tokenFromRequest(req);
-  if (apiKeys.includes(token)) return { ok: true, required };
+  if (apiKeys.includes(token) || (useStoredKeys && verifyStoredApiKey(token))) return { ok: true, required };
   return { ok: false, required, status: 401, message: "Missing or invalid Nipux API key." };
 }
 
@@ -419,6 +422,7 @@ export async function route(req: Request): Promise<Response> {
 
   if (url.pathname === "/api/status") {
     const settings = getAppSettings();
+    const storedKeyCount = activeStoredApiKeyCount();
     const [hardware, llama, playwright, hermes] = await Promise.all([
       detectHardware(),
       testLlamaBackend(),
@@ -432,8 +436,10 @@ export async function route(req: Request): Promise<Response> {
       bindHost: BIND_HOST,
       publicApi: PUBLIC_API,
       auth: {
-        required: API_KEYS.length > 0 || PUBLIC_API,
-        configured: API_KEYS.length > 0,
+        required: API_KEYS.length + storedKeyCount > 0 || PUBLIC_API,
+        configured: API_KEYS.length + storedKeyCount > 0,
+        envKeyCount: API_KEYS.length,
+        storedKeyCount,
       },
       settings,
       llamaBaseUrl: LLAMA_BASE_URL,
@@ -455,6 +461,13 @@ export async function route(req: Request): Promise<Response> {
     const body = await readJson<Partial<AppSettings>>(req);
     return json({ settings: updateAppSettings(body), env: getSettingsStatus().env });
   }
+  if (url.pathname === "/api/api-keys" && req.method === "GET") return json({ keys: listApiKeys() });
+  if (url.pathname === "/api/api-keys" && req.method === "POST") {
+    const body = await readJson<{ label?: string }>(req);
+    return json(createApiKey(body.label));
+  }
+  const apiKeyMatch = url.pathname.match(/^\/api\/api-keys\/([^/]+)$/);
+  if (apiKeyMatch && req.method === "DELETE") return json(revokeApiKey(apiKeyMatch[1]));
   if (url.pathname === "/api/readiness" && req.method === "GET") return json(await getReadinessReport());
   if (url.pathname === "/api/diagnostics" && req.method === "GET") return json(await getDiagnosticsReport());
   if (url.pathname === "/api/setup/actions" && req.method === "GET") return json(await getSetupActions());

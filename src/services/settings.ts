@@ -10,6 +10,7 @@ import {
   VIDEO_WORKER_URL,
 } from "../config.ts";
 import { db } from "../db.ts";
+import { activeStoredApiKeyCount } from "./apiKeys.ts";
 import { listModels } from "./modelRegistry.ts";
 
 export interface AppSettings {
@@ -98,13 +99,17 @@ export function updateAppSettings(patch: Partial<AppSettings>) {
 }
 
 export function getSettingsStatus() {
+  const storedKeyCount = activeStoredApiKeyCount();
+  const envKeyCount = API_KEYS.length;
   return {
     settings: getAppSettings(),
     env: {
       bindHost: BIND_HOST,
       publicApi: PUBLIC_API,
-      authRequired: API_KEYS.length > 0 || PUBLIC_API,
-      authConfigured: API_KEYS.length > 0,
+      authRequired: envKeyCount + storedKeyCount > 0 || PUBLIC_API,
+      authConfigured: envKeyCount + storedKeyCount > 0,
+      envKeyCount,
+      storedKeyCount,
     },
   };
 }

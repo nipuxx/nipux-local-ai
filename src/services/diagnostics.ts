@@ -79,8 +79,10 @@ export async function getDiagnosticsReport() {
       devUi: IS_DEV_UI,
       auth: {
         required: settingsStatus.env.authRequired,
-        configured: API_KEYS.length > 0,
-        keyCount: API_KEYS.length,
+        configured: settingsStatus.env.authConfigured,
+        keyCount: (settingsStatus.env.envKeyCount ?? API_KEYS.length) + (settingsStatus.env.storedKeyCount ?? 0),
+        envKeyCount: settingsStatus.env.envKeyCount ?? API_KEYS.length,
+        storedKeyCount: settingsStatus.env.storedKeyCount ?? 0,
       },
     },
     settings: settingsStatus.settings,

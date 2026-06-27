@@ -72,7 +72,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Playwright browser sessions can open, navigate, screenshot, click, type, press keys, and close.
 - Browser action logs and permission gates for agent-originated risky actions exist.
 - Usage view exposes a copyable local diagnostics report with readiness, runtime, supervisor, media, model, storage, and recent usage state.
-- Persisted app settings exist for default mode, SearXNG URL, browser headless mode, and dev mode.
+- Persisted app settings exist for default mode, SearXNG URL, browser headless mode, dev mode, and managed hashed server API keys.
 - The UI has a Settings page and hides advanced controls unless dev mode is enabled.
 - Platform-aware install preflight exists for Bun, git, local folders, llama.cpp, Playwright Chromium, and SearXNG.
 - macOS/Linux and Windows installer scripts clone the pushed repo, use the lockfile, run setup, and optionally install Playwright Chromium.

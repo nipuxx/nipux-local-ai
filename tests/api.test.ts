@@ -117,3 +117,38 @@ test("authorization accepts configured API keys and blocks public mode without k
   });
   expect(publicNoKey.status).toBe(403);
 });
+
+test("managed API keys can protect local routes and be revoked", async () => {
+  const created = await route(
+    new Request("http://localhost/api/api-keys", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ label: "Test key" }),
+    }),
+  );
+  expect(created.status).toBe(200);
+  const createdJson = await created.json();
+  expect(createdJson.key.startsWith("npx_")).toBe(true);
+  expect(createdJson.record.label).toBe("Test key");
+
+  const authed = authorizeRequest(
+    new Request("http://localhost/v1/models", { headers: { "x-api-key": createdJson.key } }),
+    "/v1/models",
+    { publicApi: true },
+  );
+  expect(authed.ok).toBe(true);
+
+  const listed = await route(new Request("http://localhost/api/api-keys", { headers: { "x-api-key": createdJson.key } }));
+  expect(listed.status).toBe(200);
+  const listedJson = await listed.json();
+  expect(listedJson.keys.some((key: { id: string; prefix: string }) => key.id === createdJson.record.id && key.prefix)).toBe(true);
+
+  const revoked = await route(
+    new Request(`http://localhost/api/api-keys/${createdJson.record.id}`, {
+      method: "DELETE",
+      headers: { "x-api-key": createdJson.key },
+    }),
+  );
+  expect(revoked.status).toBe(200);
+  expect((await revoked.json()).revoked).toBe(true);
+});

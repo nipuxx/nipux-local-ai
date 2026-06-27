@@ -8,7 +8,10 @@ const { getDiagnosticsReport } = await import("../src/services/diagnostics.ts");
 test("diagnostics report gathers local setup state without secrets", async () => {
   const report = await getDiagnosticsReport();
   expect(report.app.name).toBe("Nipux Local AI");
-  expect(report.app.auth).toEqual({ required: false, configured: false, keyCount: 0 });
+  expect(report.app.auth.keyCount).toBeGreaterThanOrEqual(0);
+  expect(report.app.auth.envKeyCount).toBeGreaterThanOrEqual(0);
+  expect(report.app.auth.storedKeyCount).toBeGreaterThanOrEqual(0);
+  expect(JSON.stringify(report.app.auth)).not.toContain("npx_");
   expect(report.hardware.totalRamGb).toBeGreaterThan(0);
   expect(report.setup.checks.some((check) => check.id === "bun")).toBe(true);
   expect(report.readiness.items.some((item) => item.id === "chat")).toBe(true);

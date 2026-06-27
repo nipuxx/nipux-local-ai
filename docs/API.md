@@ -10,7 +10,7 @@ http://127.0.0.1:3434
 
 ## Authentication
 
-Local private mode does not require authentication by default. Protected routes require an API key when either `NIPUX_API_KEY`, `NIPUX_API_KEYS`, or `NIPUX_PUBLIC_API=1` is set.
+Local private mode does not require authentication by default. Protected routes require an API key when `NIPUX_API_KEY`, `NIPUX_API_KEYS`, a managed server key, or `NIPUX_PUBLIC_API=1` is set.
 
 Use either header:
 
@@ -156,7 +156,9 @@ Returns persisted app settings and non-secret environment status.
     "bindHost": "127.0.0.1",
     "publicApi": false,
     "authRequired": false,
-    "authConfigured": false
+    "authConfigured": false,
+    "envKeyCount": 0,
+    "storedKeyCount": 0
   }
 }
 ```
@@ -177,6 +179,24 @@ Returns persisted app settings and non-secret environment status.
 ```
 
 Environment variables provide boot defaults; saved settings take precedence at runtime.
+
+### `GET /api/api-keys`
+
+Lists managed server API keys without exposing raw key values. Returns labels, prefixes, created timestamps, and last-used timestamps.
+
+### `POST /api/api-keys`
+
+```json
+{
+  "label": "Laptop client"
+}
+```
+
+Creates a managed server API key and returns the raw key once. The database stores only a SHA-256 hash plus a short display prefix.
+
+### `DELETE /api/api-keys/:id`
+
+Revokes a managed server API key. Environment keys are controlled only through environment variables.
 
 ## Media Routes
 

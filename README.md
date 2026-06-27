@@ -37,7 +37,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - Hugging Face GGUF search, file listing, and direct download hooks
 - llama.cpp runtime status, start, stop, and prompt test controls
 - Usage dashboard
-- Settings page for default mode, SearXNG URL, browser headless mode, client API key, and dev controls
+- Settings page for default mode, SearXNG URL, browser headless mode, managed server API keys, client API key, and dev controls
 - Setup page, `bun run ready`, and `bun run setup:actions` for everyday local capability status and copyable setup commands
 - Launch profile generation with machine-specific env, run commands, and local launcher scripts
 - Hardware/runtime detection for CPU, Apple Metal, NVIDIA CUDA, AMD ROCm/Vulkan, Intel Vulkan/DirectML
@@ -251,7 +251,7 @@ This writes a source zip, JSON manifest, and `SHA256SUMS.txt` into `dist/`. See 
 | `NIPUX_BROWSER_HEADLESS` | `1` | Boot default for headless Playwright browser windows. Set to `0` for visible windows. |
 | `HF_TOKEN` | empty | Hugging Face token for gated models |
 
-When API keys are configured, clients can authenticate with either:
+Server API keys can be configured through `NIPUX_API_KEY` / `NIPUX_API_KEYS` or created from the Settings page. Managed keys are stored as hashes and the raw key is shown once. When API keys are configured, clients can authenticate with either:
 
 ```text
 Authorization: Bearer <key>

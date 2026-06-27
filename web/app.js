@@ -23,6 +23,7 @@ const state = {
   launchProfile: null,
   localSupervisor: null,
   diagnostics: null,
+  apiKeys: [],
 };
 
 const IMPORT_MAX_FILES = 80;
@@ -213,7 +214,7 @@ function applySettingsToUi() {
     <div>
       <strong>${env.authRequired ? "API key required" : "Local private mode"}</strong>
       <div class="meta">Bind: ${h(env.bindHost || "127.0.0.1")} · Public API: ${env.publicApi ? "on" : "off"}</div>
-      <div class="meta">Server key configured: ${env.authConfigured ? "yes" : "no"}</div>
+      <div class="meta">Server keys: ${h((env.envKeyCount || 0) + (env.storedKeyCount || 0))} total · ${h(env.storedKeyCount || 0)} managed here</div>
     </div>`;
   $("#settingsStatus").textContent = JSON.stringify({ settings, env }, null, 2);
 }
@@ -304,6 +305,22 @@ async function loadSettings() {
   state.settingsStatus = await api("/api/settings");
   $("#presetSelect").value = state.settingsStatus.settings.defaultModelPreset || $("#presetSelect").value;
   applySettingsToUi();
+}
+
+async function loadApiKeys() {
+  const data = await api("/api/api-keys");
+  state.apiKeys = data.keys;
+  $("#serverApiKeys").innerHTML =
+    state.apiKeys
+      .map(
+        (key) => `
+          <div>
+            <strong>${h(key.label)}</strong>
+            <div class="meta">${h(key.prefix)} · created ${h(key.createdAt)}${key.lastUsedAt ? ` · used ${h(key.lastUsedAt)}` : ""}</div>
+            <button class="revoke-api-key" data-id="${h(key.id)}">Revoke</button>
+          </div>`,
+      )
+      .join("") || `<div class="meta">No managed server keys.</div>`;
 }
 
 async function saveSettings() {
@@ -1296,6 +1313,15 @@ document.addEventListener("click", async (event) => {
   if (target.matches(".download-file")) await downloadFile(target);
   if (target.matches(".install-model")) await installModel(target);
   if (target.matches(".set-default-model")) await setDefaultModel(target);
+  if (target.matches(".revoke-api-key")) {
+    const revoked = state.apiKeys.find((key) => key.id === target.dataset.id);
+    await api(`/api/api-keys/${target.dataset.id}`, { method: "DELETE", body: "{}" });
+    if (revoked && (localStorage.getItem("nipuxApiKey") || "").startsWith(revoked.prefix.replace("...", ""))) {
+      localStorage.removeItem("nipuxApiKey");
+      $("#settingsApiKey").value = "";
+    }
+    await Promise.all([loadSettings(), loadApiKeys(), loadReadiness(), loadSetupActions(), loadLaunchProfile()]);
+  }
   if (target.matches(".copy-command")) {
     const original = target.textContent;
     try {
@@ -1506,6 +1532,31 @@ $("#saveSettings").addEventListener("click", async () => {
     $("#settingsStatus").textContent = error instanceof Error ? error.message : String(error);
   }
 });
+$("#createServerApiKey").addEventListener("click", async () => {
+  const button = $("#createServerApiKey");
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = "Creating";
+  try {
+    const data = await api("/api/api-keys", {
+      method: "POST",
+      body: JSON.stringify({ label: `Local API key ${new Date().toISOString().slice(0, 10)}` }),
+    });
+    localStorage.setItem("nipuxApiKey", data.key);
+    $("#settingsApiKey").value = data.key;
+    $("#serverApiKeyOutput").textContent = `New server key, shown once:\n${data.key}`;
+    await Promise.all([loadSettings(), loadApiKeys(), loadReadiness(), loadSetupActions(), loadLaunchProfile()]);
+    button.textContent = "Created";
+  } catch (error) {
+    $("#serverApiKeyOutput").textContent = error instanceof Error ? error.message : String(error);
+    button.textContent = "Create failed";
+  } finally {
+    setTimeout(() => {
+      button.textContent = original;
+      button.disabled = false;
+    }, 1200);
+  }
+});
 $("#clearApiKey").addEventListener("click", () => {
   localStorage.removeItem("nipuxApiKey");
   $("#settingsApiKey").value = "";
@@ -1519,7 +1570,7 @@ $("#createBrowser").addEventListener("click", async () => {
 
 await loadStatus();
 await loadSettings();
-await Promise.all([loadModels(), loadRuntime(), loadReadiness(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor(), loadUsage(), loadDiagnostics(), loadAgents(), loadDocuments(), loadMedia()]);
+await Promise.all([loadModels(), loadRuntime(), loadReadiness(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor(), loadUsage(), loadDiagnostics(), loadApiKeys(), loadAgents(), loadDocuments(), loadMedia()]);
 await loadChats();
 if (state.chats[0]) await openChat(state.chats[0].id);
 else await createNewChat();

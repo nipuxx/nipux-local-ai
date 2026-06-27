@@ -73,6 +73,7 @@ The Settings page writes user-facing defaults to SQLite. Environment variables s
 - SearXNG URL
 - Playwright browser headless mode
 - dev-control visibility
+- managed server API keys, stored as hashes
 - local media worker URLs
 
 Dev mode hides advanced tools from the main experience until enabled. Runtime start/stop/test controls, Hugging Face model search/download, backend file-path indexing, raw status JSON, and browser action logs are dev-only surfaces. Permission approvals remain visible because they are part of the agent safety flow.

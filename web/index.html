@@ -292,8 +292,11 @@
               <label for="settingsApiKey">Client API Key</label>
               <input id="settingsApiKey" type="password" placeholder="Stored in this browser only" />
               <div class="button-row">
+                <button id="createServerApiKey">Create Server Key</button>
                 <button id="clearApiKey">Clear Key</button>
               </div>
+              <div id="serverApiKeyOutput" class="output"></div>
+              <div id="serverApiKeys" class="list"></div>
               <div id="settingsAuthStatus" class="list"></div>
               <pre id="settingsStatus" class="dev dev-only"></pre>
             </div>

@@ -2,6 +2,7 @@ import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { API_KEYS, BIND_HOST, IS_FAKE_LLM, LLAMA_BASE_URL, NIPUX_HOME, PORT, PUBLIC_API } from "../config.ts";
 import type { HardwareProfile } from "../types.ts";
+import { activeStoredApiKeyCount } from "./apiKeys.ts";
 import { detectHardware } from "./hardware.ts";
 import { getMediaRuntimePlan, type MediaRuntimePlan } from "./mediaRuntimes.ts";
 import { getModel, llamaServeCommand } from "./modelRegistry.ts";
@@ -25,6 +26,8 @@ export interface LaunchProfile {
   auth: {
     required: boolean;
     serverKeyConfigured: boolean;
+    envKeyCount: number;
+    storedKeyCount: number;
   };
   hardware: HardwareProfile;
   settings: AppSettings;
@@ -152,6 +155,7 @@ export async function getLaunchProfile(): Promise<LaunchProfile> {
   const model = getModel(settings.defaultModelPreset);
   const localUrl = `http://${localHost()}:${PORT}`;
   const files = fileTargets();
+  const storedKeyCount = activeStoredApiKeyCount();
 
   return {
     version: 1,
@@ -166,8 +170,10 @@ export async function getLaunchProfile(): Promise<LaunchProfile> {
     mode: IS_FAKE_LLM ? "dev" : "local",
     publicApi: PUBLIC_API,
     auth: {
-      required: API_KEYS.length > 0 || PUBLIC_API,
-      serverKeyConfigured: API_KEYS.length > 0,
+      required: API_KEYS.length + storedKeyCount > 0 || PUBLIC_API,
+      serverKeyConfigured: API_KEYS.length + storedKeyCount > 0,
+      envKeyCount: API_KEYS.length,
+      storedKeyCount,
     },
     hardware,
     settings,
