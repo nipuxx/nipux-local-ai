@@ -1,4 +1,5 @@
 import { API_KEYS, BIND_HOST, IS_FAKE_LLM, PORT, PUBLIC_API } from "../config.ts";
+import { activeStoredApiKeyCount } from "./apiKeys.ts";
 import { getMediaRuntimePlan } from "./mediaRuntimes.ts";
 import { getSetupPreflight, type SetupCheck } from "./setupChecks.ts";
 
@@ -96,7 +97,9 @@ export async function getReadinessReport(): Promise<ReadinessReport> {
   const video = media.runtimes.find((runtime) => runtime.kind === "video");
 
   const chatReady = IS_FAKE_LLM || llama?.status === "ok";
-  const publicApiLocked = PUBLIC_API && API_KEYS.length === 0;
+  const managedKeyCount = activeStoredApiKeyCount();
+  const totalKeyCount = API_KEYS.length + managedKeyCount;
+  const publicApiLocked = PUBLIC_API && totalKeyCount === 0;
   const items: ReadinessItem[] = [
     {
       id: "chat",
@@ -151,10 +154,12 @@ export async function getReadinessReport(): Promise<ReadinessReport> {
       status: publicApiLocked ? "blocked" : "ready",
       detail: publicApiLocked
         ? "Public API mode is enabled without an API key."
-        : API_KEYS.length > 0
+        : totalKeyCount > 0
           ? "Protected API key mode is enabled."
           : "Local private API mode is enabled.",
-      fix: publicApiLocked ? "Set NIPUX_API_KEY or NIPUX_API_KEYS before using public mode." : undefined,
+      fix: publicApiLocked
+        ? "Stop public mode, run bun run local, create a managed server key in Settings, then start public mode again; or set NIPUX_API_KEY/NIPUX_API_KEYS before using public mode."
+        : undefined,
     },
   ];
 

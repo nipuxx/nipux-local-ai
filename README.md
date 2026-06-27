@@ -37,7 +37,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - Hugging Face GGUF search, file listing, and direct download hooks
 - llama.cpp runtime status, start, stop, and prompt test controls
 - Usage dashboard
-- Settings page for default mode, SearXNG URL, browser headless mode, managed server API keys, client API key, and dev controls
+- Settings page for default mode, SearXNG URL, browser headless mode, managed server API keys, client API key, API exposure guidance, and dev controls
 - Setup page, `bun run ready`, and `bun run setup:actions` for everyday local capability status and copyable setup commands
 - Launch profile generation with machine-specific env, run commands, and local launcher scripts
 - Hardware/runtime detection for CPU, Apple Metal, NVIDIA CUDA, AMD ROCm/Vulkan, Intel Vulkan/DirectML
@@ -257,6 +257,26 @@ Server API keys can be configured through `NIPUX_API_KEY` / `NIPUX_API_KEYS` or 
 Authorization: Bearer <key>
 x-api-key: <key>
 ```
+
+The Settings page also shows the current API exposure plan. The safe default is private localhost mode:
+
+```bash
+bun run local
+```
+
+To expose the API on the LAN, create a managed server key first, then start protected public mode:
+
+```bash
+NIPUX_PUBLIC_API=1 bun run local
+```
+
+If you prefer environment-managed keys, start protected public mode with:
+
+```bash
+NIPUX_PUBLIC_API=1 NIPUX_API_KEY='<set-a-long-random-key>' bun run local
+```
+
+`GET /api/exposure` returns non-secret discovery metadata, copyable launch commands, LAN URLs, warnings, and next steps. If public mode is started without any configured key, protected routes stay locked until a managed server key or env key exists.
 
 ## Development
 

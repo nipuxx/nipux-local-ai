@@ -131,6 +131,12 @@ test("managed API keys can protect local routes and be revoked", async () => {
   expect(createdJson.key.startsWith("npx_")).toBe(true);
   expect(createdJson.record.label).toBe("Test key");
 
+  const exposure = await route(new Request("http://localhost/api/exposure", { headers: { "x-api-key": createdJson.key } }));
+  expect(exposure.status).toBe(200);
+  const exposureJson = await exposure.json();
+  expect(exposureJson.auth.configured).toBe(true);
+  expect(exposureJson.commands.protectedLan).toContain("NIPUX_PUBLIC_API=1");
+
   const authed = authorizeRequest(
     new Request("http://localhost/v1/models", { headers: { "x-api-key": createdJson.key } }),
     "/v1/models",
@@ -151,4 +157,15 @@ test("managed API keys can protect local routes and be revoked", async () => {
   );
   expect(revoked.status).toBe(200);
   expect((await revoked.json()).revoked).toBe(true);
+});
+
+test("API exposure route is safe discovery metadata", async () => {
+  const res = await route(new Request("http://localhost/api/exposure"));
+  expect(res.status).toBe(200);
+  const json = await res.json();
+  expect(json.localUrl).toContain("127.0.0.1");
+  expect(json.apiBaseUrl).toContain("/v1");
+  expect(json.commands.privateLocal).toBe("bun run local");
+  expect(json.commands.protectedLan).toContain("NIPUX_PUBLIC_API=1");
+  expect(json.auth).not.toHaveProperty("keys");
 });

@@ -14,6 +14,7 @@ import {
 } from "./config.ts";
 import { chatCompletion, estimateMessageTokens, testLlamaBackend } from "./providers/llamaCpp.ts";
 import { activeStoredApiKeyCount, createApiKey, listApiKeys, revokeApiKey, verifyStoredApiKey } from "./services/apiKeys.ts";
+import { getApiExposurePlan } from "./services/apiExposure.ts";
 import { createAgent, listAgentRuns, listAgents, runAgent } from "./services/agents.ts";
 import {
   clickBrowserSession,
@@ -120,7 +121,7 @@ function tokenFromRequest(req: Request) {
 }
 
 function authRequired(pathname: string) {
-  if (pathname === "/api/status") return false;
+  if (pathname === "/api/status" || pathname === "/api/exposure") return false;
   return pathname.startsWith("/api/") || pathname.startsWith("/v1/");
 }
 
@@ -140,7 +141,7 @@ export function authorizeRequest(
       ok: false,
       required,
       status: 403,
-      message: "Public API mode requires NIPUX_API_KEY or NIPUX_API_KEYS before protected routes are available.",
+      message: "Public API mode requires a managed server key, NIPUX_API_KEY, or NIPUX_API_KEYS before protected routes are available.",
     };
   }
   const token = tokenFromRequest(req);
@@ -468,6 +469,7 @@ export async function route(req: Request): Promise<Response> {
   }
   const apiKeyMatch = url.pathname.match(/^\/api\/api-keys\/([^/]+)$/);
   if (apiKeyMatch && req.method === "DELETE") return json(revokeApiKey(apiKeyMatch[1]));
+  if (url.pathname === "/api/exposure" && req.method === "GET") return json(getApiExposurePlan());
   if (url.pathname === "/api/readiness" && req.method === "GET") return json(await getReadinessReport());
   if (url.pathname === "/api/diagnostics" && req.method === "GET") return json(await getDiagnosticsReport());
   if (url.pathname === "/api/setup/actions" && req.method === "GET") return json(await getSetupActions());
@@ -871,7 +873,9 @@ export function startServer(options: { port?: number; hostname?: string; log?: b
   if (options.log ?? true) {
     console.log(`${APP_NAME} is running at http://${hostname}:${server.port}`);
     if (IS_FAKE_LLM) console.log("Dev fake LLM is enabled.");
-    if (PUBLIC_API && API_KEYS.length === 0) console.log("Public API mode is enabled but protected routes are locked until NIPUX_API_KEY is set.");
+    if (PUBLIC_API && API_KEYS.length + activeStoredApiKeyCount() === 0) {
+      console.log("Public API mode is enabled but protected routes are locked until a managed server key or NIPUX_API_KEY is configured.");
+    }
   }
   return server;
 }

@@ -80,9 +80,9 @@ This file translates the product goal into independently owned workstreams. The 
 
 ## Security/Permissions Agent
 
-- Add API key management.
+- Maintain API key management.
 - Keep public/LAN mode off unless explicitly enabled.
-- Add warnings and health checks for exposed bind addresses.
+- Maintain API exposure warnings, discovery metadata, and copyable private/protected launch commands.
 - Add user approvals for purchases, posting, downloads/uploads, credentials, destructive actions, and file writes/deletes.
 
 ## Testing/Release Agent

@@ -24,6 +24,7 @@ const state = {
   localSupervisor: null,
   diagnostics: null,
   apiKeys: [],
+  apiExposure: null,
 };
 
 const IMPORT_MAX_FILES = 80;
@@ -321,6 +322,35 @@ async function loadApiKeys() {
           </div>`,
       )
       .join("") || `<div class="meta">No managed server keys.</div>`;
+}
+
+async function loadApiExposure() {
+  const plan = await api("/api/exposure");
+  state.apiExposure = plan;
+  const lanLabel = plan.exposedOnLan ? "LAN URLs" : "Detected LAN URLs after protected mode starts";
+  $("#apiExposure").innerHTML = `
+    <div>
+      <strong>API Exposure</strong>
+      <div class="meta">${h(plan.exposedOnLan ? "LAN/public binding is active" : "Localhost-only binding is active")}</div>
+      <div class="meta">${h(plan.apiBaseUrl)} · ${plan.auth.configured ? `${h(plan.auth.totalKeyCount)} server key(s)` : "no server key"}</div>
+    </div>
+    <div class="command-row">
+      <div>
+        <span>Private local</span>
+        <code>${h(plan.commands.privateLocal)}</code>
+      </div>
+      <button class="copy-command" data-command="${h(plan.commands.privateLocal)}">Copy</button>
+    </div>
+    <div class="command-row">
+      <div>
+        <span>Protected LAN</span>
+        <code>${h(plan.auth.configured ? plan.commands.protectedLan : plan.commands.protectedLanWithEnvKey)}</code>
+      </div>
+      <button class="copy-command" data-command="${h(plan.auth.configured ? plan.commands.protectedLan : plan.commands.protectedLanWithEnvKey)}">Copy</button>
+    </div>
+    ${plan.lanUrls.length ? `<div class="meta">${lanLabel}: ${plan.lanUrls.map(h).join(", ")}</div>` : ""}
+    ${plan.warnings.map((warning) => `<div class="browser-error">${h(warning)}</div>`).join("")}
+    ${plan.nextSteps.map((step) => `<div class="meta">${h(step)}</div>`).join("")}`;
 }
 
 async function saveSettings() {
@@ -1320,7 +1350,7 @@ document.addEventListener("click", async (event) => {
       localStorage.removeItem("nipuxApiKey");
       $("#settingsApiKey").value = "";
     }
-    await Promise.all([loadSettings(), loadApiKeys(), loadReadiness(), loadSetupActions(), loadLaunchProfile()]);
+    await Promise.all([loadSettings(), loadApiKeys(), loadApiExposure(), loadReadiness(), loadSetupActions(), loadLaunchProfile()]);
   }
   if (target.matches(".copy-command")) {
     const original = target.textContent;
@@ -1545,7 +1575,7 @@ $("#createServerApiKey").addEventListener("click", async () => {
     localStorage.setItem("nipuxApiKey", data.key);
     $("#settingsApiKey").value = data.key;
     $("#serverApiKeyOutput").textContent = `New server key, shown once:\n${data.key}`;
-    await Promise.all([loadSettings(), loadApiKeys(), loadReadiness(), loadSetupActions(), loadLaunchProfile()]);
+    await Promise.all([loadSettings(), loadApiKeys(), loadApiExposure(), loadReadiness(), loadSetupActions(), loadLaunchProfile()]);
     button.textContent = "Created";
   } catch (error) {
     $("#serverApiKeyOutput").textContent = error instanceof Error ? error.message : String(error);
@@ -1570,7 +1600,7 @@ $("#createBrowser").addEventListener("click", async () => {
 
 await loadStatus();
 await loadSettings();
-await Promise.all([loadModels(), loadRuntime(), loadReadiness(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor(), loadUsage(), loadDiagnostics(), loadApiKeys(), loadAgents(), loadDocuments(), loadMedia()]);
+await Promise.all([loadModels(), loadRuntime(), loadReadiness(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor(), loadUsage(), loadDiagnostics(), loadApiKeys(), loadApiExposure(), loadAgents(), loadDocuments(), loadMedia()]);
 await loadChats();
 if (state.chats[0]) await openChat(state.chats[0].id);
 else await createNewChat();

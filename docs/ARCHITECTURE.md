@@ -56,6 +56,7 @@ flowchart TD
 - `src/services/browserBroker.ts`: Playwright browser sessions for agents and UI takeover.
 - `src/services/search.ts`: local FTS and SearXNG.
 - `src/services/settings.ts`: persisted runtime settings, env-derived boot defaults, and Settings status.
+- `src/services/apiExposure.ts`: non-secret API exposure plan, LAN URLs, auth/key counts, warnings, and safe launch commands.
 - `src/services/media.ts`: local-only image/audio/video capability checks, worker calls, and media job records.
 - `src/services/mediaRuntimes.ts`: hardware-aware setup plan for local media worker contracts, default ports, env vars, and fit guidance.
 - `src/services/localSpeech.ts`: built-in local speech fallback through OS speech commands.
@@ -79,6 +80,8 @@ The Settings page writes user-facing defaults to SQLite. Environment variables s
 Dev mode hides advanced tools from the main experience until enabled. Runtime start/stop/test controls, Hugging Face model search/download, backend file-path indexing, raw status JSON, and browser action logs are dev-only surfaces. Permission approvals remain visible because they are part of the agent safety flow.
 
 The Setup page is the non-dev status surface. It calls `/api/readiness`, `/api/setup/actions`, and `/api/launch/profile`, then shows capability status, copyable setup commands, launch commands, and next steps without exposing raw diagnostics by default.
+
+The Settings page owns API safety controls. It can create and revoke managed server keys, store a client key locally in the browser, and show the `/api/exposure` plan so users can copy a private-local or protected-LAN launch command without guessing bind flags.
 
 `bun run local` is the consumer launch command. It starts the app, starts llama.cpp when `llama` and a local GGUF model path are available, and starts any bundled image, transcription, or video workers whose required environment variables are configured. `GET /api/launch/supervisor` and `bun run src/cli.ts local --dry-run` expose the same plan without starting processes.
 
@@ -125,7 +128,9 @@ This keeps external API behavior predictable while giving the UI normal chat-app
 
 ## API Exposure
 
-The server binds to `127.0.0.1` by default. `NIPUX_PUBLIC_API=1` switches the default bind host to `0.0.0.0`, but protected routes are locked unless `NIPUX_API_KEY` or `NIPUX_API_KEYS` is configured.
+The server binds to `127.0.0.1` by default. `NIPUX_PUBLIC_API=1` switches the default bind host to `0.0.0.0`, but protected routes are locked unless a managed server key, `NIPUX_API_KEY`, or `NIPUX_API_KEYS` is configured. Managed keys are created in private/local mode first, stored only as hashes, and accepted by the same auth layer as env keys.
+
+`GET /api/status` and `GET /api/exposure` are unauthenticated discovery routes. `/api/exposure` returns no raw keys; it exists so the UI and clients can explain whether the server is private, protected, exposed, or locked and which launch command should be used next.
 
 Protected routes accept `Authorization: Bearer <key>` or `x-api-key: <key>`.
 

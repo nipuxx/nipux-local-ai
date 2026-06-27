@@ -16,6 +16,7 @@ test("diagnostics report gathers local setup state without secrets", async () =>
   expect(report.setup.checks.some((check) => check.id === "bun")).toBe(true);
   expect(report.readiness.items.some((item) => item.id === "chat")).toBe(true);
   expect(report.supervisor.ready.some((item) => item.kind === "app")).toBe(true);
+  expect(report.exposure.commands.protectedLan).toContain("NIPUX_PUBLIC_API=1");
   expect(report.models.length).toBeGreaterThanOrEqual(3);
   expect(report.usage.summary.requests).toBeGreaterThanOrEqual(0);
   expect(report.storage.home.path).toBe(report.app.home);

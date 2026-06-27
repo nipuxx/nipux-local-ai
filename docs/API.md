@@ -19,7 +19,7 @@ Authorization: Bearer <key>
 x-api-key: <key>
 ```
 
-`GET /api/status` remains unauthenticated so clients can discover whether auth is required.
+`GET /api/status` and `GET /api/exposure` remain unauthenticated so clients can discover whether auth is required and how the server is exposed. Neither route returns raw API keys.
 
 ## OpenAI-Compatible
 
@@ -131,6 +131,33 @@ Returns the machine-specific launch profile used by the Setup page and `bun run 
 ### `GET /api/launch/supervisor`
 
 Returns the dry-run plan for `bun run local`: the app process, managed local llama.cpp process when `llama` and a local GGUF model path are available, bundled local workers that would start from configured environment variables, skipped processes, and next steps. It never starts processes.
+
+### `GET /api/exposure`
+
+Returns non-secret LAN/public API exposure metadata for the Settings page and setup tooling. It includes the local API URL, detected LAN URLs, bind host, whether public mode is enabled, whether protected routes are locked, API-key counts, copyable private/protected launch commands, warnings, and next steps.
+
+```json
+{
+  "localUrl": "http://127.0.0.1:3434",
+  "apiBaseUrl": "http://127.0.0.1:3434/v1",
+  "bindHost": "127.0.0.1",
+  "publicApi": false,
+  "exposedOnLan": false,
+  "protected": false,
+  "locked": false,
+  "auth": {
+    "required": false,
+    "configured": false,
+    "envKeyCount": 0,
+    "storedKeyCount": 0,
+    "totalKeyCount": 0
+  },
+  "commands": {
+    "privateLocal": "bun run local",
+    "protectedLan": "NIPUX_PUBLIC_API=1 bun run local"
+  }
+}
+```
 
 ### `POST /api/launch/profile/write`
 
