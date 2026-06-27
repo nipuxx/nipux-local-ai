@@ -19,6 +19,7 @@
     "worker:image": "bun run src/workers/imageWorker.ts",
     "transcription:install": "bun run src/cli.ts transcription-install",
     "worker:transcription": "bun run src/workers/transcriptionWorker.ts",
+    "worker:video": "bun run src/workers/videoWorker.ts",
     "launch:profile": "bun run src/cli.ts launch-profile",
     "launch:write": "bun run src/cli.ts launch-write",
     "browsers:install": "bunx playwright install chromium",

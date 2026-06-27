@@ -12,6 +12,7 @@ import { formatSetupActions, getSetupActions } from "./services/setupActions.ts"
 import { formatLaunchProfile, getLaunchProfile, writeLaunchProfileFiles } from "./services/launchProfile.ts";
 import { imageStartCommand } from "./services/imageSetup.ts";
 import { installWhisperModel, WHISPER_MODEL_PRESETS, whisperInstallCommand, whisperStartCommand } from "./services/transcriptionSetup.ts";
+import { videoStartCommand } from "./services/videoSetup.ts";
 
 const command = process.argv[2] ?? "help";
 
@@ -32,6 +33,7 @@ Commands:
   bun run transcription:install   Download the default local Whisper transcription model
   bun run src/cli.ts transcription-presets
   bun run worker:transcription    Start bundled whisper.cpp-compatible transcription worker
+  bun run worker:video            Start bundled local video command worker
   bun run launch:profile          Show this machine's launch profile
   bun run launch:write            Write launch profile, env, and launcher scripts
   bun run src/cli.ts doctor       Detect hardware and backend health
@@ -106,6 +108,9 @@ async function setup() {
       "NIPUX_SPEECH_WORKER_URL=",
       "NIPUX_TRANSCRIPTION_WORKER_URL=",
       "NIPUX_VIDEO_WORKER_URL=",
+      "NIPUX_VIDEO_COMMAND=",
+      "NIPUX_VIDEO_ARGS=",
+      "NIPUX_VIDEO_MODEL=",
       "NIPUX_FAKE_LLM=0",
       "NIPUX_BROWSER_HEADLESS=1",
       "HF_TOKEN=",
@@ -143,6 +148,7 @@ async function setup() {
   console.log(`  Image worker:    ${imageStartCommand()}`);
   console.log(`  Voice model:     ${whisperInstallCommand()}`);
   console.log(`  Voice input:     ${whisperStartCommand()}`);
+  console.log(`  Video worker:    ${videoStartCommand()}`);
   console.log(`  Health check:    bun run doctor`);
   console.log(`  Open:            http://127.0.0.1:${PORT}`);
 }

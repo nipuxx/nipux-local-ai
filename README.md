@@ -133,6 +133,15 @@ bun run media:defaults
 
 The default command argument contract is `{input} {output}`. Set `NIPUX_IMAGE_ARGS` to adapt a local Stable Diffusion, Diffusers, MLX, or other image backend without exposing users to node graphs.
 
+Video generation can use the bundled local command worker. It follows the same pattern, but writes a video request JSON file and expects a local backend to write a video file:
+
+```bash
+NIPUX_VIDEO_COMMAND=/path/to/local-video-command bun run worker:video
+bun run media:defaults --include-optional
+```
+
+The default video command contract is `{input} {output}`. Keep this lane opt-in on smaller machines; local video runtimes are much more hardware-sensitive than chat, speech, or transcription.
+
 Speech has a built-in local fallback when the OS has a supported speech command:
 
 - macOS: `say`

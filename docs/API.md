@@ -205,6 +205,14 @@ NIPUX_IMAGE_COMMAND=/path/to/local-image-command bun run worker:image
 
 The image worker exposes `POST /v1/images/generations` on `http://127.0.0.1:8081`. By default it invokes the local command with `{input} {output}`, where `{input}` is a JSON request file and `{output}` is the image file the command should write. Override `NIPUX_IMAGE_ARGS` for a specific local backend.
 
+The video runtime can use the bundled local command worker:
+
+```bash
+NIPUX_VIDEO_COMMAND=/path/to/local-video-command bun run worker:video
+```
+
+The video worker exposes `POST /v1/video/generations` on `http://127.0.0.1:8084`. By default it invokes the local command with `{input} {output}`, where `{input}` is a JSON request file and `{output}` is the video file the command should write. Override `NIPUX_VIDEO_ARGS` for a specific local backend.
+
 The transcription runtime can use the bundled worker wrapper:
 
 ```bash

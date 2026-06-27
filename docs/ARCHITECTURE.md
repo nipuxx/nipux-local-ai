@@ -179,7 +179,7 @@ The API gateway has separate local-only worker adapters for:
 - `image.generate` through an OpenAI-compatible local image endpoint, including the bundled local command worker
 - `audio.transcribe` through a local transcription endpoint, including the bundled whisper.cpp-compatible worker wrapper
 - `audio.speech` through a local TTS endpoint such as Kokoro/Piper
-- `video.generate` through a queued, opt-in local video worker
+- `video.generate` through a queued, opt-in local video worker, including the bundled local command worker
 
 Worker URLs must be loopback HTTP(S) URLs. The app rejects remote media workers so it remains local-first and does not hide external API usage. Media requests emit usage events and persistent `media_jobs` records whether they complete, fail, or are missing a configured worker.
 
@@ -188,5 +188,7 @@ Worker URLs must be loopback HTTP(S) URLs. The app rejects remote media workers 
 Speech is the first lane with a built-in local fallback. When no speech worker URL is configured, the app can synthesize speech through macOS `say`, Linux `espeak`, or Windows SAPI if present. Generated audio is still recorded as a normal `media_jobs` row with `worker_url = builtin://system-speech`.
 
 Image generation has a bundled local command worker at `src/workers/imageWorker.ts`. It exposes `POST /v1/images/generations`, writes the image request to a JSON file, shells out to `NIPUX_IMAGE_COMMAND`, and expects the command to write a local image file or emit supported JSON. This keeps the app API OpenAI-compatible while allowing different local engines behind one simple worker contract.
+
+Video generation has a bundled local command worker at `src/workers/videoWorker.ts`. It exposes `POST /v1/video/generations`, writes the video request to a JSON file, shells out to `NIPUX_VIDEO_COMMAND`, and expects the command to write a local video file or emit supported JSON. The runtime planner keeps this lane optional by default because video model performance varies heavily by hardware.
 
 Transcription has a bundled local worker wrapper at `src/workers/transcriptionWorker.ts`. It exposes an OpenAI-compatible `POST /v1/audio/transcriptions` endpoint and shells out to a local `whisper-cli` compatible binary using `NIPUX_WHISPER_MODEL`. `bun run transcription:install` downloads a small whisper.cpp GGML model into the Nipux model directory and prints the exact start command, keeping the app-local worker contract stable while leaving binary installation explicit.

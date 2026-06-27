@@ -71,6 +71,9 @@ function mediaFix(runtime: { status: string; setup: string; commands?: Array<{ c
   const imageStartCommand = runtime.commands?.find((item) => item.command.includes("worker:image"))?.command;
   if (imageStartCommand) return `Run ${imageStartCommand}, then run bun run media:defaults.`;
 
+  const videoStartCommand = runtime.commands?.find((item) => item.command.includes("worker:video"))?.command;
+  if (videoStartCommand) return `Run ${videoStartCommand}, then run bun run media:defaults --include-optional.`;
+
   const startCommand = runtime.commands?.find((item) => item.command.includes("worker:transcription"))?.command;
   const installCommand = runtime.commands?.find((item) => item.command.includes("transcription:install"))?.command;
   if (startCommand?.includes("worker:transcription")) {

@@ -4,6 +4,7 @@ import { getMediaCapabilities, type MediaKind } from "./media.ts";
 import { getAppSettings, updateAppSettings, type AppSettings } from "./settings.ts";
 import { imageStartCommand, imageWorkerContract } from "./imageSetup.ts";
 import { whisperInstallCommand, whisperStartCommand } from "./transcriptionSetup.ts";
+import { videoStartCommand, videoWorkerContract } from "./videoSetup.ts";
 
 type RuntimeStatus = "ready" | "unconfigured" | "invalid" | "offline";
 type MediaSettingKey = "imageWorkerUrl" | "speechWorkerUrl" | "transcriptionWorkerUrl" | "videoWorkerUrl";
@@ -112,8 +113,11 @@ const MEDIA_RUNTIME_CONFIG: Record<
     endpoint: "/v1/video/generations",
     settingKey: "videoWorkerUrl",
     envVar: "NIPUX_VIDEO_WORKER_URL",
-    setup: "Configure a loopback video worker only on machines with enough GPU or unified memory.",
-    notes: ["Video should remain opt-in and queued because runtime cost varies heavily by machine."],
+    setup: "Start the bundled local video command worker only on machines with enough GPU or unified memory.",
+    notes: [
+      videoWorkerContract(),
+      "Video should remain opt-in and queued because runtime cost varies heavily by machine.",
+    ],
   },
 };
 
@@ -167,10 +171,12 @@ function commandsFor(kind: MediaKind, config: (typeof MEDIA_RUNTIME_CONFIG)[Medi
     ? imageStartCommand()
     : kind === "transcription"
       ? whisperStartCommand()
-      : `${config.envVar}=${url} bun run start`;
+      : kind === "video"
+        ? videoStartCommand()
+        : `${config.envVar}=${url} bun run start`;
   const commands: MediaRuntimeCommand[] = [
     {
-      label: ["image", "transcription"].includes(kind) ? "Start bundled worker" : "macOS/Linux environment",
+      label: ["image", "transcription", "video"].includes(kind) ? "Start bundled worker" : "macOS/Linux environment",
       command: startCommand,
     },
     {
@@ -244,9 +250,15 @@ export async function getMediaRuntimePlan(): Promise<MediaRuntimePlannerResult> 
       if (runtime.kind === "transcription") {
         return [`Run ${whisperInstallCommand()}, then run ${startCommandFor(runtime)}, then run bun run media:defaults.`];
       }
+      if (runtime.kind === "video") {
+        return [`Run ${startCommandFor(runtime)}, then run bun run media:defaults --include-optional.`];
+      }
       return [`Start ${runtime.workerLabel} on ${runtime.defaultUrl}, then set ${runtime.envVar}.`];
     }
     if (runtime.status === "unconfigured") {
+      if (runtime.kind === "video") {
+        return [`Keep ${runtime.label} unconfigured unless the user explicitly installs a local video backend, or run ${startCommandFor(runtime)} and bun run media:defaults --include-optional.`];
+      }
       return [`Keep ${runtime.label} unconfigured on this hardware unless the user explicitly installs a local worker.`];
     }
     return [];

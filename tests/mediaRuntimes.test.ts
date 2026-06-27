@@ -34,8 +34,11 @@ test("media runtime planner exposes all local worker lanes", async () => {
   const transcription = json.runtimes.find((runtime: { kind: string }) => runtime.kind === "transcription");
   expect(transcription.commands.some((item: { command: string }) => item.command.includes("bun run transcription:install"))).toBe(true);
   expect(transcription.commands.some((item: { command: string }) => item.command.includes("bun run worker:transcription"))).toBe(true);
+  const video = json.runtimes.find((runtime: { kind: string }) => runtime.kind === "video");
+  expect(video.commands.some((item: { command: string }) => item.command.includes("bun run worker:video"))).toBe(true);
   expect(json.nextSteps.some((step: string) => step.includes("bun run worker:image"))).toBe(true);
   expect(json.nextSteps.some((step: string) => step.includes("bun run worker:transcription"))).toBe(true);
+  expect(json.nextSteps.some((step: string) => step.includes("bun run worker:video"))).toBe(true);
   expect(json.hardware.totalRamGb).toBeGreaterThan(0);
 });
 

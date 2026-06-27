@@ -103,4 +103,4 @@ This file translates the product goal into independently owned workstreams. The 
 - Maintain the bundled local image command worker; bundled image model setup remains future work when install/runtime/licensing details are clear.
 - Maintain the bundled whisper.cpp-compatible transcription worker and Whisper model setup automation; binary setup automation remains future work.
 - Add Kokoro/Piper setup automation after worker APIs are stable.
-- Add video generation as queued, hardware-aware jobs.
+- Maintain the bundled local video command worker; bundled video model setup remains future work and should stay queued, opt-in, and hardware-aware.
