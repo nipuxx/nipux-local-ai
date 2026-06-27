@@ -48,6 +48,18 @@ cd "$INSTALL_DIR"
 bun install --frozen-lockfile
 bun run setup
 
+echo
+echo "Machine capability profile:"
+if ! bun run capabilities; then
+  echo "Warning: capability profile failed. You can retry later with: bun run capabilities" >&2
+fi
+
+echo
+echo "Readiness summary:"
+if ! bun run ready; then
+  echo "Some capabilities still need setup. The app can still start in dev mode or after local model setup." >&2
+fi
+
 if [ "$INSTALL_BROWSERS" != "0" ]; then
   echo
   echo "Installing Playwright Chromium for browser agents..."
@@ -57,11 +69,13 @@ if [ "$INSTALL_BROWSERS" != "0" ]; then
 fi
 
 echo
-echo "Start dev mode:"
+echo "Start the local app and managed backends:"
+echo "  cd $INSTALL_DIR && bun run local"
+echo
+echo "Try the UI without a model:"
 echo "  cd $INSTALL_DIR && bun run dev"
 echo
-echo "Start production mode after llama.cpp is running:"
-echo "  cd $INSTALL_DIR && bun run start"
-echo
-echo "Health check:"
-echo "  cd $INSTALL_DIR && bun run preflight"
+echo "Review setup any time:"
+echo "  cd $INSTALL_DIR && bun run capabilities"
+echo "  cd $INSTALL_DIR && bun run ready"
+echo "  cd $INSTALL_DIR && bun run setup:actions"

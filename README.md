@@ -193,7 +193,7 @@ Windows:
 irm https://raw.githubusercontent.com/nipuxx/nipux-local-ai/main/scripts/install.ps1 | iex
 ```
 
-Those scripts install Bun if needed, clone or update the repo, install dependencies from the lockfile, run the local setup command, and install Playwright Chromium for browser agents. Set `NIPUX_INSTALL_BROWSERS=0` to skip the Chromium download and repair it later with `bun run browsers:install`.
+Those scripts install Bun if needed, clone or update the repo, install dependencies from the lockfile, run the local setup command, print the machine capability profile, print a non-fatal readiness summary, and install Playwright Chromium for browser agents. Set `NIPUX_INSTALL_BROWSERS=0` to skip the Chromium download and repair it later with `bun run browsers:install`.
 
 Run the platform-aware readiness check at any time:
 

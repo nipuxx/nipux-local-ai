@@ -30,6 +30,18 @@ test("release manifest records archive checksum and install commands", () => {
   expect(manifest.install.windows).toContain("install.ps1");
 });
 
+test("install scripts surface capability and readiness commands", () => {
+  const unix = readFileSync("scripts/install.sh", "utf8");
+  const windows = readFileSync("scripts/install.ps1", "utf8");
+
+  for (const script of [unix, windows]) {
+    expect(script).toContain("bun run capabilities");
+    expect(script).toContain("bun run ready");
+    expect(script).toContain("bun run local");
+    expect(script).toContain("bun run setup:actions");
+  }
+});
+
 test("zip builder emits a valid zip header", () => {
   const zip = createZipBuffer([{ archivePath: "nipux-local-ai-test/README.md", data: Buffer.from("hello") }], "2026-01-01T00:00:00.000Z");
   expect(zip.subarray(0, 4).toString("hex")).toBe("504b0304");

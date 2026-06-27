@@ -48,4 +48,4 @@ bun run preflight
 bun run local
 ```
 
-`bun run setup` writes a launch profile, env file, and local launcher scripts under `NIPUX_HOME`. Recreate them later with `bun run launch:write`. Use `bun run src/cli.ts local --dry-run` to inspect which bundled workers will start before launching.
+The install scripts run `bun run setup`, print `bun run capabilities`, print a non-fatal `bun run ready` summary, and then point users at `bun run local`. `bun run setup` writes a launch profile, env file, and local launcher scripts under `NIPUX_HOME`. Recreate them later with `bun run launch:write`. Use `bun run src/cli.ts local --dry-run` to inspect which bundled workers will start before launching.

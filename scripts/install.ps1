@@ -45,6 +45,20 @@ Set-Location $InstallDir
 Invoke-Checked bun install --frozen-lockfile
 Invoke-Checked bun run setup
 
+Write-Host ""
+Write-Host "Machine capability profile:"
+& bun run capabilities
+if ($LASTEXITCODE -ne 0) {
+  Write-Warning "Capability profile failed. You can retry later with: bun run capabilities"
+}
+
+Write-Host ""
+Write-Host "Readiness summary:"
+& bun run ready
+if ($LASTEXITCODE -ne 0) {
+  Write-Warning "Some capabilities still need setup. The app can still start in dev mode or after local model setup."
+}
+
 if ($InstallBrowsers -ne "0") {
   Write-Host ""
   Write-Host "Installing Playwright Chromium for browser agents..."
@@ -55,11 +69,13 @@ if ($InstallBrowsers -ne "0") {
 }
 
 Write-Host ""
-Write-Host "Start dev mode:"
+Write-Host "Start the local app and managed backends:"
+Write-Host "  cd $InstallDir; bun run local"
+Write-Host ""
+Write-Host "Try the UI without a model:"
 Write-Host "  cd $InstallDir; bun run dev"
 Write-Host ""
-Write-Host "Start production mode after llama.cpp is running:"
-Write-Host "  cd $InstallDir; bun run start"
-Write-Host ""
-Write-Host "Health check:"
-Write-Host "  cd $InstallDir; bun run preflight"
+Write-Host "Review setup any time:"
+Write-Host "  cd $InstallDir; bun run capabilities"
+Write-Host "  cd $InstallDir; bun run ready"
+Write-Host "  cd $InstallDir; bun run setup:actions"
