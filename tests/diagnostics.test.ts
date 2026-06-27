@@ -15,6 +15,7 @@ test("diagnostics report gathers local setup state without secrets", async () =>
   expect(report.hardware.totalRamGb).toBeGreaterThan(0);
   expect(report.setup.checks.some((check) => check.id === "bun")).toBe(true);
   expect(report.readiness.items.some((item) => item.id === "chat")).toBe(true);
+  expect(report.capabilityProfile.defaultLanes).toContain("chat");
   expect(report.supervisor.ready.some((item) => item.kind === "app")).toBe(true);
   expect(report.exposure.commands.protectedLan).toContain("NIPUX_PUBLIC_API=1");
   expect(report.models.length).toBeGreaterThanOrEqual(3);

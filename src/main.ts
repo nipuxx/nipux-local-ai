@@ -28,6 +28,7 @@ import {
   screenshotBrowserSession,
   typeInBrowserSession,
 } from "./services/browserBroker.ts";
+import { getCapabilityProfile } from "./services/capabilityProfile.ts";
 import {
   listBrowserActionEvents,
   listPermissionRequests,
@@ -470,6 +471,7 @@ export async function route(req: Request): Promise<Response> {
   const apiKeyMatch = url.pathname.match(/^\/api\/api-keys\/([^/]+)$/);
   if (apiKeyMatch && req.method === "DELETE") return json(revokeApiKey(apiKeyMatch[1]));
   if (url.pathname === "/api/exposure" && req.method === "GET") return json(getApiExposurePlan());
+  if (url.pathname === "/api/capability-profile" && req.method === "GET") return json(await getCapabilityProfile());
   if (url.pathname === "/api/readiness" && req.method === "GET") return json(await getReadinessReport());
   if (url.pathname === "/api/diagnostics" && req.method === "GET") return json(await getDiagnosticsReport());
   if (url.pathname === "/api/setup/actions" && req.method === "GET") return json(await getSetupActions());

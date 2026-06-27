@@ -104,7 +104,25 @@ Returns the everyday setup summary used by the Setup page and `bun run ready`. I
 
 ### `GET /api/diagnostics`
 
-Returns a read-only local diagnostics report for the Usage page. The report includes hardware, setup preflight, readiness, runtime status, local supervisor dry-run plan, launch commands, media runtime plan, model states, recent usage, storage totals, and redacted auth state. API key values are never returned.
+Returns a read-only local diagnostics report for the Usage page. The report includes hardware, setup preflight, readiness, capability profile, runtime status, local supervisor dry-run plan, launch commands, media runtime plan, model states, recent usage, storage totals, and redacted auth state. API key values are never returned.
+
+### `GET /api/capability-profile`
+
+Returns the consumer-facing machine profile used by the Setup page and `bun run capabilities`. It classifies the machine as minimal CPU, CPU-standard, GPU-accelerated, or high-memory workstation; picks the recommended Fast/Balanced/Smart mode; and marks each lane as default, available, slow, optional, or blocked.
+
+```json
+{
+  "tier": "cpu-standard",
+  "tierLabel": "CPU-standard machine",
+  "recommendedPreset": "balanced",
+  "defaultLanes": ["chat", "search", "agents", "browser", "speech", "transcription", "api"],
+  "blockedLanes": ["image", "video"],
+  "commands": {
+    "startLocal": "bun run local",
+    "installModel": "bun run model:install balanced"
+  }
+}
+```
 
 ### `GET /api/setup/actions`
 

@@ -31,6 +31,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - Manual document indexing, browser file/folder import, safe dev file-path indexing, and local search
 - SearXNG adapter for local web search
 - Media tab plus local-only image, speech, transcription, and video worker API surfaces
+- Consumer capability profile for CPU-only, GPU, and high-memory machines
 - Hardware-aware media runtime planner for image, speech, transcription, and video workers
 - Media worker health checks so configured loopback URLs show `offline` until a worker actually responds
 - Built-in local text-to-speech through macOS `say`, Linux `espeak`, or Windows SAPI when available
@@ -163,9 +164,12 @@ bun run media:defaults
 Inspect the hardware-aware local media runtime plan:
 
 ```bash
+bun run capabilities
 bun run media:runtimes
 bun run media:runtimes --json
 ```
+
+`bun run capabilities` shows the consumer-facing hardware tier, recommended Fast/Balanced/Smart mode, default lanes, opt-in lanes, and blocked lanes for this machine.
 
 Seed recommended loopback worker URLs without marking them ready:
 
@@ -197,9 +201,10 @@ Run the platform-aware readiness check at any time:
 bun run ready
 bun run preflight
 bun run setup:actions
+bun run capabilities
 ```
 
-`bun run ready` summarizes the user-facing state: chat, browser agents, voice output/input, image/video workers, search, and API exposure. `bun run setup:actions` turns that state into copyable install/start/configure commands. `bun run preflight` keeps the lower-level installer checks.
+`bun run ready` summarizes the user-facing state: chat, browser agents, voice output/input, image/video workers, search, and API exposure. `bun run capabilities` explains what should be enabled by default on this hardware. `bun run setup:actions` turns that state into copyable install/start/configure commands. `bun run preflight` keeps the lower-level installer checks.
 
 Start the app plus managed local backends:
 
@@ -286,6 +291,7 @@ bun test
 bun run doctor
 bun run preflight
 bun run ready
+bun run capabilities
 bun run media:runtimes
 bun run package:release
 ```

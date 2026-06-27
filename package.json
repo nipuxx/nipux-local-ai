@@ -16,6 +16,7 @@
     "install:local": "bun run src/cli.ts install",
     "model:install": "bun run src/cli.ts model-install",
     "media:runtimes": "bun run src/cli.ts media-runtimes",
+    "capabilities": "bun run src/cli.ts capabilities",
     "media:defaults": "bun run src/cli.ts media-defaults",
     "worker:image": "bun run src/workers/imageWorker.ts",
     "transcription:install": "bun run src/cli.ts transcription-install",

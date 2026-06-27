@@ -14,6 +14,7 @@ import { imageStartCommand } from "./services/imageSetup.ts";
 import { formatLocalSupervisorPlan, getLocalSupervisorPlan, runLocalSupervisor } from "./services/localSupervisor.ts";
 import { installWhisperModel, WHISPER_MODEL_PRESETS, whisperInstallCommand, whisperStartCommand } from "./services/transcriptionSetup.ts";
 import { videoStartCommand } from "./services/videoSetup.ts";
+import { formatCapabilityProfile, getCapabilityProfile } from "./services/capabilityProfile.ts";
 
 const command = process.argv[2] ?? "help";
 
@@ -31,6 +32,7 @@ Commands:
   bun run ready                   Show everyday readiness summary
   bun run setup:actions           Show copyable setup actions
   bun run media:runtimes          Show local media runtime setup plan
+  bun run capabilities            Show this machine's consumer capability profile
   bun run media:defaults          Persist recommended local media worker URLs
   bun run worker:image            Start bundled local image command worker
   bun run transcription:install   Download the default local Whisper transcription model
@@ -236,6 +238,17 @@ async function main() {
     }
     console.log(`\nNipux Local AI media runtime plan`);
     console.log(formatMediaRuntimePlan(plan));
+    return;
+  }
+
+  if (command === "capabilities" || command === "capability-profile") {
+    const profile = await getCapabilityProfile();
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(profile, null, 2));
+      return;
+    }
+    console.log(`\nNipux Local AI capability profile`);
+    console.log(formatCapabilityProfile(profile));
     return;
   }
 

@@ -57,6 +57,7 @@ flowchart TD
 - `src/services/search.ts`: local FTS and SearXNG.
 - `src/services/settings.ts`: persisted runtime settings, env-derived boot defaults, and Settings status.
 - `src/services/apiExposure.ts`: non-secret API exposure plan, LAN URLs, auth/key counts, warnings, and safe launch commands.
+- `src/services/capabilityProfile.ts`: consumer-facing hardware tier, recommended mode, and lane defaults for CPU/GPU/high-memory machines.
 - `src/services/media.ts`: local-only image/audio/video capability checks, worker calls, and media job records.
 - `src/services/mediaRuntimes.ts`: hardware-aware setup plan for local media worker contracts, default ports, env vars, and fit guidance.
 - `src/services/localSpeech.ts`: built-in local speech fallback through OS speech commands.
@@ -79,7 +80,7 @@ The Settings page writes user-facing defaults to SQLite. Environment variables s
 
 Dev mode hides advanced tools from the main experience until enabled. Runtime start/stop/test controls, Hugging Face model search/download, backend file-path indexing, raw status JSON, and browser action logs are dev-only surfaces. Permission approvals remain visible because they are part of the agent safety flow.
 
-The Setup page is the non-dev status surface. It calls `/api/readiness`, `/api/setup/actions`, and `/api/launch/profile`, then shows capability status, copyable setup commands, launch commands, and next steps without exposing raw diagnostics by default.
+The Setup page is the non-dev status surface. It calls `/api/readiness`, `/api/capability-profile`, `/api/setup/actions`, and `/api/launch/profile`, then shows capability status, copyable setup commands, launch commands, and next steps without exposing raw diagnostics by default.
 
 The Settings page owns API safety controls. It can create and revoke managed server keys, store a client key locally in the browser, and show the `/api/exposure` plan so users can copy a private-local or protected-LAN launch command without guessing bind flags.
 

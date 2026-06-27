@@ -584,6 +584,49 @@ h2 {
   margin-bottom: 18px;
 }
 
+.capability-profile {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.capability-lanes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.capability-lane {
+  border-left: 3px solid var(--line);
+  padding-left: 10px;
+  min-width: 0;
+}
+
+.capability-lane > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.capability-lane span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.capability-default,
+.capability-available {
+  border-left-color: #9dc9bb;
+}
+
+.capability-slow,
+.capability-optional {
+  border-left-color: #e6c591;
+}
+
+.capability-blocked {
+  border-left-color: #f1b8b8;
+}
+
 .readiness-item {
   border: 1px solid var(--line);
   background: var(--panel);
@@ -780,6 +823,7 @@ h2 {
   .media-grid,
   .media-capabilities,
   .media-runtime-grid,
+  .capability-lanes,
   .readiness-grid,
   .split,
   .stats,

@@ -19,6 +19,7 @@ const state = {
   speechPlayback: null,
   voiceRecorder: null,
   readiness: null,
+  capabilityProfile: null,
   setupActions: null,
   launchProfile: null,
   localSupervisor: null,
@@ -373,7 +374,7 @@ async function saveSettings() {
   if (state.status) state.status.settings = state.settingsStatus.settings;
   $("#presetSelect").value = state.settingsStatus.settings.defaultModelPreset;
   applySettingsToUi();
-  await Promise.all([loadReadiness(), loadSetupActions(), loadLocalSupervisor()]);
+  await Promise.all([loadReadiness(), loadCapabilityProfile(), loadSetupActions(), loadLocalSupervisor()]);
 }
 
 async function loadModels() {
@@ -456,6 +457,36 @@ async function loadReadiness() {
     .join("");
   $("#readinessSteps").innerHTML =
     report.nextSteps.map((step) => `<div>${h(step)}</div>`).join("") || `<div class="meta">No setup steps required.</div>`;
+}
+
+async function loadCapabilityProfile() {
+  const profile = await api("/api/capability-profile");
+  state.capabilityProfile = profile;
+  const defaultLabels = profile.defaultLanes
+    .map((id) => profile.lanes.find((lane) => lane.id === id)?.label)
+    .filter(Boolean)
+    .join(", ");
+  $("#capabilityProfile").innerHTML = `
+    <div>
+      <h2>Machine Capability</h2>
+      <div class="meta">${h(profile.tierLabel)} · ${h(profile.hardware.accelerator)} · ${h(profile.hardware.totalRamGb)}GB RAM</div>
+      <div class="meta">${h(profile.headline)}</div>
+      <div class="meta">Recommended mode: ${h(profile.recommendedPreset)}${defaultLabels ? ` · Defaults: ${h(defaultLabels)}` : ""}</div>
+    </div>
+    <div class="capability-lanes">
+      ${profile.lanes
+        .map(
+          (lane) => `
+            <div class="capability-lane capability-${h(lane.status)}">
+              <div>
+                <strong>${h(lane.label)}</strong>
+                <span>${h(lane.status)}</span>
+              </div>
+              <div class="meta">${h(lane.summary)}</div>
+            </div>`,
+        )
+        .join("")}
+    </div>`;
 }
 
 function setupCommandMarkup(item) {
@@ -1290,7 +1321,7 @@ async function downloadFile(button) {
   });
   button.textContent = "Downloaded";
   console.log(data);
-  await Promise.all([loadModels(), loadSetupActions(), loadRuntime(), loadLocalSupervisor()]);
+  await Promise.all([loadModels(), loadCapabilityProfile(), loadSetupActions(), loadRuntime(), loadLocalSupervisor()]);
 }
 
 async function setDefaultModel(button) {
@@ -1304,7 +1335,7 @@ async function setDefaultModel(button) {
   });
   if (state.status) state.status.settings = state.settingsStatus.settings;
   applySettingsToUi();
-  await Promise.all([loadModels(), loadReadiness(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor()]);
+  await Promise.all([loadModels(), loadReadiness(), loadCapabilityProfile(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor()]);
 }
 
 async function installModel(button) {
@@ -1327,7 +1358,7 @@ async function installModel(button) {
       button.disabled = false;
     }, 1200);
   }
-  await Promise.all([loadModels(), loadReadiness(), loadSetupActions(), loadRuntime(), loadLaunchProfile(), loadLocalSupervisor()]);
+  await Promise.all([loadModels(), loadReadiness(), loadCapabilityProfile(), loadSetupActions(), loadRuntime(), loadLaunchProfile(), loadLocalSupervisor()]);
 }
 
 document.addEventListener("click", async (event) => {
@@ -1350,7 +1381,7 @@ document.addEventListener("click", async (event) => {
       localStorage.removeItem("nipuxApiKey");
       $("#settingsApiKey").value = "";
     }
-    await Promise.all([loadSettings(), loadApiKeys(), loadApiExposure(), loadReadiness(), loadSetupActions(), loadLaunchProfile()]);
+    await Promise.all([loadSettings(), loadApiKeys(), loadApiExposure(), loadReadiness(), loadCapabilityProfile(), loadSetupActions(), loadLaunchProfile()]);
   }
   if (target.matches(".copy-command")) {
     const original = target.textContent;
@@ -1493,7 +1524,7 @@ $("#applyMediaDefaults").addEventListener("click", async () => {
   state.settingsStatus = { settings: data.settings, env: state.settingsStatus?.env || null };
   if (state.status) state.status.settings = data.settings;
   applySettingsToUi();
-  await Promise.all([loadMedia(), loadReadiness(), loadSetupActions(), loadLocalSupervisor()]);
+  await Promise.all([loadMedia(), loadReadiness(), loadCapabilityProfile(), loadSetupActions(), loadLocalSupervisor()]);
 });
 $("#refreshUsage").addEventListener("click", async () => {
   await Promise.all([loadUsage(), loadDiagnostics()]);
@@ -1514,7 +1545,7 @@ $("#copyDiagnostics").addEventListener("click", async () => {
   }, 1200);
 });
 $("#refreshReadiness").addEventListener("click", async () => {
-  await Promise.all([loadReadiness(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor()]);
+  await Promise.all([loadReadiness(), loadCapabilityProfile(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor()]);
 });
 $("#writeLaunchProfile").addEventListener("click", async () => {
   const result = await api("/api/launch/profile/write", { method: "POST", body: "{}" });
@@ -1532,12 +1563,12 @@ $("#startRuntime").addEventListener("click", async () => {
   } catch (error) {
     $("#runtimeOutput").textContent = error instanceof Error ? error.message : String(error);
   }
-  await Promise.all([loadRuntime(), loadUsage(), loadReadiness(), loadSetupActions()]);
+  await Promise.all([loadRuntime(), loadUsage(), loadReadiness(), loadCapabilityProfile(), loadSetupActions()]);
 });
 $("#stopRuntime").addEventListener("click", async () => {
   const data = await api("/api/runtime/stop", { method: "POST", body: "{}" });
   $("#runtimeOutput").textContent = JSON.stringify(data, null, 2);
-  await Promise.all([loadRuntime(), loadUsage(), loadReadiness(), loadSetupActions()]);
+  await Promise.all([loadRuntime(), loadUsage(), loadReadiness(), loadCapabilityProfile(), loadSetupActions()]);
 });
 $("#testRuntime").addEventListener("click", async () => {
   const prompt = $("#runtimePrompt").value.trim();
@@ -1575,7 +1606,7 @@ $("#createServerApiKey").addEventListener("click", async () => {
     localStorage.setItem("nipuxApiKey", data.key);
     $("#settingsApiKey").value = data.key;
     $("#serverApiKeyOutput").textContent = `New server key, shown once:\n${data.key}`;
-    await Promise.all([loadSettings(), loadApiKeys(), loadApiExposure(), loadReadiness(), loadSetupActions(), loadLaunchProfile()]);
+    await Promise.all([loadSettings(), loadApiKeys(), loadApiExposure(), loadReadiness(), loadCapabilityProfile(), loadSetupActions(), loadLaunchProfile()]);
     button.textContent = "Created";
   } catch (error) {
     $("#serverApiKeyOutput").textContent = error instanceof Error ? error.message : String(error);
@@ -1600,7 +1631,7 @@ $("#createBrowser").addEventListener("click", async () => {
 
 await loadStatus();
 await loadSettings();
-await Promise.all([loadModels(), loadRuntime(), loadReadiness(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor(), loadUsage(), loadDiagnostics(), loadApiKeys(), loadApiExposure(), loadAgents(), loadDocuments(), loadMedia()]);
+await Promise.all([loadModels(), loadRuntime(), loadReadiness(), loadCapabilityProfile(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor(), loadUsage(), loadDiagnostics(), loadApiKeys(), loadApiExposure(), loadAgents(), loadDocuments(), loadMedia()]);
 await loadChats();
 if (state.chats[0]) await openChat(state.chats[0].id);
 else await createNewChat();

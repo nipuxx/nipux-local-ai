@@ -2,6 +2,7 @@ import { existsSync, lstatSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { API_KEYS, BIND_HOST, DATA_DIR, DB_PATH, IS_DEV_UI, IS_FAKE_LLM, MODEL_DIR, NIPUX_HOME, PORT, PUBLIC_API, RUNTIME_DIR } from "../config.ts";
 import { getApiExposurePlan } from "./apiExposure.ts";
+import { buildCapabilityProfile } from "./capabilityProfile.ts";
 import { detectHardware } from "./hardware.ts";
 import { getLaunchProfile } from "./launchProfile.ts";
 import { getLocalSupervisorPlan } from "./localSupervisor.ts";
@@ -66,6 +67,7 @@ export async function getDiagnosticsReport() {
     getLaunchProfile(),
     getRuntimeStatus(),
   ]);
+  const capabilityProfile = buildCapabilityProfile(hardware);
   const settingsStatus = getSettingsStatus();
 
   return {
@@ -90,6 +92,7 @@ export async function getDiagnosticsReport() {
     hardware,
     setup,
     readiness,
+    capabilityProfile,
     runtime,
     supervisor: getLocalSupervisorPlan(),
     exposure: getApiExposurePlan(),

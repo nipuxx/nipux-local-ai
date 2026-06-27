@@ -14,6 +14,26 @@ The installer should run everywhere. Model capability depends on hardware.
 | AMD Windows | Fast / Balanced | Prefer Vulkan/DirectML where supported. |
 | Intel iGPU | Fast | Vulkan/DirectML may help but CPU fallback must work. |
 
+## Consumer Capability Profile
+
+Use the capability profile to translate hardware detection into everyday defaults:
+
+```bash
+bun run capabilities
+bun run capabilities --json
+GET /api/capability-profile
+```
+
+The profile classifies the machine as minimal CPU, CPU-standard, GPU-accelerated, or high-memory workstation. It then marks each product lane as `default`, `available`, `slow`, `optional`, or `blocked`.
+
+Default lanes should stay simple: chat, local search, agents, browser control when memory allows, voice output, practical transcription, and the local/public API. Image and video remain opt-in because local weights, backend support, VRAM, and license terms decide whether they can actually run well.
+
+Important assumptions:
+
+- VRAM is not measured yet, so GPU decisions are conservative.
+- Closed hosted models cannot be bundled locally unless local weights and license terms exist.
+- Media lanes are local-only and require loopback workers before they are marked ready.
+
 ## Backend Preference
 
 1. llama.cpp server for GGUF models and broad hardware support.

@@ -169,3 +169,13 @@ test("API exposure route is safe discovery metadata", async () => {
   expect(json.commands.protectedLan).toContain("NIPUX_PUBLIC_API=1");
   expect(json.auth).not.toHaveProperty("keys");
 });
+
+test("capability profile route returns machine defaults", async () => {
+  const res = await route(new Request("http://localhost/api/capability-profile"));
+  expect(res.status).toBe(200);
+  const json = await res.json();
+  expect(json.tierLabel).toBeTruthy();
+  expect(json.recommendedPreset).toMatch(/fast|balanced|smart/);
+  expect(json.lanes.some((lane: { id: string }) => lane.id === "chat")).toBe(true);
+  expect(json.commands.startLocal).toBe("bun run local");
+});

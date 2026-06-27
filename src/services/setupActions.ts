@@ -117,6 +117,19 @@ export async function getSetupActions(): Promise<SetupActionsResult> {
   const llama = checks.llama;
   const llamaMissing = llama?.detail.toLowerCase().includes("not installed");
   const recommendedModel = getModel(media.hardware.recommendedPreset);
+  actions.push(
+    action({
+      id: "review-capabilities",
+      label: "Review machine capability",
+      kind: "verify",
+      status: "ready",
+      description: `This machine is classified for ${media.hardware.recommendedPreset} mode on ${media.hardware.accelerator}.`,
+      commands: [command("Command", "bun run capabilities")],
+      related: ["hardware", "capabilities", media.hardware.recommendedPreset],
+      reason: "Use this before enabling heavier image or video workers.",
+    }),
+  );
+
   if (llamaMissing) {
     actions.push(
       action({
