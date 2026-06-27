@@ -40,6 +40,7 @@ import { indexPath } from "./services/fileIndexer.ts";
 import { getHermesStatus } from "./services/hermes.ts";
 import { detectHardware } from "./services/hardware.ts";
 import { getLaunchProfile, writeLaunchProfileFiles } from "./services/launchProfile.ts";
+import { getLocalSupervisorPlan } from "./services/localSupervisor.ts";
 import {
   generateImage,
   generateSpeech,
@@ -456,6 +457,7 @@ export async function route(req: Request): Promise<Response> {
   if (url.pathname === "/api/readiness" && req.method === "GET") return json(await getReadinessReport());
   if (url.pathname === "/api/setup/actions" && req.method === "GET") return json(await getSetupActions());
   if (url.pathname === "/api/launch/profile" && req.method === "GET") return json(await getLaunchProfile());
+  if (url.pathname === "/api/launch/supervisor" && req.method === "GET") return json(getLocalSupervisorPlan());
   if (url.pathname === "/api/launch/profile/write" && req.method === "POST") return json(await writeLaunchProfileFiles());
 
   if (url.pathname === "/api/models" && req.method === "GET") return json({ models: listModels() });

@@ -17,7 +17,9 @@ test("launch profile captures local run commands without API secrets", async () 
   expect(profile.localUrl).toContain("127.0.0.1");
   expect(profile.apiBaseUrl).toContain("/v1");
   expect(profile.files.profileJson).toContain(profile.home);
+  expect(profile.commands.oneCommandLocal).toBe("bun run setup && bun run local");
   expect(profile.commands.oneCommandDev).toBe("bun run setup && bun run dev");
+  expect(profile.commands.appLocal).toBe("bun run local");
   expect(profile.commands.model).toContain("llama serve");
   expect(profile.model.llamaRef).toContain("gguf");
   expect(profile.env.local.NIPUX_API_KEY).toBeUndefined();
@@ -37,7 +39,9 @@ test("launch profile writer emits json, env, and local launcher files", async ()
   expect(readFileSync(result.profile.files.envFile, "utf8")).toContain("NIPUX_IMAGE_COMMAND=");
   expect(readFileSync(result.profile.files.envFile, "utf8")).toContain("NIPUX_VIDEO_COMMAND=");
   expect(readFileSync(result.profile.files.startDevSh, "utf8")).toContain("NIPUX_FAKE_LLM='1'");
+  expect(readFileSync(result.profile.files.startDevSh, "utf8")).toContain("exec bun run local");
   expect(readFileSync(result.profile.files.startLocalPs1, "utf8")).toContain("$env:NIPUX_FAKE_LLM = '0'");
+  expect(readFileSync(result.profile.files.startLocalPs1, "utf8")).toContain("bun run local");
 
   const parsed = JSON.parse(readFileSync(result.profile.files.profileJson, "utf8"));
   expect(parsed.files.envFile).toBe(result.profile.files.envFile);
@@ -48,6 +52,11 @@ test("launch profile API returns and writes the shared profile", async () => {
   expect(profileRes.status).toBe(200);
   const profile = await profileRes.json();
   expect(profile.commands.readiness).toBe("bun run ready");
+
+  const supervisorRes = await route(new Request("http://localhost/api/launch/supervisor"));
+  expect(supervisorRes.status).toBe(200);
+  const supervisor = await supervisorRes.json();
+  expect(supervisor.ready.some((item: { kind: string }) => item.kind === "app")).toBe(true);
 
   const writeRes = await route(new Request("http://localhost/api/launch/profile/write", { method: "POST" }));
   expect(writeRes.status).toBe(200);

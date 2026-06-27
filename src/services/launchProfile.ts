@@ -37,6 +37,7 @@ export interface LaunchProfile {
   };
   media: Array<Pick<MediaRuntimePlan, "kind" | "label" | "status" | "workerUrl" | "defaultUrl" | "recommended" | "health">>;
   commands: {
+    oneCommandLocal: string;
     oneCommandDev: string;
     setup: string;
     appDev: string;
@@ -128,7 +129,7 @@ function shLauncher(profile: LaunchProfile, fakeLlm: boolean) {
     "set -eu",
     `cd ${shellQuote(profile.repoRoot)}`,
     ...Object.entries(env).map(([key, value]) => `export ${key}=${shellQuote(value)}`),
-    "exec bun run start",
+    "exec bun run local",
     "",
   ].join("\n");
 }
@@ -138,7 +139,7 @@ function ps1Launcher(profile: LaunchProfile, fakeLlm: boolean) {
   return [
     `Set-Location ${powershellQuote(profile.repoRoot)}`,
     ...Object.entries(env).map(([key, value]) => `$env:${key} = ${powershellQuote(value)}`),
-    "bun run start",
+    "bun run local",
     "",
   ].join("\n");
 }
@@ -185,10 +186,11 @@ export async function getLaunchProfile(): Promise<LaunchProfile> {
       health: runtime.health,
     })),
     commands: {
+      oneCommandLocal: "bun run setup && bun run local",
       oneCommandDev: "bun run setup && bun run dev",
       setup: "bun run setup",
-      appDev: "NIPUX_FAKE_LLM=1 NIPUX_DEV_UI=1 bun run start",
-      appLocal: "bun run start",
+      appDev: "NIPUX_FAKE_LLM=1 NIPUX_DEV_UI=1 bun run local",
+      appLocal: "bun run local",
       model: llamaServeCommand(model.id),
       readiness: "bun run ready",
       preflight: "bun run preflight",
@@ -249,6 +251,7 @@ export function formatLaunchProfile(profile: LaunchProfile) {
     `Model: ${profile.model.label} (${profile.model.preset})`,
     "",
     "Commands:",
+    `  Local: ${profile.commands.oneCommandLocal}`,
     `  Dev:   ${profile.commands.oneCommandDev}`,
     `  Model: ${profile.commands.model}`,
     `  App:   ${profile.commands.appLocal}`,

@@ -170,6 +170,18 @@ export async function getSetupActions(): Promise<SetupActionsResult> {
 
   actions.push(
     action({
+      id: "start-local-supervisor",
+      label: "Start app and configured workers",
+      kind: "start",
+      status: "recommended",
+      description: "Starts the local UI plus any bundled image, transcription, or video workers whose required environment variables are configured.",
+      commands: [
+        command("Command", "bun run local"),
+        command("Dry run", "bun run src/cli.ts local --dry-run"),
+      ],
+      related: ["ui", "workers", "local"],
+    }),
+    action({
       id: "run-dev",
       label: "Try the app without a model",
       kind: "start",

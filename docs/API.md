@@ -124,6 +124,10 @@ Returns structured setup actions used by the Setup page and `bun run setup:actio
 
 Returns the machine-specific launch profile used by the Setup page and `bun run launch:profile`. It includes local UI/API URLs, hardware, selected model, llama.cpp command, media worker health, non-secret env values, and launcher file paths.
 
+### `GET /api/launch/supervisor`
+
+Returns the dry-run plan for `bun run local`: the app process, bundled local workers that would start from configured environment variables, skipped workers, and next steps. It never starts processes.
+
 ### `POST /api/launch/profile/write`
 
 Writes `launch-profile.json`, `nipux.env`, and local launcher scripts under `NIPUX_HOME`, then returns the profile and written file list. This does not write API keys.

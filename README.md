@@ -201,6 +201,15 @@ bun run setup:actions
 
 `bun run ready` summarizes the user-facing state: chat, browser agents, voice output/input, image/video workers, search, and API exposure. `bun run setup:actions` turns that state into copyable install/start/configure commands. `bun run preflight` keeps the lower-level installer checks.
 
+Start the app plus any configured bundled local workers:
+
+```bash
+bun run local
+bun run src/cli.ts local --dry-run
+```
+
+`bun run local` starts the UI/API server and any bundled image, transcription, or video workers whose required environment variables are configured. The dry run shows exactly which workers will start and which are skipped.
+
 Generate or rewrite the local launch profile:
 
 ```bash
@@ -208,7 +217,7 @@ bun run launch:profile
 bun run launch:write
 ```
 
-`bun run setup` also writes `launch-profile.json`, `nipux.env`, `start-dev.sh`, `start-local.sh`, `start-dev.ps1`, and `start-local.ps1` under `~/.nipux-local-ai`.
+`bun run setup` also writes `launch-profile.json`, `nipux.env`, `start-dev.sh`, `start-local.sh`, `start-dev.ps1`, and `start-local.ps1` under `~/.nipux-local-ai`. The launcher scripts use `bun run local`.
 
 ## Release Packaging
 

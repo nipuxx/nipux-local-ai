@@ -61,6 +61,7 @@ flowchart TD
 - `src/services/localSpeech.ts`: built-in local speech fallback through OS speech commands.
 - `src/services/readiness.ts`: user-facing readiness summary that combines setup checks, media runtimes, local chat, search, and API exposure.
 - `src/services/launchProfile.ts`: machine-specific launch profile, env, and local launcher script generation.
+- `src/services/localSupervisor.ts`: local process supervisor plan and `bun run local` orchestration for the app plus configured bundled workers.
 - `src/services/hardware.ts`: OS/GPU/RAM detection.
 - `src/db.ts`: SQLite schema and persistence helpers.
 
@@ -77,6 +78,8 @@ The Settings page writes user-facing defaults to SQLite. Environment variables s
 Dev mode hides advanced tools from the main experience until enabled. Runtime start/stop/test controls, Hugging Face model search/download, backend file-path indexing, raw status JSON, and browser action logs are dev-only surfaces. Permission approvals remain visible because they are part of the agent safety flow.
 
 The Setup page is the non-dev status surface. It calls `/api/readiness`, `/api/setup/actions`, and `/api/launch/profile`, then shows capability status, copyable setup commands, launch commands, and next steps without exposing raw diagnostics by default.
+
+`bun run local` is the consumer launch command. It starts the app and any bundled image, transcription, or video workers whose required environment variables are configured. `GET /api/launch/supervisor` and `bun run src/cli.ts local --dry-run` expose the same plan without starting processes.
 
 ## Agent Memory
 

@@ -11,6 +11,7 @@ import { formatReadinessReport, getReadinessReport } from "./services/readiness.
 import { formatSetupActions, getSetupActions } from "./services/setupActions.ts";
 import { formatLaunchProfile, getLaunchProfile, writeLaunchProfileFiles } from "./services/launchProfile.ts";
 import { imageStartCommand } from "./services/imageSetup.ts";
+import { formatLocalSupervisorPlan, getLocalSupervisorPlan, runLocalSupervisor } from "./services/localSupervisor.ts";
 import { installWhisperModel, WHISPER_MODEL_PRESETS, whisperInstallCommand, whisperStartCommand } from "./services/transcriptionSetup.ts";
 import { videoStartCommand } from "./services/videoSetup.ts";
 
@@ -24,6 +25,8 @@ function printHelp() {
 Commands:
   bun run setup                   One-command setup: creates dirs, detects hardware, checks backends
   bun run src/cli.ts install      Prepare local folders and print runtime setup
+  bun run local                   Start the app plus configured bundled local workers
+  bun run src/cli.ts local --dry-run
   bun run src/cli.ts preflight    Check install/runtime readiness with repair hints
   bun run ready                   Show everyday readiness summary
   bun run setup:actions           Show copyable setup actions
@@ -172,6 +175,17 @@ async function main() {
     console.log("Run a readiness check:");
     console.log("  bun run preflight");
     console.log("  bun run setup:actions");
+    return;
+  }
+
+  if (command === "local" || command === "run-local" || command === "run:local") {
+    const dryRun = process.argv.includes("--dry-run") || process.argv.includes("--json");
+    const plan = dryRun ? getLocalSupervisorPlan() : await runLocalSupervisor();
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(plan, null, 2));
+      return;
+    }
+    if (dryRun) console.log(formatLocalSupervisorPlan(plan));
     return;
   }
 
