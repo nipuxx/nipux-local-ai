@@ -46,6 +46,7 @@ import {
   listMediaJobs,
   MediaUnavailableError,
   transcribeAudio,
+  type MediaJob,
 } from "./services/media.ts";
 import { getMediaRuntimePlan } from "./services/mediaRuntimes.ts";
 import {
@@ -185,16 +186,36 @@ async function handleResponses(req: Request) {
 
 function mediaError(error: unknown) {
   if (error instanceof MediaUnavailableError) {
-    return json({ error: error.message, job: error.job }, error.status);
+    return json({ error: error.message, job: publicMediaJob(error.job) }, error.status);
   }
   return json({ error: error instanceof Error ? error.message : String(error) }, 502);
 }
 
 function openAiMediaError(error: unknown) {
   if (error instanceof MediaUnavailableError) {
-    return json({ error: { message: error.message }, nipux: { job: error.job } }, error.status);
+    return json({ error: { message: error.message }, nipux: { job: publicMediaJob(error.job) } }, error.status);
   }
   return json({ error: { message: error instanceof Error ? error.message : String(error) } }, 502);
+}
+
+function scrubLargeFields(value: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => {
+      if (typeof item === "string" && /base64/i.test(key)) return [key, `[${item.length} chars omitted]`];
+      if (typeof item === "string" && /audio/i.test(key) && item.length > 120) {
+        return [key, `[${item.length} chars omitted]`];
+      }
+      return [key, item];
+    }),
+  );
+}
+
+function publicMediaJob(job: MediaJob): MediaJob {
+  return {
+    ...job,
+    input: scrubLargeFields(job.input),
+    output: scrubLargeFields(job.output),
+  };
 }
 
 function audioResponse(result: unknown) {
@@ -208,6 +229,25 @@ function audioResponse(result: unknown) {
       "content-type": mime,
     },
   });
+}
+
+async function readTranscriptionInput(req: Request) {
+  const contentType = req.headers.get("content-type") ?? "";
+  if (contentType.includes("multipart/form-data")) {
+    const form = await req.formData();
+    const file = form.get("file");
+    if (!(file instanceof File)) return { error: "file is required" };
+    const buffer = Buffer.from(await file.arrayBuffer());
+    return {
+      audioBase64: buffer.toString("base64"),
+      mime: file.type || "audio/webm",
+      language: typeof form.get("language") === "string" ? String(form.get("language")) : undefined,
+      prompt: typeof form.get("prompt") === "string" ? String(form.get("prompt")) : undefined,
+      model: typeof form.get("model") === "string" ? String(form.get("model")) : undefined,
+    };
+  }
+  const body = await readJson<{ audioBase64?: string; mime?: string; language?: string; prompt?: string; model?: string }>(req);
+  return body;
 }
 
 export async function route(req: Request): Promise<Response> {
@@ -584,6 +624,17 @@ export async function route(req: Request): Promise<Response> {
     try {
       const { result } = await generateSpeech(body);
       return audioResponse(result);
+    } catch (error) {
+      return openAiMediaError(error);
+    }
+  }
+  if (url.pathname === "/v1/audio/transcriptions" && req.method === "POST") {
+    const body = await readTranscriptionInput(req);
+    if ("error" in body) return json({ error: { message: body.error } }, 400);
+    if (!body.audioBase64?.trim()) return json({ error: { message: "audio is required" } }, 400);
+    try {
+      const { result } = await transcribeAudio(body);
+      return json(result);
     } catch (error) {
       return openAiMediaError(error);
     }

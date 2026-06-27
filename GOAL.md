@@ -78,6 +78,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Hardware-aware media runtime planner exists for local image, speech, transcription, and video worker setup.
 - Built-in local speech generation exists when the host OS has a supported system speech engine.
 - Assistant chat messages can be played through the local speech route.
+- Chat microphone input records audio and transcribes through the configured local transcription worker.
 - One-command setup CLI and install scripts exist.
 - CI exists for macOS, Linux, and Windows.
 

@@ -12,8 +12,10 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
   - `POST /v1/responses`
   - `GET /v1/models`
   - `POST /v1/audio/speech`
+  - `POST /v1/audio/transcriptions`
 - Persisted chat conversations through native `/api/chats` routes
 - Local speech playback for assistant chat messages
+- Microphone recording in chat that transcribes through a configured local transcription worker
 - Fast / Balanced / Smart model modes
 - Gemma 4 QAT GGUF defaults:
   - Fast: `google/gemma-4-E4B-it-qat-q4_0-gguf:Q4_0`
@@ -114,6 +116,8 @@ Speech has a built-in local fallback when the OS has a supported speech command:
 - Windows: System.Speech through PowerShell
 
 Configured speech worker URLs still take priority, so Kokoro/Piper-style workers can replace the built-in voice path.
+
+Voice input in chat records microphone audio in the browser and sends it to `/v1/audio/transcriptions`. That route accepts OpenAI-style multipart uploads and translates them to the configured loopback transcription worker. If no local transcription worker is configured, the UI shows the setup error.
 
 Inspect the hardware-aware local media runtime plan:
 

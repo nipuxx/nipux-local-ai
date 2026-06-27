@@ -89,3 +89,60 @@ test("OpenAI-compatible image route proxies to a local worker", async () => {
     await patchSettings({ imageWorkerUrl: "" });
   }
 });
+
+test("OpenAI-compatible transcription route reports setup error without a local worker", async () => {
+  await patchSettings({ transcriptionWorkerUrl: "" });
+  const form = new FormData();
+  form.set("file", new File([Buffer.from("wav")], "sample.wav", { type: "audio/wav" }));
+
+  const res = await route(
+    new Request("http://localhost/v1/audio/transcriptions", {
+      method: "POST",
+      body: form,
+    }),
+  );
+  expect(res.status).toBe(501);
+  const json = await res.json();
+  expect(json.error.message).toContain("local transcription worker");
+  expect(json.nipux.job.kind).toBe("transcription");
+  expect(json.nipux.job.input.audioBase64).toContain("omitted");
+});
+
+test("OpenAI-compatible transcription route translates multipart audio to a local worker", async () => {
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    async fetch(req) {
+      const url = new URL(req.url);
+      expect(url.pathname).toBe("/v1/audio/transcriptions");
+      const body = await req.json();
+      expect(body.audioBase64).toBe(Buffer.from("audio").toString("base64"));
+      expect(String(body.mime)).toContain("webm");
+      return Response.json({ text: "transcribed locally" });
+    },
+  });
+
+  try {
+    await patchSettings({ transcriptionWorkerUrl: `http://127.0.0.1:${server.port}` });
+    const form = new FormData();
+    form.set("file", new File([Buffer.from("audio")], "sample.webm", { type: "audio/webm" }));
+    form.set("language", "en");
+
+    const res = await route(
+      new Request("http://localhost/v1/audio/transcriptions", {
+        method: "POST",
+        body: form,
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.text).toBe("transcribed locally");
+
+    const jobs = await route(new Request("http://localhost/api/media/jobs"));
+    const jobsJson = await jobs.json();
+    expect(jobsJson.jobs.some((job: { status: string; kind: string }) => job.kind === "transcription" && job.status === "completed")).toBe(true);
+  } finally {
+    server.stop(true);
+    await patchSettings({ transcriptionWorkerUrl: "" });
+  }
+});

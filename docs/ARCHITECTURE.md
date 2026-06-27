@@ -109,6 +109,8 @@ The OpenAI-compatible routes stay stateless for client compatibility. The web ap
 
 Assistant messages in the web chat can be played through `/v1/audio/speech`. That keeps voice playback on the same local speech path as API clients: configured loopback speech workers first, built-in system speech second.
 
+Voice input records microphone audio in the browser and posts it to `/v1/audio/transcriptions` as multipart form data. The server converts that upload to the existing local worker JSON contract, so transcription remains local-only and fails honestly when no loopback transcription worker is configured.
+
 This keeps external API behavior predictable while giving the UI normal chat-app behavior across reloads.
 
 ## API Exposure

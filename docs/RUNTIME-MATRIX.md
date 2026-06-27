@@ -107,3 +107,5 @@ Speech also has a built-in local fallback when the OS provides a supported speec
 | Windows | PowerShell + System.Speech WAV output |
 
 The configured speech worker URL takes priority over the built-in path.
+
+Chat voice input uses the transcription worker lane. The browser records microphone audio and sends it to `/v1/audio/transcriptions`; the app converts the upload into the configured local worker request. There is no external fallback.

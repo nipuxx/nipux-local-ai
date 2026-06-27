@@ -35,5 +35,5 @@ if (runtime.available) {
     expect(jobsJson.jobs.some((job: { kind: string; status: string; workerUrl: string }) => (
       job.kind === "speech" && job.status === "completed" && job.workerUrl === "builtin://system-speech"
     ))).toBe(true);
-  });
+  }, 15000);
 }

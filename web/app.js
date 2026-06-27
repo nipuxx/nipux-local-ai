@@ -17,6 +17,7 @@ const state = {
   mediaRuntimePlan: null,
   mediaJobs: [],
   speechPlayback: null,
+  voiceRecorder: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -67,6 +68,10 @@ function setStatus(text) {
   $("#statusText").textContent = text;
 }
 
+function setVoiceStatus(text = "") {
+  $("#voiceStatus").textContent = text;
+}
+
 function messageBody(el) {
   return el.querySelector(".message-content") || el;
 }
@@ -95,6 +100,20 @@ function stopSpeechPlayback() {
   state.speechPlayback.button.disabled = false;
   setMessageSpeechStatus(state.speechPlayback.message, "");
   state.speechPlayback = null;
+}
+
+function transcriptionText(payload) {
+  return payload?.text || payload?.result?.text || payload?.data?.text || "";
+}
+
+async function parseErrorResponse(res) {
+  const text = await res.text();
+  try {
+    const json = JSON.parse(text);
+    return json.error?.message || json.error || text || res.statusText;
+  } catch {
+    return text || res.statusText;
+  }
 }
 
 function currentSettings() {
@@ -585,6 +604,80 @@ async function playChatSpeech(button) {
   }
 }
 
+function bestAudioMime() {
+  const options = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/wav"];
+  return options.find((type) => window.MediaRecorder?.isTypeSupported?.(type)) || "";
+}
+
+async function transcribeVoiceBlob(blob) {
+  const form = new FormData();
+  const extension = blob.type.includes("mp4") ? "m4a" : blob.type.includes("wav") ? "wav" : "webm";
+  form.set("file", new File([blob], `voice.${extension}`, { type: blob.type || "audio/webm" }));
+  const res = await fetchWithAuth("/v1/audio/transcriptions", {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) throw new Error(await parseErrorResponse(res));
+  const payload = await res.json();
+  const text = transcriptionText(payload).trim();
+  if (!text) throw new Error("The local transcription worker did not return text.");
+  return text;
+}
+
+async function finishVoiceInput() {
+  const session = state.voiceRecorder;
+  if (!session) return;
+  state.voiceRecorder = null;
+  session.stream.getTracks().forEach((track) => track.stop());
+  session.button.disabled = true;
+  session.button.textContent = "Record";
+  setVoiceStatus("Transcribing locally");
+  try {
+    const blob = new Blob(session.chunks, { type: session.mime || "audio/webm" });
+    const text = await transcribeVoiceBlob(blob);
+    $("#chatInput").value = text;
+    $("#chatInput").focus();
+    setVoiceStatus("Ready to send");
+    await Promise.all([loadMedia(), loadUsage()]);
+  } catch (error) {
+    setVoiceStatus(error instanceof Error ? error.message : String(error));
+  } finally {
+    session.button.disabled = false;
+  }
+}
+
+async function toggleVoiceInput(button) {
+  if (state.voiceRecorder) {
+    state.voiceRecorder.recorder.stop();
+    return;
+  }
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    setVoiceStatus("Microphone recording is not available in this browser.");
+    return;
+  }
+
+  button.disabled = true;
+  setVoiceStatus("Requesting microphone");
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mime = bestAudioMime();
+    const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+    const chunks = [];
+    state.voiceRecorder = { recorder, stream, chunks, button, mime: recorder.mimeType || mime };
+    recorder.addEventListener("dataavailable", (event) => {
+      if (event.data.size > 0) chunks.push(event.data);
+    });
+    recorder.addEventListener("stop", finishVoiceInput, { once: true });
+    recorder.start();
+    button.textContent = "Stop";
+    setVoiceStatus("Recording");
+  } catch (error) {
+    setVoiceStatus(error instanceof Error ? error.message : String(error));
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function browserCard(target) {
   return target.closest(".browser-card");
 }
@@ -871,6 +964,7 @@ document.addEventListener("click", async (event) => {
     await loadDocuments();
   }
   if (target.matches(".chat-speak")) await playChatSpeech(target);
+  if (target.matches("#voiceInput")) await toggleVoiceInput(target);
   if (target.matches(".browser-open")) {
     const id = target.dataset.id;
     try {

@@ -71,6 +71,16 @@ curl http://127.0.0.1:3434/v1/audio/speech \
   -d '{"input":"Local speech works.","voice":"alloy"}'
 ```
 
+### `POST /v1/audio/transcriptions`
+
+Accepts OpenAI-style multipart audio uploads and sends them to the configured local transcription worker. Returns `501` with a Nipux job record when no local transcription worker is configured.
+
+```bash
+curl http://127.0.0.1:3434/v1/audio/transcriptions \
+  -F file=@voice.webm \
+  -F model=local-transcription
+```
+
 ## Native Routes
 
 ### `GET /api/status`
