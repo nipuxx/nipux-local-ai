@@ -176,9 +176,23 @@ function currentSettings() {
   );
 }
 
+function renderModelSelectors() {
+  if (!state.models.length) return;
+  const current = currentSettings().defaultModelPreset || "balanced";
+  const options = state.models
+    .map((model) => `<option value="${h(model.id)}">${h(model.label)}${["fast", "balanced", "smart"].includes(model.id) ? "" : " · custom"}</option>`)
+    .join("");
+  for (const select of [$("#presetSelect"), $("#settingsDefaultPreset")]) {
+    const previous = select.value || current;
+    select.innerHTML = options;
+    select.value = state.models.some((model) => model.id === previous) ? previous : current;
+  }
+}
+
 function applySettingsToUi() {
   const settings = currentSettings();
   document.body.classList.toggle("dev-mode", Boolean(settings.devMode));
+  renderModelSelectors();
   $("#settingsDefaultPreset").value = settings.defaultModelPreset || "balanced";
   $("#settingsSearxngUrl").value = settings.searxngUrl || "";
   $("#settingsBrowserHeadless").checked = settings.browserHeadless !== false;
@@ -318,6 +332,8 @@ async function saveSettings() {
 async function loadModels() {
   const data = await api("/api/models");
   state.models = data.models;
+  renderModelSelectors();
+  const currentDefault = currentSettings().defaultModelPreset || "balanced";
   $("#modelList").innerHTML = state.models
     .map(
       (model) => `
@@ -332,7 +348,9 @@ async function loadModels() {
             ? `<button class="install-model" data-model-id="${h(model.id)}">Install</button>`
             : model.state === "downloading"
               ? `<button disabled>Downloading</button>`
-              : ""
+              : model.id === currentDefault
+                ? `<button disabled>Default</button>`
+                : `<button class="set-default-model" data-model-id="${h(model.id)}">Use</button>`
         }
       </div>`,
     )
@@ -1225,7 +1243,21 @@ async function downloadFile(button) {
   });
   button.textContent = "Downloaded";
   console.log(data);
-  await Promise.all([loadModels(), loadSetupActions(), loadRuntime()]);
+  await Promise.all([loadModels(), loadSetupActions(), loadRuntime(), loadLocalSupervisor()]);
+}
+
+async function setDefaultModel(button) {
+  const modelId = button.dataset.modelId;
+  if (!modelId) return;
+  button.disabled = true;
+  button.textContent = "Saving";
+  state.settingsStatus = await api("/api/settings", {
+    method: "PATCH",
+    body: JSON.stringify({ defaultModelPreset: modelId }),
+  });
+  if (state.status) state.status.settings = state.settingsStatus.settings;
+  applySettingsToUi();
+  await Promise.all([loadModels(), loadReadiness(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor()]);
 }
 
 async function installModel(button) {
@@ -1248,7 +1280,7 @@ async function installModel(button) {
       button.disabled = false;
     }, 1200);
   }
-  await Promise.all([loadModels(), loadReadiness(), loadSetupActions(), loadRuntime()]);
+  await Promise.all([loadModels(), loadReadiness(), loadSetupActions(), loadRuntime(), loadLaunchProfile(), loadLocalSupervisor()]);
 }
 
 document.addEventListener("click", async (event) => {
@@ -1263,6 +1295,7 @@ document.addEventListener("click", async (event) => {
   if (target.matches(".show-files")) await showHfFiles(target);
   if (target.matches(".download-file")) await downloadFile(target);
   if (target.matches(".install-model")) await installModel(target);
+  if (target.matches(".set-default-model")) await setDefaultModel(target);
   if (target.matches(".copy-command")) {
     const original = target.textContent;
     try {

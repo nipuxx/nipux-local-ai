@@ -397,7 +397,7 @@ Lists GGUF files for a Hugging Face model repo.
 }
 ```
 
-Uses `HF_TOKEN` when present.
+Uses `HF_TOKEN` when present. When the repo is not one of the built-in presets, the downloaded GGUF is registered as a custom local model and returned in the `model` field.
 
 ### `POST /api/models/install`
 

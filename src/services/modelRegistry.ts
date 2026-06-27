@@ -104,6 +104,70 @@ export function getModel(id = "balanced"): LocalModelRecord {
   return model;
 }
 
+function customModelId(repo: string, filename: string) {
+  const safe = `${repo}-${filename}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 96);
+  return `hf-${safe || crypto.randomUUID()}`;
+}
+
+function inferQuant(filename: string) {
+  const match = filename.match(/(?:^|[-_.])(Q\d(?:_[A-Z0-9]+)?|IQ\d_[A-Z0-9]+|F16|BF16|F32)(?:[-_.]|$)/i);
+  return match?.[1]?.toUpperCase() ?? "GGUF";
+}
+
+function inferParametersB(repo: string, filename: string) {
+  const match = `${repo} ${filename}`.match(/(\d+(?:\.\d+)?)\s*[bx]/i);
+  return match ? Number(match[1]) : 0;
+}
+
+export function registerDownloadedModel(repo: string, filename: string, targetPath: string) {
+  const preset = DEFAULT_PRESETS.find((item) => item.repo === repo);
+  if (preset) return getModel(preset.id);
+
+  const id = customModelId(repo, filename);
+  const displayName = filename.split("/").pop()?.replace(/\.gguf$/i, "") || repo;
+  const quant = inferQuant(filename);
+  const sizeBytes = Bun.file(targetPath).size;
+  const estimatedRamGb = sizeBytes ? Math.max(1, Math.ceil((sizeBytes / 1024 ** 3) * 1.25)) : 8;
+  db.prepare(
+    `INSERT INTO models (
+      id, label, repo, quant, family, parameters_b, context_tokens,
+      estimated_ram_gb, description, llama_ref, state, local_path, file_name, backend, updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'available', ?, ?, 'llama.cpp', CURRENT_TIMESTAMP)
+    ON CONFLICT(id) DO UPDATE SET
+      label = excluded.label,
+      repo = excluded.repo,
+      quant = excluded.quant,
+      family = excluded.family,
+      parameters_b = excluded.parameters_b,
+      estimated_ram_gb = excluded.estimated_ram_gb,
+      description = excluded.description,
+      llama_ref = excluded.llama_ref,
+      state = 'available',
+      local_path = excluded.local_path,
+      file_name = excluded.file_name,
+      updated_at = CURRENT_TIMESTAMP`,
+  ).run(
+    id,
+    displayName,
+    repo,
+    quant,
+    repo.split("/").pop() ?? repo,
+    inferParametersB(repo, filename),
+    32768,
+    estimatedRamGb,
+    `Custom local GGUF downloaded from ${repo}.`,
+    `${repo}:${filename}`,
+    targetPath,
+    filename,
+  );
+  return getModel(id);
+}
+
 function shellArg(value: string) {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
@@ -183,7 +247,8 @@ export async function downloadHuggingFaceFile(repo: string, filename: string) {
   db.prepare(
     "UPDATE models SET state = 'available', local_path = ?, file_name = ?, updated_at = CURRENT_TIMESTAMP WHERE repo = ?",
   ).run(targetPath, filename, repo);
-  return { targetPath, stdout, stderr };
+  const model = registerDownloadedModel(repo, filename, targetPath);
+  return { targetPath, stdout, stderr, model };
 }
 
 export async function installModelPreset(modelId = "balanced", filename?: string) {
@@ -200,9 +265,10 @@ export async function installModelPreset(modelId = "balanced", filename?: string
     throw new Error(`No GGUF file matching ${model.quant} was found for ${model.repo}.`);
   }
 
-  const downloaded = await downloadHuggingFaceFile(model.repo, selected);
+  const { model: downloadedModel, ...downloaded } = await downloadHuggingFaceFile(model.repo, selected);
   return {
     model: getModel(model.id),
+    downloadedModel,
     modelPreset: model.id,
     repo: model.repo,
     filename: selected,

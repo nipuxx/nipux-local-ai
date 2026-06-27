@@ -37,7 +37,7 @@ flowchart TD
 - Local-first by default.
 - API-compatible with existing OpenAI clients where practical.
 - UI exposes modes, not model internals: Fast, Balanced, Smart.
-- Built-in preset install is the normal model path; advanced Hugging Face search/download lives in the Models view.
+- Built-in preset install is the normal model path; advanced Hugging Face search/download lives in the Models view and registers downloaded GGUFs as custom local models.
 - Agents have persistent memory and run history from day one.
 - Browser automation is a brokered capability, not unrestricted agent power.
 - Image/video/audio use local-only worker adapters until bundled local runtimes are reliable.

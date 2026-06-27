@@ -10,12 +10,13 @@ import {
   VIDEO_WORKER_URL,
 } from "../config.ts";
 import { db } from "../db.ts";
+import { listModels } from "./modelRegistry.ts";
 
 export interface AppSettings {
   searxngUrl: string;
   browserHeadless: boolean;
   devMode: boolean;
-  defaultModelPreset: "fast" | "balanced" | "smart";
+  defaultModelPreset: string;
   imageWorkerUrl: string;
   speechWorkerUrl: string;
   transcriptionWorkerUrl: string;
@@ -69,13 +70,12 @@ export function setRawSetting(key: string, value: string | boolean) {
 
 export function getAppSettings(): AppSettings {
   const modelPreset = getRawSetting(KEYS.defaultModelPreset, DEFAULTS.defaultModelPreset);
+  const modelIds = new Set(listModels().map((model) => model.id));
   return {
     searxngUrl: getRawSetting(KEYS.searxngUrl, DEFAULTS.searxngUrl),
     browserHeadless: bool(getRawSetting(KEYS.browserHeadless, encode(DEFAULTS.browserHeadless)), DEFAULTS.browserHeadless),
     devMode: bool(getRawSetting(KEYS.devMode, encode(DEFAULTS.devMode)), DEFAULTS.devMode),
-    defaultModelPreset: ["fast", "balanced", "smart"].includes(modelPreset)
-      ? (modelPreset as AppSettings["defaultModelPreset"])
-      : DEFAULTS.defaultModelPreset,
+    defaultModelPreset: modelIds.has(modelPreset) ? modelPreset : DEFAULTS.defaultModelPreset,
     imageWorkerUrl: getRawSetting(KEYS.imageWorkerUrl, DEFAULTS.imageWorkerUrl),
     speechWorkerUrl: getRawSetting(KEYS.speechWorkerUrl, DEFAULTS.speechWorkerUrl),
     transcriptionWorkerUrl: getRawSetting(KEYS.transcriptionWorkerUrl, DEFAULTS.transcriptionWorkerUrl),
@@ -87,7 +87,7 @@ export function updateAppSettings(patch: Partial<AppSettings>) {
   if (typeof patch.searxngUrl === "string") setRawSetting(KEYS.searxngUrl, patch.searxngUrl.trim());
   if (typeof patch.browserHeadless === "boolean") setRawSetting(KEYS.browserHeadless, patch.browserHeadless);
   if (typeof patch.devMode === "boolean") setRawSetting(KEYS.devMode, patch.devMode);
-  if (patch.defaultModelPreset && ["fast", "balanced", "smart"].includes(patch.defaultModelPreset)) {
+  if (patch.defaultModelPreset && listModels().some((model) => model.id === patch.defaultModelPreset)) {
     setRawSetting(KEYS.defaultModelPreset, patch.defaultModelPreset);
   }
   if (typeof patch.imageWorkerUrl === "string") setRawSetting(KEYS.imageWorkerUrl, patch.imageWorkerUrl.trim());

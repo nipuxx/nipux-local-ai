@@ -63,7 +63,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Dev fake LLM streaming exists.
 - Main chat can use indexed local search context and persist cited assistant responses.
 - Gemma 4 Fast/Balanced/Smart model presets exist.
-- Built-in model preset install plus Hugging Face GGUF search/list/download hooks exist.
+- Built-in model preset install plus Hugging Face GGUF search/list/download hooks exist; arbitrary downloaded GGUF files are registered as selectable custom local models.
 - Hermes status/config adapter exists.
 - Agent memory and run history exist.
 - Agent memory CRUD, scored retrieval, summaries, provenance, and compaction exist.

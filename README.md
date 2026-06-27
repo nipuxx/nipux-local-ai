@@ -91,7 +91,7 @@ Install the recommended built-in chat model preset:
 bun run model:install
 ```
 
-Pass `fast`, `balanced`, or `smart` to install a specific preset. The Models page exposes the same install action. Once a preset has a local GGUF path, runtime start commands prefer that local file over remote Hugging Face loading.
+Pass `fast`, `balanced`, or `smart` to install a specific preset. The Models page exposes the same install action. Once a preset has a local GGUF path, runtime start commands prefer that local file over remote Hugging Face loading. Dev-mode Hugging Face downloads are registered as custom local models after the GGUF file is downloaded, so they can be selected from the same model controls.
 
 The Models page can also start/stop/test the llama.cpp runtime through the local API. This requires `llama` to be installed and available on `PATH`.
 
