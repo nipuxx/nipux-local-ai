@@ -73,10 +73,15 @@ async function setup() {
     envPath,
     [
       "NIPUX_PORT=3434",
+      "NIPUX_BIND_HOST=127.0.0.1",
+      "NIPUX_PUBLIC_API=0",
+      "NIPUX_API_KEY=",
+      "NIPUX_API_KEYS=",
       `NIPUX_HOME=${NIPUX_HOME}`,
       "NIPUX_LLAMA_BASE_URL=http://127.0.0.1:8080/v1",
       "NIPUX_SEARXNG_URL=",
       "NIPUX_FAKE_LLM=0",
+      "NIPUX_BROWSER_HEADLESS=1",
       "HF_TOKEN=",
     ].join("\n") + "\n",
   );

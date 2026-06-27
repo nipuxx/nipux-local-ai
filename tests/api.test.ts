@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 
 process.env.NIPUX_HOME = mkdtempSync(join(tmpdir(), "nipux-api-"));
 process.env.NIPUX_FAKE_LLM = "1";
-const { route } = await import("../src/main.ts");
+const { authorizeRequest, route } = await import("../src/main.ts");
 
 test("status route returns hardware and command metadata", async () => {
   const res = await route(new Request("http://localhost/api/status"));
@@ -19,4 +19,60 @@ test("OpenAI models route returns model list", async () => {
   const res = await route(new Request("http://localhost/v1/models"));
   const json = await res.json();
   expect(json.data.length).toBeGreaterThanOrEqual(3);
+});
+
+test("chat API persists conversations and messages", async () => {
+  const created = await route(
+    new Request("http://localhost/api/chats", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ modelPreset: "balanced" }),
+    }),
+  );
+  expect(created.status).toBe(200);
+  const { chat } = await created.json();
+
+  const posted = await route(
+    new Request(`http://localhost/api/chats/${chat.id}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ role: "user", content: "Persist this message." }),
+    }),
+  );
+  expect(posted.status).toBe(200);
+
+  const loaded = await route(new Request(`http://localhost/api/chats/${chat.id}`));
+  const data = await loaded.json();
+  expect(data.messages[0].content).toBe("Persist this message.");
+  expect(data.chat.title).toContain("Persist this message");
+});
+
+test("runtime status route returns backend state without starting a process", async () => {
+  const res = await route(new Request("http://localhost/api/runtime/status"));
+  expect(res.status).toBe(200);
+  const json = await res.json();
+  expect(json.running).toBe(false);
+  expect(json.port).toBeGreaterThan(0);
+});
+
+test("authorization accepts configured API keys and blocks public mode without keys", () => {
+  const authed = authorizeRequest(
+    new Request("http://localhost/v1/models", { headers: { "x-api-key": "secret" } }),
+    "/v1/models",
+    { apiKeys: ["secret"], publicApi: false },
+  );
+  expect(authed.ok).toBe(true);
+
+  const missing = authorizeRequest(new Request("http://localhost/v1/models"), "/v1/models", {
+    apiKeys: ["secret"],
+    publicApi: false,
+  });
+  expect(missing.ok).toBe(false);
+  expect(missing.status).toBe(401);
+
+  const publicNoKey = authorizeRequest(new Request("http://localhost/v1/models"), "/v1/models", {
+    apiKeys: [],
+    publicApi: true,
+  });
+  expect(publicNoKey.status).toBe(403);
 });

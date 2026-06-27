@@ -11,6 +11,7 @@ The first runnable build is intentionally LLM-only. Image/video/audio are capabi
   - `POST /v1/chat/completions`
   - `POST /v1/responses`
   - `GET /v1/models`
+- Persisted chat conversations through native `/api/chats` routes
 - Fast / Balanced / Smart model modes
 - Gemma 4 QAT GGUF defaults:
   - Fast: `google/gemma-4-E4B-it-qat-q4_0-gguf:Q4_0`
@@ -23,6 +24,7 @@ The first runnable build is intentionally LLM-only. Image/video/audio are capabi
 - Local document indexing/search
 - SearXNG adapter for local web search
 - Hugging Face GGUF search, file listing, and direct download hooks
+- llama.cpp runtime status, start, stop, and prompt test controls
 - Usage dashboard
 - Hardware/runtime detection for CPU, Apple Metal, NVIDIA CUDA, AMD ROCm/Vulkan, Intel Vulkan/DirectML
 - Dev fake LLM mode so the UI/API can be tested without a model server
@@ -66,6 +68,8 @@ bun run start
 
 The app proxies `/v1/chat/completions` to `http://127.0.0.1:8080/v1` by default.
 
+The Models page can also start/stop/test the llama.cpp runtime through the local API. This requires `llama` to be installed and available on `PATH`.
+
 ## Browser Agents
 
 Install the local Chromium runtime:
@@ -101,12 +105,22 @@ Those scripts install Bun if needed, clone the repo, install dependencies, and r
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `NIPUX_PORT` | `3434` | App/API port |
+| `NIPUX_BIND_HOST` | `127.0.0.1` | Bind address. Set intentionally for LAN/public exposure. |
+| `NIPUX_PUBLIC_API` | `0` | Set to `1` to bind `0.0.0.0` by default and require API keys. |
+| `NIPUX_API_KEY` / `NIPUX_API_KEYS` | empty | Required for protected routes when public mode is enabled or keys are configured. |
 | `NIPUX_HOME` | `~/.nipux-local-ai` | Data, models, runtimes |
 | `NIPUX_LLAMA_BASE_URL` | `http://127.0.0.1:8080/v1` | OpenAI-compatible local LLM backend |
 | `NIPUX_SEARXNG_URL` | empty | Local SearXNG URL, such as `http://127.0.0.1:8888` |
 | `NIPUX_FAKE_LLM` | `0` | Enable streaming dev backend |
 | `NIPUX_BROWSER_HEADLESS` | `1` | Set to `0` for visible Playwright browser windows |
 | `HF_TOKEN` | empty | Hugging Face token for gated models |
+
+When API keys are configured, clients can authenticate with either:
+
+```text
+Authorization: Bearer <key>
+x-api-key: <key>
+```
 
 ## Development
 

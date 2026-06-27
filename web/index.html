@@ -23,6 +23,7 @@
           <button class="nav" data-view="search">Search</button>
           <button class="nav" data-view="usage">Usage</button>
         </nav>
+        <div id="chatList" class="chat-list"></div>
         <div class="preset">
           <label for="presetSelect">Mode</label>
           <select id="presetSelect">
@@ -73,6 +74,19 @@
             <h1>Models</h1>
             <button id="refreshModels">Refresh</button>
           </header>
+          <div class="panel runtime-panel">
+            <h2>Runtime</h2>
+            <div id="runtimeStatus" class="runtime-status"></div>
+            <div class="row">
+              <button id="startRuntime">Start</button>
+              <button id="stopRuntime">Stop</button>
+            </div>
+            <div class="row">
+              <input id="runtimePrompt" placeholder="Test prompt" />
+              <button id="testRuntime">Test</button>
+            </div>
+            <pre id="runtimeOutput" class="dev"></pre>
+          </div>
           <div id="modelList" class="model-grid"></div>
           <div class="panel">
             <h2>Hugging Face</h2>

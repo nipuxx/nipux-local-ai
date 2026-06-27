@@ -112,6 +112,31 @@ nav {
   border-color: var(--accent);
 }
 
+.chat-list {
+  display: grid;
+  gap: 6px;
+  max-height: 34vh;
+  overflow: auto;
+}
+
+.chat-item {
+  display: block;
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  text-align: left;
+  color: var(--muted);
+  background: transparent;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-item.active {
+  color: var(--text);
+  background: #fffefa;
+}
+
 .preset {
   margin-top: auto;
   display: grid;
@@ -254,6 +279,18 @@ h2 {
   margin-bottom: 18px;
 }
 
+.runtime-panel {
+  margin-bottom: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.runtime-status {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .stat span {
   display: block;
   color: var(--muted);
@@ -336,7 +373,8 @@ h2 {
   nav,
   .model-grid,
   .split,
-  .stats {
+  .stats,
+  .runtime-status {
     grid-template-columns: 1fr;
   }
 

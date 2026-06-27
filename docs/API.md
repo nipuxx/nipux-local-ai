@@ -8,6 +8,19 @@ Base URL:
 http://127.0.0.1:3434
 ```
 
+## Authentication
+
+Local private mode does not require authentication by default. Protected routes require an API key when either `NIPUX_API_KEY`, `NIPUX_API_KEYS`, or `NIPUX_PUBLIC_API=1` is set.
+
+Use either header:
+
+```text
+Authorization: Bearer <key>
+x-api-key: <key>
+```
+
+`GET /api/status` remains unauthenticated so clients can discover whether auth is required.
+
 ## OpenAI-Compatible
 
 ### `GET /v1/models`
@@ -45,9 +58,76 @@ Returns `501` in v0.1 because this build is LLM-only.
 
 Hardware profile, llama backend health, SearXNG status, Playwright availability, and generated serve commands.
 
+### `GET /api/chats`
+
+Lists persisted chats.
+
+### `POST /api/chats`
+
+```json
+{
+  "title": "New chat",
+  "modelPreset": "balanced"
+}
+```
+
+### `GET /api/chats/:id`
+
+Returns a chat and its messages.
+
+### `PATCH /api/chats/:id`
+
+```json
+{
+  "modelPreset": "smart"
+}
+```
+
+### `POST /api/chats/:id/messages`
+
+```json
+{
+  "role": "user",
+  "content": "Remember this conversation."
+}
+```
+
+### `DELETE /api/chats/:id`
+
+Deletes a persisted chat and messages.
+
 ### `GET /api/models`
 
 Local model registry.
+
+### `GET /api/runtime/status`
+
+Returns llama.cpp process state and backend health.
+
+### `POST /api/runtime/start`
+
+```json
+{
+  "modelPreset": "balanced"
+}
+```
+
+Starts `llama serve` with the selected preset. Requires `llama` on `PATH`.
+
+### `POST /api/runtime/stop`
+
+Stops the app-managed runtime process.
+
+### `POST /api/runtime/test`
+
+```json
+{
+  "modelPreset": "balanced",
+  "prompt": "Say hello."
+}
+```
+
+Runs a non-streaming test prompt against the active backend.
 
 ### `GET /api/models/hf/search?q=gemma`
 

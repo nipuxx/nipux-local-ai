@@ -1,9 +1,12 @@
 const state = {
   status: null,
   models: [],
+  chats: [],
+  activeChatId: null,
   messages: [],
   browserShots: {},
   browserErrors: {},
+  runtime: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -14,13 +17,40 @@ const h = (value = "") =>
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
 
+function authHeaders() {
+  const key = localStorage.getItem("nipuxApiKey")?.trim();
+  return key ? { "x-api-key": key } : {};
+}
+
+async function maybeSetApiKey(res) {
+  if (![401, 403].includes(res.status)) return false;
+  const text = await res.text();
+  if (!state.status?.auth?.required) throw new Error(text || res.statusText);
+  const key = prompt("Nipux API key");
+  if (!key) throw new Error(text || "API key is required.");
+  localStorage.setItem("nipuxApiKey", key);
+  return true;
+}
+
 async function api(path, options = {}) {
-  const res = await fetch(path, {
+  const request = () => fetch(path, {
     ...options,
-    headers: { "content-type": "application/json", ...(options.headers || {}) },
+    headers: { "content-type": "application/json", ...authHeaders(), ...(options.headers || {}) },
   });
+  let res = await request();
+  if (await maybeSetApiKey(res)) res = await request();
   if (!res.ok) throw new Error((await res.text()) || res.statusText);
   return res.json();
+}
+
+async function fetchWithAuth(path, options = {}) {
+  const request = () => fetch(path, {
+    ...options,
+    headers: { ...authHeaders(), ...(options.headers || {}) },
+  });
+  let res = await request();
+  if (await maybeSetApiKey(res)) res = await request();
+  return res;
 }
 
 function setStatus(text) {
@@ -34,6 +64,56 @@ function addMessage(role, content = "") {
   $("#messages").appendChild(el);
   el.scrollIntoView({ block: "end" });
   return el;
+}
+
+function renderMessages() {
+  $("#messages").innerHTML = "";
+  if (!state.messages.length) {
+    addMessage("assistant", "Local chat is ready. Use dev mode now, or start llama.cpp and run the same UI against your model.");
+    return;
+  }
+  for (const message of state.messages) addMessage(message.role, message.content);
+}
+
+function renderChatList() {
+  $("#chatList").innerHTML =
+    state.chats
+      .map(
+        (chat) =>
+          `<button class="chat-item ${chat.id === state.activeChatId ? "active" : ""}" data-chat-id="${h(chat.id)}">${h(chat.title)}</button>`,
+      )
+      .join("") || `<div class="meta">No chats yet.</div>`;
+}
+
+async function loadChats() {
+  const data = await api("/api/chats");
+  state.chats = data.chats;
+  renderChatList();
+}
+
+async function openChat(id) {
+  const data = await api(`/api/chats/${id}`);
+  state.activeChatId = data.chat.id;
+  state.messages = data.messages.map((message) => ({ role: message.role, content: message.content }));
+  $("#presetSelect").value = data.chat.modelPreset || $("#presetSelect").value;
+  renderMessages();
+  await loadChats();
+}
+
+async function createNewChat() {
+  const data = await api("/api/chats", {
+    method: "POST",
+    body: JSON.stringify({ modelPreset: $("#presetSelect").value }),
+  });
+  state.activeChatId = data.chat.id;
+  state.messages = [];
+  renderMessages();
+  await loadChats();
+}
+
+async function ensureActiveChat() {
+  if (!state.activeChatId) await createNewChat();
+  return state.activeChatId;
 }
 
 async function loadStatus() {
@@ -58,6 +138,28 @@ async function loadModels() {
       </div>`,
     )
     .join("");
+}
+
+async function loadRuntime() {
+  const data = await api("/api/runtime/status");
+  state.runtime = data;
+  $("#runtimeStatus").innerHTML = [
+    ["Process", data.running ? `running ${data.pid}` : "stopped"],
+    ["Backend", data.backend.ok ? "available" : "offline"],
+    ["Model", data.modelPreset || "none"],
+    ["Port", data.port],
+  ]
+    .map(([label, value]) => `<div class="stat"><span>${label}</span><strong>${h(value)}</strong></div>`)
+    .join("");
+  $("#runtimeOutput").textContent = JSON.stringify(
+    {
+      command: data.command,
+      backend: data.backend,
+      logs: data.logs,
+    },
+    null,
+    2,
+  );
 }
 
 async function loadUsage() {
@@ -154,13 +256,22 @@ async function sendChat(event) {
   const input = $("#chatInput");
   const content = input.value.trim();
   if (!content) return;
+  const chatId = await ensureActiveChat();
   input.value = "";
+  await api(`/api/chats/${chatId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ modelPreset: $("#presetSelect").value }),
+  });
+  await api(`/api/chats/${chatId}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ role: "user", content }),
+  });
   state.messages.push({ role: "user", content });
   addMessage("user", content);
   const assistant = addMessage("assistant", "");
   const model = $("#presetSelect").value;
 
-  const res = await fetch("/v1/chat/completions", {
+  const res = await fetchWithAuth("/v1/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ model, stream: true, messages: state.messages }),
@@ -196,7 +307,13 @@ async function sendChat(event) {
     }
   }
   state.messages.push({ role: "assistant", content: full });
-  await loadUsage();
+  if (full) {
+    await api(`/api/chats/${chatId}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ role: "assistant", content: full }),
+    });
+  }
+  await Promise.all([loadUsage(), loadChats()]);
 }
 
 async function runAgentForm(event) {
@@ -297,6 +414,7 @@ document.addEventListener("click", async (event) => {
     target.classList.add("active");
     $(`#${target.dataset.view}`).classList.add("active");
   }
+  if (target.matches(".chat-item")) await openChat(target.dataset.chatId);
   if (target.matches(".show-files")) await showHfFiles(target);
   if (target.matches(".download-file")) await downloadFile(target);
   if (target.matches(".browser-open")) {
@@ -360,14 +478,47 @@ $("#documentForm").addEventListener("submit", indexDocument);
 $("#hfSearch").addEventListener("click", searchHf);
 $("#refreshModels").addEventListener("click", loadModels);
 $("#refreshUsage").addEventListener("click", loadUsage);
-$("#newChat").addEventListener("click", () => {
-  state.messages = [];
-  $("#messages").innerHTML = "";
+$("#startRuntime").addEventListener("click", async () => {
+  $("#runtimeOutput").textContent = "Starting...";
+  try {
+    const data = await api("/api/runtime/start", {
+      method: "POST",
+      body: JSON.stringify({ modelPreset: $("#presetSelect").value }),
+    });
+    $("#runtimeOutput").textContent = JSON.stringify(data, null, 2);
+  } catch (error) {
+    $("#runtimeOutput").textContent = error instanceof Error ? error.message : String(error);
+  }
+  await Promise.all([loadRuntime(), loadUsage()]);
 });
+$("#stopRuntime").addEventListener("click", async () => {
+  const data = await api("/api/runtime/stop", { method: "POST", body: "{}" });
+  $("#runtimeOutput").textContent = JSON.stringify(data, null, 2);
+  await Promise.all([loadRuntime(), loadUsage()]);
+});
+$("#testRuntime").addEventListener("click", async () => {
+  const prompt = $("#runtimePrompt").value.trim();
+  if (!prompt) return;
+  $("#runtimeOutput").textContent = "Testing...";
+  try {
+    const data = await api("/api/runtime/test", {
+      method: "POST",
+      body: JSON.stringify({ prompt, modelPreset: $("#presetSelect").value }),
+    });
+    $("#runtimeOutput").textContent = data.output;
+  } catch (error) {
+    $("#runtimeOutput").textContent = error instanceof Error ? error.message : String(error);
+  }
+  await loadUsage();
+});
+$("#newChat").addEventListener("click", createNewChat);
 $("#createBrowser").addEventListener("click", async () => {
   await api("/api/browsers", { method: "POST", body: JSON.stringify({ label: "Agent Browser" }) });
   await loadAgents();
 });
 
-await Promise.all([loadStatus(), loadModels(), loadUsage(), loadAgents()]);
-addMessage("assistant", "Local chat is ready. Use dev mode now, or start llama.cpp and run the same UI against your model.");
+await loadStatus();
+await Promise.all([loadModels(), loadRuntime(), loadUsage(), loadAgents()]);
+await loadChats();
+if (state.chats[0]) await openChat(state.chats[0].id);
+else await createNewChat();

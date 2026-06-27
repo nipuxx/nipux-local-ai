@@ -41,6 +41,8 @@ flowchart TD
 - `src/main.ts`: HTTP server, static UI, OpenAI-compatible routes, app API.
 - `src/providers/llamaCpp.ts`: llama.cpp proxy and fake dev backend.
 - `src/services/modelRegistry.ts`: Gemma presets and Hugging Face integration.
+- `src/services/modelRuntime.ts`: app-managed llama.cpp start/stop/status/test path.
+- `src/services/chats.ts`: persisted chat records and messages.
 - `src/services/agents.ts`: agent runs, memory injection, search context.
 - `src/services/browserBroker.ts`: Playwright browser sessions for agents and UI takeover.
 - `src/services/search.ts`: local FTS and SearXNG.
@@ -59,6 +61,18 @@ Each agent has:
 - browser session metadata
 
 The first agent implementation is intentionally conservative. It stores task summaries and retrieves memories with local search. Later Hermes integration should wrap the same persistence tables instead of replacing them.
+
+## Chat Persistence
+
+The OpenAI-compatible routes stay stateless for client compatibility. The web app uses native `/api/chats` routes to persist chat records and messages around the streaming `/v1/chat/completions` call.
+
+This keeps external API behavior predictable while giving the UI normal chat-app behavior across reloads.
+
+## API Exposure
+
+The server binds to `127.0.0.1` by default. `NIPUX_PUBLIC_API=1` switches the default bind host to `0.0.0.0`, but protected routes are locked unless `NIPUX_API_KEY` or `NIPUX_API_KEYS` is configured.
+
+Protected routes accept `Authorization: Bearer <key>` or `x-api-key: <key>`.
 
 ## Hermes Adapter
 

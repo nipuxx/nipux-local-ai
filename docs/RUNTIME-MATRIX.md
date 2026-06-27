@@ -21,6 +21,18 @@ The installer should run everywhere. Model capability depends on hardware.
 3. MLX for a future Apple-specific optimized path.
 4. CPU fallback always available.
 
+## Runtime Management
+
+The app can start and stop an app-managed llama.cpp process:
+
+```bash
+POST /api/runtime/start
+POST /api/runtime/stop
+GET /api/runtime/status
+```
+
+This requires the `llama` executable to be installed and available on `PATH`. If a user starts llama.cpp outside the app, `GET /api/runtime/status` still reports backend health through the configured `NIPUX_LLAMA_BASE_URL`.
+
 ## SearXNG
 
 Docker is not required by this project. SearXNG can be installed separately with its official installation script or from source, then exposed via:

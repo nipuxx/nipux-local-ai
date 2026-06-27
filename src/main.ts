@@ -1,6 +1,17 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { APP_NAME, IS_DEV_UI, IS_FAKE_LLM, LLAMA_BASE_URL, PORT, SEARXNG_URL, WEB_DIR } from "./config.ts";
+import {
+  API_KEYS,
+  APP_NAME,
+  BIND_HOST,
+  IS_DEV_UI,
+  IS_FAKE_LLM,
+  LLAMA_BASE_URL,
+  PORT,
+  PUBLIC_API,
+  SEARXNG_URL,
+  WEB_DIR,
+} from "./config.ts";
 import { chatCompletion, estimateMessageTokens, testLlamaBackend } from "./providers/llamaCpp.ts";
 import { createAgent, listAgentRuns, listAgents, runAgent } from "./services/agents.ts";
 import {
@@ -15,6 +26,7 @@ import {
   screenshotBrowserSession,
   typeInBrowserSession,
 } from "./services/browserBroker.ts";
+import { addChatMessage, createChat, deleteChat, getChat, listChatMessages, listChats, updateChatModel } from "./services/chats.ts";
 import { getHermesStatus } from "./services/hermes.ts";
 import { detectHardware } from "./services/hardware.ts";
 import {
@@ -24,13 +36,14 @@ import {
   llamaServeCommand,
   searchHuggingFace,
 } from "./services/modelRegistry.ts";
+import { getRuntimeStatus, startModelRuntime, stopModelRuntime, testModelPrompt } from "./services/modelRuntime.ts";
 import { addLocalDocument, localSearch, webSearch } from "./services/search.ts";
 import { getUsageSummary, getUsageTimeline, recordUsage } from "./services/usage.ts";
 
 const corsHeaders = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET,POST,OPTIONS",
-  "access-control-allow-headers": "authorization,content-type",
+  "access-control-allow-headers": "authorization,content-type,x-api-key",
 };
 
 function json(data: unknown, status = 200) {
@@ -49,6 +62,41 @@ async function staticFile(pathname: string) {
   const filePath = pathname === "/" ? join(WEB_DIR, "index.html") : join(WEB_DIR, pathname.replace(/^\/+/, ""));
   if (!existsSync(filePath)) return null;
   return new Response(Bun.file(filePath));
+}
+
+function tokenFromRequest(req: Request) {
+  const apiKey = req.headers.get("x-api-key");
+  if (apiKey) return apiKey.trim();
+  const auth = req.headers.get("authorization") ?? "";
+  const match = auth.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() ?? "";
+}
+
+function authRequired(pathname: string) {
+  if (pathname === "/api/status") return false;
+  return pathname.startsWith("/api/") || pathname.startsWith("/v1/");
+}
+
+export function authorizeRequest(
+  req: Request,
+  pathname: string,
+  config: { apiKeys?: string[]; publicApi?: boolean } = {},
+) {
+  const apiKeys = config.apiKeys ?? API_KEYS;
+  const publicApi = config.publicApi ?? PUBLIC_API;
+  const required = apiKeys.length > 0 || publicApi;
+  if (!required || !authRequired(pathname)) return { ok: true, required };
+  if (publicApi && apiKeys.length === 0) {
+    return {
+      ok: false,
+      required,
+      status: 403,
+      message: "Public API mode requires NIPUX_API_KEY or NIPUX_API_KEYS before protected routes are available.",
+    };
+  }
+  const token = tokenFromRequest(req);
+  if (apiKeys.includes(token)) return { ok: true, required };
+  return { ok: false, required, status: 401, message: "Missing or invalid Nipux API key." };
 }
 
 async function handleOpenAiChat(req: Request) {
@@ -101,6 +149,8 @@ async function handleResponses(req: Request) {
 export async function route(req: Request): Promise<Response> {
   const url = new URL(req.url);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
+  const auth = authorizeRequest(req, url.pathname);
+  if (!auth.ok) return json({ error: auth.message }, auth.status ?? 401);
 
   if (url.pathname === "/api/status") {
     const [hardware, llama, playwright, hermes] = await Promise.all([
@@ -113,6 +163,12 @@ export async function route(req: Request): Promise<Response> {
       app: APP_NAME,
       fakeLlm: IS_FAKE_LLM,
       devUi: IS_DEV_UI,
+      bindHost: BIND_HOST,
+      publicApi: PUBLIC_API,
+      auth: {
+        required: API_KEYS.length > 0 || PUBLIC_API,
+        configured: API_KEYS.length > 0,
+      },
       llamaBaseUrl: LLAMA_BASE_URL,
       searxngConfigured: Boolean(SEARXNG_URL),
       hardware,
@@ -144,6 +200,61 @@ export async function route(req: Request): Promise<Response> {
     const body = await readJson<{ repo?: string; filename?: string }>(req);
     if (!body.repo || !body.filename) return json({ error: "repo and filename are required" }, 400);
     return json(await downloadHuggingFaceFile(body.repo, body.filename));
+  }
+  if (url.pathname === "/api/runtime/status" && req.method === "GET") return json(await getRuntimeStatus());
+  if (url.pathname === "/api/runtime/start" && req.method === "POST") {
+    const body = await readJson<{ modelPreset?: string }>(req);
+    try {
+      return json(await startModelRuntime(body.modelPreset ?? "balanced"));
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : String(error) }, 503);
+    }
+  }
+  if (url.pathname === "/api/runtime/stop" && req.method === "POST") return json(await stopModelRuntime());
+  if (url.pathname === "/api/runtime/test" && req.method === "POST") {
+    const body = await readJson<{ prompt?: string; modelPreset?: string }>(req);
+    if (!body.prompt) return json({ error: "prompt is required" }, 400);
+    try {
+      return json(await testModelPrompt(body.prompt, body.modelPreset ?? "balanced"));
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : String(error) }, 503);
+    }
+  }
+
+  if (url.pathname === "/api/chats" && req.method === "GET") return json({ chats: listChats() });
+  if (url.pathname === "/api/chats" && req.method === "POST") {
+    const body = await readJson<{ title?: string; modelPreset?: string }>(req);
+    return json({ chat: createChat(body.modelPreset ?? "balanced", body.title ?? "New chat") });
+  }
+  const chatMessagesMatch = url.pathname.match(/^\/api\/chats\/([^/]+)\/messages$/);
+  if (chatMessagesMatch) {
+    const [, chatId] = chatMessagesMatch;
+    try {
+      if (req.method === "GET") return json({ chat: getChat(chatId), messages: listChatMessages(chatId) });
+      if (req.method === "POST") {
+        const body = await readJson<{ role?: string; content?: string }>(req);
+        if (!body.role || !body.content) return json({ error: "role and content are required" }, 400);
+        if (!["system", "user", "assistant", "tool"].includes(body.role)) return json({ error: "invalid role" }, 400);
+        return json({ message: addChatMessage(chatId, body.role as never, body.content), chat: getChat(chatId) });
+      }
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : String(error) }, 404);
+    }
+  }
+  const chatMatch = url.pathname.match(/^\/api\/chats\/([^/]+)$/);
+  if (chatMatch) {
+    const [, chatId] = chatMatch;
+    try {
+      if (req.method === "GET") return json({ chat: getChat(chatId), messages: listChatMessages(chatId) });
+      if (req.method === "PATCH") {
+        const body = await readJson<{ modelPreset?: string }>(req);
+        if (!body.modelPreset) return json({ error: "modelPreset is required" }, 400);
+        return json({ chat: updateChatModel(chatId, body.modelPreset) });
+      }
+      if (req.method === "DELETE") return json(deleteChat(chatId));
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : String(error) }, 404);
+    }
   }
 
   if (url.pathname === "/api/search/local" && req.method === "POST") {
@@ -234,7 +345,8 @@ export async function route(req: Request): Promise<Response> {
 }
 
 if (import.meta.main) {
-  Bun.serve({ port: PORT, fetch: route });
-  console.log(`${APP_NAME} is running at http://127.0.0.1:${PORT}`);
+  Bun.serve({ port: PORT, hostname: BIND_HOST, fetch: route });
+  console.log(`${APP_NAME} is running at http://${BIND_HOST}:${PORT}`);
   if (IS_FAKE_LLM) console.log("Dev fake LLM is enabled.");
+  if (PUBLIC_API && API_KEYS.length === 0) console.log("Public API mode is enabled but protected routes are locked until NIPUX_API_KEY is set.");
 }
