@@ -55,6 +55,20 @@ test("media worker URLs must be local loopback URLs", async () => {
   expect(json.error).toContain("External media APIs are intentionally blocked");
 });
 
+test("media capabilities do not treat offline loopback workers as ready", async () => {
+  await patchSettings({ imageWorkerUrl: "http://127.0.0.1:9" });
+
+  try {
+    const res = await route(new Request("http://localhost/api/media/capabilities"));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.capabilities.image.status).toBe("offline");
+    expect(json.capabilities.image.health.reachable).toBe(false);
+  } finally {
+    await patchSettings({ imageWorkerUrl: "" });
+  }
+});
+
 test("OpenAI-compatible image route proxies to a local worker", async () => {
   const server = Bun.serve({
     hostname: "127.0.0.1",

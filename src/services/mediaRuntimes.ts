@@ -1,8 +1,9 @@
 import type { HardwareProfile } from "../types.ts";
 import { detectHardware } from "./hardware.ts";
 import { getMediaCapabilities, type MediaKind } from "./media.ts";
+import { getAppSettings, updateAppSettings, type AppSettings } from "./settings.ts";
 
-type RuntimeStatus = "ready" | "unconfigured" | "invalid";
+type RuntimeStatus = "ready" | "unconfigured" | "invalid" | "offline";
 type MediaSettingKey = "imageWorkerUrl" | "speechWorkerUrl" | "transcriptionWorkerUrl" | "videoWorkerUrl";
 
 export interface MediaRuntimeCommand {
@@ -27,6 +28,12 @@ export interface MediaRuntimePlan {
   envVar: string;
   hardwareFit: string;
   setup: string;
+  health: {
+    checked: boolean;
+    reachable: boolean;
+    detail: string;
+    statusCode?: number;
+  };
   commands: MediaRuntimeCommand[];
   notes: string[];
 }
@@ -35,6 +42,13 @@ export interface MediaRuntimePlannerResult {
   hardware: HardwareProfile;
   runtimes: MediaRuntimePlan[];
   nextSteps: string[];
+}
+
+export interface MediaRuntimeDefaultsResult {
+  settings: AppSettings;
+  applied: Array<{ kind: MediaKind; label: string; settingKey: MediaSettingKey; workerUrl: string }>;
+  skipped: Array<{ kind: MediaKind; label: string; reason: string }>;
+  plan: MediaRuntimePlannerResult;
 }
 
 const MEDIA_RUNTIME_CONFIG: Record<
@@ -167,7 +181,7 @@ function commandsFor(config: (typeof MEDIA_RUNTIME_CONFIG)[MediaKind]): MediaRun
 }
 
 export async function getMediaRuntimePlan(): Promise<MediaRuntimePlannerResult> {
-  const [hardware, capabilityResult] = await Promise.all([detectHardware(), Promise.resolve(getMediaCapabilities())]);
+  const [hardware, capabilityResult] = await Promise.all([detectHardware(), getMediaCapabilities()]);
   const capabilities = capabilityResult.capabilities;
   const runtimes = (Object.keys(MEDIA_RUNTIME_CONFIG) as MediaKind[]).map((kind) => {
     const config = MEDIA_RUNTIME_CONFIG[kind];
@@ -188,7 +202,12 @@ export async function getMediaRuntimePlan(): Promise<MediaRuntimePlannerResult> 
       settingKey: config.settingKey,
       envVar: config.envVar,
       hardwareFit: hardwareFit(kind, hardware),
-      setup: capability.status === "invalid" || capability.source === "builtin" ? capability.setup : config.setup,
+      setup: ["invalid", "offline"].includes(capability.status) || capability.source === "builtin" ? capability.setup : config.setup,
+      health: capability.health ?? {
+        checked: capability.source === "builtin",
+        reachable: capability.status === "ready",
+        detail: capability.source === "builtin" ? capability.setup : capability.setup,
+      },
       commands: commandsFor(config),
       notes: config.notes,
     };
@@ -197,6 +216,9 @@ export async function getMediaRuntimePlan(): Promise<MediaRuntimePlannerResult> 
   const nextSteps = runtimes.flatMap((runtime) => {
     if (runtime.status === "invalid") {
       return [`Fix ${runtime.label}: ${runtime.envVar} must be a loopback URL such as ${runtime.defaultUrl}.`];
+    }
+    if (runtime.status === "offline") {
+      return [`Start ${runtime.workerLabel} on ${runtime.workerUrl}, or clear ${runtime.envVar} to disable this lane.`];
     }
     if (runtime.source === "builtin") return [];
     if (runtime.status === "unconfigured" && runtime.recommended) {
@@ -209,6 +231,50 @@ export async function getMediaRuntimePlan(): Promise<MediaRuntimePlannerResult> 
   });
 
   return { hardware, runtimes, nextSteps };
+}
+
+export async function applyRecommendedMediaRuntimeDefaults(input: {
+  includeOptional?: boolean;
+  overwrite?: boolean;
+  kinds?: MediaKind[];
+} = {}): Promise<MediaRuntimeDefaultsResult> {
+  const before = await getMediaRuntimePlan();
+  const settingsPatch: Partial<AppSettings> = {};
+  const applied: MediaRuntimeDefaultsResult["applied"] = [];
+  const skipped: MediaRuntimeDefaultsResult["skipped"] = [];
+  const kindFilter = input.kinds?.length ? new Set(input.kinds) : null;
+  const currentSettings = getAppSettings();
+
+  for (const runtime of before.runtimes) {
+    if (kindFilter && !kindFilter.has(runtime.kind)) {
+      skipped.push({ kind: runtime.kind, label: runtime.label, reason: "Not requested." });
+      continue;
+    }
+    if (runtime.source === "builtin") {
+      skipped.push({ kind: runtime.kind, label: runtime.label, reason: "Built-in local runtime is already available." });
+      continue;
+    }
+    if (!runtime.recommended && !input.includeOptional) {
+      skipped.push({ kind: runtime.kind, label: runtime.label, reason: "Not recommended for this hardware profile." });
+      continue;
+    }
+    if (currentSettings[runtime.settingKey] && !input.overwrite) {
+      skipped.push({ kind: runtime.kind, label: runtime.label, reason: "A worker URL is already configured." });
+      continue;
+    }
+
+    settingsPatch[runtime.settingKey] = runtime.defaultUrl;
+    applied.push({
+      kind: runtime.kind,
+      label: runtime.label,
+      settingKey: runtime.settingKey,
+      workerUrl: runtime.defaultUrl,
+    });
+  }
+
+  const settings = applied.length ? updateAppSettings(settingsPatch) : currentSettings;
+  const plan = await getMediaRuntimePlan();
+  return { settings, applied, skipped, plan };
 }
 
 export function formatMediaRuntimePlan(plan: MediaRuntimePlannerResult) {
@@ -224,6 +290,7 @@ export function formatMediaRuntimePlan(plan: MediaRuntimePlannerResult) {
     lines.push(`  Default URL: ${runtime.defaultUrl}`);
     lines.push(`  Env: ${runtime.envVar}`);
     lines.push(`  Contract: ${runtime.endpoint}`);
+    lines.push(`  Health: ${runtime.health.detail}`);
     lines.push(`  Recommended now: ${runtime.recommended ? "yes" : "no"}`);
     lines.push("");
   }

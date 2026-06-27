@@ -94,6 +94,7 @@ This file translates the product goal into independently owned workstreams. The 
 - Keep image/audio/video API surfaces separate from the LLM-first path.
 - Maintain local-only image, speech, transcription, and video worker APIs.
 - Maintain the hardware-aware media runtime planner, default worker ports, endpoint contracts, and setup guidance.
+- Maintain health checks so configured worker URLs only show ready when local processes respond.
 - Maintain built-in local speech fallback while keeping Kokoro/Piper-style workers as the higher-quality replaceable path.
 - Add bundled local image generation when install/runtime/licensing details are clear.
 - Add Whisper.cpp and Kokoro/Piper setup automation after worker APIs are stable.

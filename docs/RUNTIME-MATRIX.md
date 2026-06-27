@@ -87,8 +87,11 @@ Use the media runtime planner to see the current worker contracts and hardware f
 
 ```bash
 bun run media:runtimes
+bun run media:defaults
 GET /api/media/runtimes
 ```
+
+`media:defaults` persists recommended loopback URLs only. It does not start image, transcription, or video models. A media lane is `ready` only when the configured built-in path or loopback worker responds to a health check; otherwise configured workers show `offline`.
 
 Default worker lanes:
 

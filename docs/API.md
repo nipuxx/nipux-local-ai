@@ -150,11 +150,11 @@ Media routes only talk to loopback workers such as `http://127.0.0.1:8081`. Remo
 
 ### `GET /api/media/capabilities`
 
-Returns image, speech, transcription, and video capability status plus setup hints.
+Returns image, speech, transcription, and video capability status plus setup hints. A loopback worker URL is `offline` until the local process responds to a health check.
 
 ### `GET /api/media/runtimes`
 
-Returns the hardware-aware local media runtime plan. Each runtime includes the capability kind, current worker status, default loopback URL, endpoint contract, setting key, environment variable, hardware fit, and setup notes.
+Returns the hardware-aware local media runtime plan. Each runtime includes the capability kind, current worker status, health-check result, default loopback URL, endpoint contract, setting key, environment variable, hardware fit, and setup notes.
 
 ```json
 {
@@ -170,6 +170,27 @@ Returns the hardware-aware local media runtime plan. Each runtime includes the c
   ]
 }
 ```
+
+Runtime status values:
+
+- `ready`: built-in local speech is available, or the configured loopback worker responded.
+- `offline`: a loopback worker URL is configured, but no local process responded.
+- `unconfigured`: no worker URL is set.
+- `invalid`: the configured URL is not an allowed loopback HTTP(S) URL.
+
+### `POST /api/media/runtimes/defaults`
+
+Persists recommended default loopback worker URLs such as `http://127.0.0.1:8081`. This does not start model workers and does not mark a lane ready by itself.
+
+```json
+{
+  "includeOptional": false,
+  "overwrite": false,
+  "kinds": ["image", "transcription"]
+}
+```
+
+Returns applied/skipped settings plus a fresh runtime plan.
 
 ### `GET /api/media/jobs`
 

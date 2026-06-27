@@ -6,7 +6,7 @@ import { downloadHuggingFaceFile, listHuggingFaceFiles, listModels, llamaServeCo
 import { testLlamaBackend } from "./providers/llamaCpp.ts";
 import { getUsageSummary } from "./services/usage.ts";
 import { formatSetupCheck, getSetupPreflight } from "./services/setupChecks.ts";
-import { formatMediaRuntimePlan, getMediaRuntimePlan } from "./services/mediaRuntimes.ts";
+import { applyRecommendedMediaRuntimeDefaults, formatMediaRuntimePlan, getMediaRuntimePlan } from "./services/mediaRuntimes.ts";
 import { formatReadinessReport, getReadinessReport } from "./services/readiness.ts";
 
 const command = process.argv[2] ?? "help";
@@ -22,6 +22,7 @@ Commands:
   bun run src/cli.ts preflight    Check install/runtime readiness with repair hints
   bun run ready                   Show everyday readiness summary
   bun run media:runtimes          Show local media runtime setup plan
+  bun run media:defaults          Persist recommended local media worker URLs
   bun run src/cli.ts doctor       Detect hardware and backend health
   bun run src/cli.ts models       List built-in model presets
   bun run src/cli.ts llama-command [id]   Print the llama.cpp serve command
@@ -175,6 +176,29 @@ async function main() {
     }
     console.log(`\nNipux Local AI media runtime plan`);
     console.log(formatMediaRuntimePlan(plan));
+    return;
+  }
+
+  if (command === "media-defaults") {
+    const result = await applyRecommendedMediaRuntimeDefaults({
+      includeOptional: process.argv.includes("--include-optional"),
+      overwrite: process.argv.includes("--overwrite"),
+    });
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+    console.log(`\nNipux Local AI media defaults`);
+    for (const item of result.applied) {
+      console.log(`  [set] ${item.label}: ${item.settingKey}=${item.workerUrl}`);
+    }
+    for (const item of result.skipped) {
+      console.log(`  [skip] ${item.label}: ${item.reason}`);
+    }
+    console.log("\nWorker readiness:");
+    for (const runtime of result.plan.runtimes) {
+      console.log(`  [${runtime.status}] ${runtime.label}: ${runtime.health.detail}`);
+    }
     return;
   }
 

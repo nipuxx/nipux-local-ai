@@ -55,6 +55,14 @@ function unique(values: string[]) {
   return [...new Set(values.filter(Boolean))];
 }
 
+function mediaDetail(runtime: { status: string; workerLabel: string; workerUrl: string; health?: { detail: string } } | undefined, ready: string, missing: string) {
+  if (!runtime) return missing;
+  if (runtime.status === "ready") return ready;
+  if (runtime.status === "offline") return `${runtime.workerLabel} is configured at ${runtime.workerUrl}, but it is not reachable.`;
+  if (runtime.status === "invalid") return "Configured worker URL is not a local loopback URL.";
+  return missing;
+}
+
 export async function getReadinessReport(): Promise<ReadinessReport> {
   const [preflight, media] = await Promise.all([getSetupPreflight(), getMediaRuntimePlan()]);
   const checks = preflight.checks;
@@ -85,32 +93,28 @@ export async function getReadinessReport(): Promise<ReadinessReport> {
       id: "voice-output",
       label: "Voice Output",
       status: speech?.status === "ready" ? "ready" : "needs_setup",
-      detail: speech?.status === "ready"
-        ? `${speech.workerLabel} is available.`
-        : "Configure a local speech worker or supported built-in speech engine.",
+      detail: mediaDetail(speech, speech ? `${speech.workerLabel} is available.` : "Voice output is available.", "Configure a local speech worker or supported built-in speech engine."),
       fix: speech?.status === "ready" ? undefined : speech?.setup,
     },
     {
       id: "voice-input",
       label: "Voice Input",
       status: transcription?.status === "ready" ? "ready" : "needs_setup",
-      detail: transcription?.status === "ready"
-        ? "Local transcription worker is configured."
-        : "Configure a local transcription worker for microphone input.",
+      detail: mediaDetail(transcription, "Local transcription worker is configured and reachable.", "Configure a local transcription worker for microphone input."),
       fix: transcription?.status === "ready" ? undefined : transcription?.setup,
     },
     {
       id: "image",
       label: "Image Generation",
       status: image?.status === "ready" ? "ready" : "needs_setup",
-      detail: image?.status === "ready" ? "Local image worker is configured." : "Configure a local OpenAI-compatible image worker.",
+      detail: mediaDetail(image, "Local image worker is configured and reachable.", "Configure a local OpenAI-compatible image worker."),
       fix: image?.status === "ready" ? undefined : image?.setup,
     },
     {
       id: "video",
       label: "Video Generation",
       status: video?.status === "ready" ? "ready" : "optional",
-      detail: video?.status === "ready" ? "Local video worker is configured." : "Video remains optional and hardware-sensitive.",
+      detail: mediaDetail(video, "Local video worker is configured and reachable.", "Video remains optional and hardware-sensitive."),
       fix: video?.status === "ready" ? undefined : video?.setup,
     },
     itemFromCheck("web-search", "Web Search", searxng, true),

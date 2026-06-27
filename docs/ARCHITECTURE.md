@@ -180,6 +180,6 @@ The API gateway has separate local-only worker adapters for:
 
 Worker URLs must be loopback HTTP(S) URLs. The app rejects remote media workers so it remains local-first and does not hide external API usage. Media requests emit usage events and persistent `media_jobs` records whether they complete, fail, or are missing a configured worker.
 
-`GET /api/media/runtimes` exposes the setup plan that installers and the dev-only Media UI use. It does not install or call remote model providers; it maps each lane to a local worker contract so later bundled runtimes can be automated without changing the public app API.
+`GET /api/media/runtimes` exposes the setup plan that installers and the dev-only Media UI use. It does not install or call remote model providers; it maps each lane to a local worker contract so later bundled runtimes can be automated without changing the public app API. Configured loopback workers are health-checked and stay `offline` until a local process responds.
 
 Speech is the first lane with a built-in local fallback. When no speech worker URL is configured, the app can synthesize speech through macOS `say`, Linux `espeak`, or Windows SAPI if present. Generated audio is still recorded as a normal `media_jobs` row with `worker_url = builtin://system-speech`.

@@ -391,6 +391,11 @@ function mediaRuntimeSetting(runtime) {
   return `${runtime.envVar}=${runtime.workerUrl || runtime.defaultUrl}`;
 }
 
+function mediaRuntimeHealth(runtime) {
+  if (runtime.status === "offline") return `Offline: ${runtime.health?.detail || "worker did not respond"}`;
+  return runtime.health?.detail || runtime.setup || "";
+}
+
 async function loadMedia() {
   const [capabilities, runtimePlan, jobs] = await Promise.all([
     api("/api/media/capabilities"),
@@ -411,6 +416,7 @@ async function loadMedia() {
           <div class="meta">${h(runtime.workerLabel)}</div>
           <div class="meta">${h(runtime.hardwareFit)}</div>
           <code>${h(mediaRuntimeSetting(runtime))}</code>
+          <div class="meta">${h(mediaRuntimeHealth(runtime))}</div>
           <div class="meta">${h(runtime.endpoint)}</div>
         </div>`,
     )
@@ -1088,6 +1094,13 @@ $("#indexPathButton").addEventListener("click", async () => {
 $("#hfSearch").addEventListener("click", searchHf);
 $("#refreshModels").addEventListener("click", loadModels);
 $("#refreshMedia").addEventListener("click", loadMedia);
+$("#applyMediaDefaults").addEventListener("click", async () => {
+  const data = await api("/api/media/runtimes/defaults", { method: "POST", body: JSON.stringify({}) });
+  state.settingsStatus = { settings: data.settings, env: state.settingsStatus?.env || null };
+  if (state.status) state.status.settings = data.settings;
+  applySettingsToUi();
+  await Promise.all([loadMedia(), loadReadiness()]);
+});
 $("#refreshUsage").addEventListener("click", loadUsage);
 $("#refreshReadiness").addEventListener("click", loadReadiness);
 $("#startRuntime").addEventListener("click", async () => {

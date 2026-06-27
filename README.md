@@ -31,6 +31,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - SearXNG adapter for local web search
 - Media tab plus local-only image, speech, transcription, and video worker API surfaces
 - Hardware-aware media runtime planner for image, speech, transcription, and video workers
+- Media worker health checks so configured loopback URLs show `offline` until a worker actually responds
 - Built-in local text-to-speech through macOS `say`, Linux `espeak`, or Windows SAPI when available
 - Hugging Face GGUF search, file listing, and direct download hooks
 - llama.cpp runtime status, start, stop, and prompt test controls
@@ -130,7 +131,13 @@ bun run media:runtimes
 bun run media:runtimes --json
 ```
 
-The planner reports the expected worker contract, default local port, environment variable, current configured status, and whether the detected hardware is a reasonable fit for each lane.
+Seed recommended loopback worker URLs without marking them ready:
+
+```bash
+bun run media:defaults
+```
+
+The planner reports the expected worker contract, default local port, environment variable, current configured status, health-check result, and whether the detected hardware is a reasonable fit for each lane. A configured worker URL is only `ready` when a local process responds; otherwise it is `offline`.
 
 ## One-Command Installer Shape
 

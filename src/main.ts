@@ -46,9 +46,10 @@ import {
   listMediaJobs,
   MediaUnavailableError,
   transcribeAudio,
+  type MediaKind,
   type MediaJob,
 } from "./services/media.ts";
-import { getMediaRuntimePlan } from "./services/mediaRuntimes.ts";
+import { applyRecommendedMediaRuntimeDefaults, getMediaRuntimePlan } from "./services/mediaRuntimes.ts";
 import {
   createAgentMemory,
   compactAgentMemories,
@@ -559,8 +560,12 @@ export async function route(req: Request): Promise<Response> {
 
   if (url.pathname === "/api/usage/summary") return json({ summary: getUsageSummary(), timeline: getUsageTimeline() });
 
-  if (url.pathname === "/api/media/capabilities" && req.method === "GET") return json(getMediaCapabilities());
+  if (url.pathname === "/api/media/capabilities" && req.method === "GET") return json(await getMediaCapabilities());
   if (url.pathname === "/api/media/runtimes" && req.method === "GET") return json(await getMediaRuntimePlan());
+  if (url.pathname === "/api/media/runtimes/defaults" && req.method === "POST") {
+    const body = await readJson<{ includeOptional?: boolean; overwrite?: boolean; kinds?: MediaKind[] }>(req);
+    return json(await applyRecommendedMediaRuntimeDefaults(body));
+  }
   if (url.pathname === "/api/media/jobs" && req.method === "GET") return json({ jobs: listMediaJobs(Number(url.searchParams.get("limit") ?? 80)) });
   if (url.pathname === "/api/media/images/generate" && req.method === "POST") {
     const body = await readJson<{ prompt?: string; model?: string; size?: string; n?: number; response_format?: string }>(req);

@@ -23,10 +23,16 @@ export interface MediaCapability {
   kind: MediaKind;
   label: string;
   configured: boolean;
-  status: "ready" | "unconfigured" | "invalid";
+  status: "ready" | "unconfigured" | "invalid" | "offline";
   workerUrl: string;
   setup: string;
   source: "worker" | "builtin" | "none";
+  health?: {
+    checked: boolean;
+    reachable: boolean;
+    detail: string;
+    statusCode?: number;
+  };
   builtin?: {
     engine: string;
     command: string;
@@ -120,6 +126,28 @@ export function isLocalWorkerUrl(value: string) {
   }
 }
 
+async function checkLocalWorkerHealth(workerUrl: string): Promise<NonNullable<MediaCapability["health"]>> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 900);
+  try {
+    const res = await fetch(workerUrl, { method: "HEAD", signal: controller.signal });
+    return {
+      checked: true,
+      reachable: true,
+      statusCode: res.status,
+      detail: `Worker responded with HTTP ${res.status}.`,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.toLowerCase().includes("abort")) {
+      return { checked: true, reachable: false, detail: "Worker health check timed out." };
+    }
+    return { checked: true, reachable: false, detail: message || "Worker did not respond." };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function workerUrlFor(kind: MediaKind) {
   const settings = getAppSettings();
   return String(settings[MEDIA_CONFIG[kind].settingKey] ?? "").trim();
@@ -140,15 +168,19 @@ function endpointFor(baseUrl: string, endpoint: string) {
   return new URL(normalizedEndpoint, href);
 }
 
-export function getMediaCapabilities(): { capabilities: Record<MediaKind, MediaCapability> } {
+export async function getMediaCapabilities(): Promise<{ capabilities: Record<MediaKind, MediaCapability> }> {
   const localSpeech = getLocalSpeechRuntime();
-  const capabilities = Object.fromEntries(
-    (Object.keys(MEDIA_CONFIG) as MediaKind[]).map((kind) => {
+  const capabilityEntries = await Promise.all(
+    (Object.keys(MEDIA_CONFIG) as MediaKind[]).map(async (kind) => {
       const config = MEDIA_CONFIG[kind];
       const workerUrl = workerUrlFor(kind);
       const configured = isLocalWorkerUrl(workerUrl);
       const builtinSpeech = kind === "speech" && !workerUrl && localSpeech.available;
-      const status: MediaCapability["status"] = configured || builtinSpeech ? "ready" : workerUrl ? "invalid" : "unconfigured";
+      const health = configured ? await checkLocalWorkerHealth(workerUrl) : undefined;
+      let status: MediaCapability["status"] = "unconfigured";
+      if (builtinSpeech) status = "ready";
+      else if (configured) status = health?.reachable ? "ready" : "offline";
+      else if (workerUrl) status = "invalid";
       return [
         kind,
         {
@@ -159,10 +191,13 @@ export function getMediaCapabilities(): { capabilities: Record<MediaKind, MediaC
           workerUrl: builtinSpeech ? "builtin://system-speech" : workerUrl,
           setup: status === "invalid"
             ? "Worker URLs must be local loopback HTTP(S) URLs such as http://127.0.0.1:8081."
+            : status === "offline"
+              ? `Start the local ${config.label.toLowerCase()} worker on ${workerUrl}.`
             : builtinSpeech
               ? localSpeech.setup
               : config.setup,
           source: configured ? "worker" : builtinSpeech ? "builtin" : "none",
+          health,
           builtin: builtinSpeech
             ? {
                 engine: localSpeech.engine,
@@ -174,7 +209,8 @@ export function getMediaCapabilities(): { capabilities: Record<MediaKind, MediaC
         },
       ];
     }),
-  ) as Record<MediaKind, MediaCapability>;
+  );
+  const capabilities = Object.fromEntries(capabilityEntries) as Record<MediaKind, MediaCapability>;
 
   return { capabilities };
 }

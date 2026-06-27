@@ -34,14 +34,59 @@ test("media runtime planner exposes all local worker lanes", async () => {
 });
 
 test("media runtime planner reflects configured loopback workers", async () => {
-  await patchSettings({ speechWorkerUrl: "http://127.0.0.1:8082" });
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    fetch() {
+      return new Response("ok");
+    },
+  });
 
-  const res = await route(new Request("http://localhost/api/media/runtimes"));
+  try {
+    await patchSettings({ speechWorkerUrl: `http://127.0.0.1:${server.port}` });
+
+    const res = await route(new Request("http://localhost/api/media/runtimes"));
+    const json = await res.json();
+    const speech = json.runtimes.find((runtime: { kind: string }) => runtime.kind === "speech");
+
+    expect(speech.status).toBe("ready");
+    expect(speech.workerUrl).toBe(`http://127.0.0.1:${server.port}`);
+    expect(speech.health.reachable).toBe(true);
+  } finally {
+    server.stop(true);
+    await patchSettings({ speechWorkerUrl: "" });
+  }
+});
+
+test("media runtime planner marks configured but unreachable workers offline", async () => {
+  await patchSettings({ imageWorkerUrl: "http://127.0.0.1:9" });
+
+  try {
+    const res = await route(new Request("http://localhost/api/media/runtimes"));
+    const json = await res.json();
+    const image = json.runtimes.find((runtime: { kind: string }) => runtime.kind === "image");
+
+    expect(image.status).toBe("offline");
+    expect(image.health.reachable).toBe(false);
+    expect(json.nextSteps.some((step: string) => step.includes("Start OpenAI-compatible local image worker"))).toBe(true);
+  } finally {
+    await patchSettings({ imageWorkerUrl: "" });
+  }
+});
+
+test("recommended media defaults persist loopback URLs without marking workers ready", async () => {
+  const res = await route(
+    new Request("http://localhost/api/media/runtimes/defaults", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kinds: ["image"], includeOptional: true, overwrite: true }),
+    }),
+  );
+  expect(res.status).toBe(200);
   const json = await res.json();
-  const speech = json.runtimes.find((runtime: { kind: string }) => runtime.kind === "speech");
+  expect(json.applied.some((item: { kind: string; workerUrl: string }) => item.kind === "image" && item.workerUrl === "http://127.0.0.1:8081")).toBe(true);
+  const image = json.plan.runtimes.find((runtime: { kind: string }) => runtime.kind === "image");
+  expect(image.status).toBe("offline");
 
-  expect(speech.status).toBe("ready");
-  expect(speech.workerUrl).toBe("http://127.0.0.1:8082");
-
-  await patchSettings({ speechWorkerUrl: "" });
+  await patchSettings({ imageWorkerUrl: "" });
 });
