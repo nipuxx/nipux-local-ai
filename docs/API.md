@@ -197,6 +197,14 @@ Returns the hardware-aware local media runtime plan. Each runtime includes the c
 }
 ```
 
+The image runtime can use the bundled local command worker:
+
+```bash
+NIPUX_IMAGE_COMMAND=/path/to/local-image-command bun run worker:image
+```
+
+The image worker exposes `POST /v1/images/generations` on `http://127.0.0.1:8081`. By default it invokes the local command with `{input} {output}`, where `{input}` is a JSON request file and `{output}` is the image file the command should write. Override `NIPUX_IMAGE_ARGS` for a specific local backend.
+
 The transcription runtime can use the bundled worker wrapper:
 
 ```bash

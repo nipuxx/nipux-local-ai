@@ -82,7 +82,7 @@ NIPUX_TRANSCRIPTION_WORKER_URL=http://127.0.0.1:8083
 NIPUX_VIDEO_WORKER_URL=http://127.0.0.1:8084
 ```
 
-The current release does not bundle image or video models. It records media jobs and gives setup hints until local workers are configured. Remote media worker URLs are blocked. Transcription includes a bundled whisper.cpp-compatible worker wrapper and a Whisper model installer, but still requires a local `whisper-cli` command.
+The current release does not bundle image or video model weights. It records media jobs and gives setup hints until local workers are configured. Remote media worker URLs are blocked. Image generation includes a bundled local command worker, but still requires a local image backend command and model. Transcription includes a bundled whisper.cpp-compatible worker wrapper and a Whisper model installer, but still requires a local `whisper-cli` command.
 
 Use the media runtime planner to see the current worker contracts and hardware fit:
 
@@ -102,6 +102,14 @@ Default worker lanes:
 | Speech | `http://127.0.0.1:8082` | `POST /v1/audio/speech` | CPU-friendly first bundle target |
 | Transcription | `http://127.0.0.1:8083` | `POST /v1/audio/transcriptions` | CPU-friendly with small models |
 | Video | `http://127.0.0.1:8084` | `POST /v1/video/generations` | Experimental, queued, GPU/unified memory preferred |
+
+Start the bundled image command worker:
+
+```bash
+NIPUX_IMAGE_COMMAND=/path/to/local-image-command bun run worker:image
+```
+
+The default image command receives `{input} {output}`. The input is a JSON file with prompt, model, size, width, height, seed, and output path fields. Override `NIPUX_IMAGE_ARGS` when a backend needs different flags.
 
 Start the bundled transcription worker:
 

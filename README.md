@@ -124,6 +124,15 @@ NIPUX_VIDEO_WORKER_URL=http://127.0.0.1:8084
 
 Worker URLs must be loopback URLs such as `localhost` or `127.0.0.1`. External media APIs are intentionally rejected.
 
+Image generation can use the bundled local command worker. The worker exposes the OpenAI-compatible image route and shells out to a local image command that receives a JSON request path and an output image path:
+
+```bash
+NIPUX_IMAGE_COMMAND=/path/to/local-image-command bun run worker:image
+bun run media:defaults
+```
+
+The default command argument contract is `{input} {output}`. Set `NIPUX_IMAGE_ARGS` to adapt a local Stable Diffusion, Diffusers, MLX, or other image backend without exposing users to node graphs.
+
 Speech has a built-in local fallback when the OS has a supported speech command:
 
 - macOS: `say`

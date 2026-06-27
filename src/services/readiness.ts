@@ -68,6 +68,9 @@ function mediaDetail(runtime: { status: string; workerLabel: string; workerUrl: 
 
 function mediaFix(runtime: { status: string; setup: string; commands?: Array<{ command: string }> } | undefined) {
   if (!runtime || runtime.status === "ready") return undefined;
+  const imageStartCommand = runtime.commands?.find((item) => item.command.includes("worker:image"))?.command;
+  if (imageStartCommand) return `Run ${imageStartCommand}, then run bun run media:defaults.`;
+
   const startCommand = runtime.commands?.find((item) => item.command.includes("worker:transcription"))?.command;
   const installCommand = runtime.commands?.find((item) => item.command.includes("transcription:install"))?.command;
   if (startCommand?.includes("worker:transcription")) {

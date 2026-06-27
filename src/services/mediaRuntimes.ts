@@ -2,6 +2,7 @@ import type { HardwareProfile } from "../types.ts";
 import { detectHardware } from "./hardware.ts";
 import { getMediaCapabilities, type MediaKind } from "./media.ts";
 import { getAppSettings, updateAppSettings, type AppSettings } from "./settings.ts";
+import { imageStartCommand, imageWorkerContract } from "./imageSetup.ts";
 import { whisperInstallCommand, whisperStartCommand } from "./transcriptionSetup.ts";
 
 type RuntimeStatus = "ready" | "unconfigured" | "invalid" | "offline";
@@ -74,8 +75,9 @@ const MEDIA_RUNTIME_CONFIG: Record<
     endpoint: "/v1/images/generations",
     settingKey: "imageWorkerUrl",
     envVar: "NIPUX_IMAGE_WORKER_URL",
-    setup: "Configure a loopback OpenAI-compatible image worker before image generation is available.",
+    setup: "Start the bundled local image command worker, then configure its loopback URL before image generation is available.",
     notes: [
+      imageWorkerContract(),
       "This is the adapter slot for Ideogram/Krea-quality local image models once local weights and redistribution terms are clear.",
       "Do not point this at external hosted image APIs; remote URLs are rejected.",
     ],
@@ -161,12 +163,14 @@ function recommended(kind: MediaKind, hardware: HardwareProfile) {
 
 function commandsFor(kind: MediaKind, config: (typeof MEDIA_RUNTIME_CONFIG)[MediaKind]): MediaRuntimeCommand[] {
   const url = defaultUrl(config.defaultPort);
-  const startCommand = kind === "transcription"
-    ? whisperStartCommand()
-    : `${config.envVar}=${url} bun run start`;
+  const startCommand = kind === "image"
+    ? imageStartCommand()
+    : kind === "transcription"
+      ? whisperStartCommand()
+      : `${config.envVar}=${url} bun run start`;
   const commands: MediaRuntimeCommand[] = [
     {
-      label: kind === "transcription" ? "Start bundled worker" : "macOS/Linux environment",
+      label: ["image", "transcription"].includes(kind) ? "Start bundled worker" : "macOS/Linux environment",
       command: startCommand,
     },
     {
@@ -234,6 +238,9 @@ export async function getMediaRuntimePlan(): Promise<MediaRuntimePlannerResult> 
     }
     if (runtime.source === "builtin") return [];
     if (runtime.status === "unconfigured" && runtime.recommended) {
+      if (runtime.kind === "image") {
+        return [`Run ${startCommandFor(runtime)}, then run bun run media:defaults.`];
+      }
       if (runtime.kind === "transcription") {
         return [`Run ${whisperInstallCommand()}, then run ${startCommandFor(runtime)}, then run bun run media:defaults.`];
       }

@@ -10,6 +10,7 @@ import { applyRecommendedMediaRuntimeDefaults, formatMediaRuntimePlan, getMediaR
 import { formatReadinessReport, getReadinessReport } from "./services/readiness.ts";
 import { formatSetupActions, getSetupActions } from "./services/setupActions.ts";
 import { formatLaunchProfile, getLaunchProfile, writeLaunchProfileFiles } from "./services/launchProfile.ts";
+import { imageStartCommand } from "./services/imageSetup.ts";
 import { installWhisperModel, WHISPER_MODEL_PRESETS, whisperInstallCommand, whisperStartCommand } from "./services/transcriptionSetup.ts";
 
 const command = process.argv[2] ?? "help";
@@ -27,6 +28,7 @@ Commands:
   bun run setup:actions           Show copyable setup actions
   bun run media:runtimes          Show local media runtime setup plan
   bun run media:defaults          Persist recommended local media worker URLs
+  bun run worker:image            Start bundled local image command worker
   bun run transcription:install   Download the default local Whisper transcription model
   bun run src/cli.ts transcription-presets
   bun run worker:transcription    Start bundled whisper.cpp-compatible transcription worker
@@ -98,6 +100,9 @@ async function setup() {
       "NIPUX_LLAMA_BASE_URL=http://127.0.0.1:8080/v1",
       "NIPUX_SEARXNG_URL=",
       "NIPUX_IMAGE_WORKER_URL=",
+      "NIPUX_IMAGE_COMMAND=",
+      "NIPUX_IMAGE_ARGS=",
+      "NIPUX_IMAGE_MODEL=",
       "NIPUX_SPEECH_WORKER_URL=",
       "NIPUX_TRANSCRIPTION_WORKER_URL=",
       "NIPUX_VIDEO_WORKER_URL=",
@@ -135,6 +140,7 @@ async function setup() {
   console.log(`  Production:      ${llamaServeCommand(hardware.recommendedPreset)}`);
   console.log(`                   bun run start`);
   console.log(`  Setup actions:   bun run setup:actions`);
+  console.log(`  Image worker:    ${imageStartCommand()}`);
   console.log(`  Voice model:     ${whisperInstallCommand()}`);
   console.log(`  Voice input:     ${whisperStartCommand()}`);
   console.log(`  Health check:    bun run doctor`);

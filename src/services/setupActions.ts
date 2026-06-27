@@ -67,7 +67,7 @@ function mediaAction(runtime: MediaRuntimePlan): SetupAction {
           ...(installCommand ? [command("Install model", installCommand)] : []),
           command("Persist default URL", runtime.recommended ? "bun run media:defaults" : "bun run media:defaults --include-optional"),
           command(
-            runtime.kind === "transcription" ? "Start bundled worker" : "Environment",
+            ["image", "transcription"].includes(runtime.kind) ? "Start bundled worker" : "Environment",
             startCommand || runtime.commands[0]?.command || `${runtime.envVar}=${runtime.defaultUrl} bun run start`,
           ),
           command("Worker contract", `POST ${runtime.defaultUrl}${runtime.endpoint}`, false),

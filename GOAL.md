@@ -76,10 +76,11 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Platform-aware install preflight exists for Bun, git, local folders, llama.cpp, Playwright Chromium, and SearXNG.
 - macOS/Linux and Windows installer scripts clone the pushed repo, use the lockfile, run setup, and optionally install Playwright Chromium.
 - Release packaging creates a source zip, manifest, checksums, and GitHub Actions artifact workflow.
-- Media tab, media job records, and local-only image/audio/video API surfaces exist; bundled transcription worker wrapper and Whisper model installer exist, while bundled image/video runtimes are still future work.
+- Media tab, media job records, and local-only image/audio/video API surfaces exist; bundled image command worker, bundled transcription worker wrapper, and Whisper model installer exist, while bundled image/video model weights are still future work.
 - Hardware-aware media runtime planner exists for local image, speech, transcription, and video worker setup.
 - Media worker readiness is health-checked; configured loopback URLs show offline until a local worker responds.
 - Recommended media worker loopback URLs can be applied through the UI, API, and CLI without falsely marking workers ready.
+- Image generation can run through the bundled local command worker when a local image backend command is configured.
 - Built-in local speech generation exists when the host OS has a supported system speech engine.
 - Assistant chat messages can be played through the local speech route.
 - Chat microphone input records audio and can transcribe through the configured local transcription worker, including the bundled whisper.cpp-compatible worker wrapper and local Whisper model install path.

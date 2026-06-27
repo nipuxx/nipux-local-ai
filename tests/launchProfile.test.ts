@@ -22,6 +22,7 @@ test("launch profile captures local run commands without API secrets", async () 
   expect(profile.model.llamaRef).toContain("gguf");
   expect(profile.env.local.NIPUX_API_KEY).toBeUndefined();
   expect(profile.env.local.NIPUX_FAKE_LLM).toBe("0");
+  expect(profile.env.local.NIPUX_IMAGE_COMMAND).toBeDefined();
   expect(profile.env.dev.NIPUX_FAKE_LLM).toBe("1");
   expect(profile.media.length).toBe(4);
 });
@@ -32,6 +33,7 @@ test("launch profile writer emits json, env, and local launcher files", async ()
   for (const file of result.written) expect(existsSync(file)).toBe(true);
   expect(result.written).toContain(result.profile.files.profileJson);
   expect(readFileSync(result.profile.files.envFile, "utf8")).toContain("NIPUX_BIND_HOST=127.0.0.1");
+  expect(readFileSync(result.profile.files.envFile, "utf8")).toContain("NIPUX_IMAGE_COMMAND=");
   expect(readFileSync(result.profile.files.startDevSh, "utf8")).toContain("NIPUX_FAKE_LLM='1'");
   expect(readFileSync(result.profile.files.startLocalPs1, "utf8")).toContain("$env:NIPUX_FAKE_LLM = '0'");
 
