@@ -158,12 +158,15 @@ function recommended(kind: MediaKind, hardware: HardwareProfile) {
   return hardware.accelerator !== "cpu" && hardware.totalRamGb >= 32;
 }
 
-function commandsFor(config: (typeof MEDIA_RUNTIME_CONFIG)[MediaKind]): MediaRuntimeCommand[] {
+function commandsFor(kind: MediaKind, config: (typeof MEDIA_RUNTIME_CONFIG)[MediaKind]): MediaRuntimeCommand[] {
   const url = defaultUrl(config.defaultPort);
+  const startCommand = kind === "transcription"
+    ? "NIPUX_WHISPER_MODEL=/path/to/ggml-base.en.bin bun run worker:transcription"
+    : `${config.envVar}=${url} bun run start`;
   return [
     {
-      label: "macOS/Linux environment",
-      command: `${config.envVar}=${url} bun run start`,
+      label: kind === "transcription" ? "Start bundled worker" : "macOS/Linux environment",
+      command: startCommand,
     },
     {
       label: "Persist in Settings",
@@ -208,7 +211,7 @@ export async function getMediaRuntimePlan(): Promise<MediaRuntimePlannerResult> 
         reachable: capability.status === "ready",
         detail: capability.source === "builtin" ? capability.setup : capability.setup,
       },
-      commands: commandsFor(config),
+      commands: commandsFor(kind, config),
       notes: config.notes,
     };
   });
@@ -222,6 +225,9 @@ export async function getMediaRuntimePlan(): Promise<MediaRuntimePlannerResult> 
     }
     if (runtime.source === "builtin") return [];
     if (runtime.status === "unconfigured" && runtime.recommended) {
+      if (runtime.kind === "transcription") {
+        return [`Run ${runtime.commands[0]?.command}, then run bun run media:defaults.`];
+      }
       return [`Start ${runtime.workerLabel} on ${runtime.defaultUrl}, then set ${runtime.envVar}.`];
     }
     if (runtime.status === "unconfigured") {

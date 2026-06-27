@@ -133,7 +133,7 @@ async function checkLocalWorkerHealth(workerUrl: string): Promise<NonNullable<Me
     const res = await fetch(workerUrl, { method: "HEAD", signal: controller.signal });
     return {
       checked: true,
-      reachable: true,
+      reachable: res.ok,
       statusCode: res.status,
       detail: `Worker responded with HTTP ${res.status}.`,
     };

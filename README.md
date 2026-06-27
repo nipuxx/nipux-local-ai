@@ -132,7 +132,14 @@ Speech has a built-in local fallback when the OS has a supported speech command:
 
 Configured speech worker URLs still take priority, so Kokoro/Piper-style workers can replace the built-in voice path.
 
-Voice input in chat records microphone audio in the browser and sends it to `/v1/audio/transcriptions`. That route accepts OpenAI-style multipart uploads and translates them to the configured loopback transcription worker. If no local transcription worker is configured, the UI shows the setup error.
+Voice input in chat records microphone audio in the browser and sends it to `/v1/audio/transcriptions`. That route accepts OpenAI-style multipart uploads and translates them to the configured loopback transcription worker. The repo includes a whisper.cpp-compatible local worker wrapper:
+
+```bash
+NIPUX_WHISPER_MODEL=/path/to/ggml-base.en.bin bun run worker:transcription
+bun run media:defaults
+```
+
+`NIPUX_WHISPER_COMMAND` defaults to `whisper-cli`. If no local transcription worker is configured or reachable, the UI shows the setup error.
 
 Inspect the hardware-aware local media runtime plan:
 

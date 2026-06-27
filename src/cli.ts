@@ -26,6 +26,7 @@ Commands:
   bun run setup:actions           Show copyable setup actions
   bun run media:runtimes          Show local media runtime setup plan
   bun run media:defaults          Persist recommended local media worker URLs
+  bun run worker:transcription    Start bundled whisper.cpp-compatible transcription worker
   bun run launch:profile          Show this machine's launch profile
   bun run launch:write            Write launch profile, env, and launcher scripts
   bun run src/cli.ts doctor       Detect hardware and backend health
@@ -131,6 +132,7 @@ async function setup() {
   console.log(`  Production:      ${llamaServeCommand(hardware.recommendedPreset)}`);
   console.log(`                   bun run start`);
   console.log(`  Setup actions:   bun run setup:actions`);
+  console.log(`  Voice input:     NIPUX_WHISPER_MODEL=/path/to/ggml-base.en.bin bun run worker:transcription`);
   console.log(`  Health check:    bun run doctor`);
   console.log(`  Open:            http://127.0.0.1:${PORT}`);
 }

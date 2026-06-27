@@ -177,7 +177,7 @@ Low-risk actions such as open, screenshot, and close can run without approval. A
 The API gateway has separate local-only worker adapters for:
 
 - `image.generate` through an OpenAI-compatible local image endpoint
-- `audio.transcribe` through a local transcription endpoint such as whisper.cpp
+- `audio.transcribe` through a local transcription endpoint, including the bundled whisper.cpp-compatible worker wrapper
 - `audio.speech` through a local TTS endpoint such as Kokoro/Piper
 - `video.generate` through a queued, opt-in local video worker
 
@@ -186,3 +186,5 @@ Worker URLs must be loopback HTTP(S) URLs. The app rejects remote media workers 
 `GET /api/media/runtimes` exposes the setup plan that installers and the dev-only Media UI use. It does not install or call remote model providers; it maps each lane to a local worker contract so later bundled runtimes can be automated without changing the public app API. Configured loopback workers are health-checked and stay `offline` until a local process responds.
 
 Speech is the first lane with a built-in local fallback. When no speech worker URL is configured, the app can synthesize speech through macOS `say`, Linux `espeak`, or Windows SAPI if present. Generated audio is still recorded as a normal `media_jobs` row with `worker_url = builtin://system-speech`.
+
+Transcription has a bundled local worker wrapper at `src/workers/transcriptionWorker.ts`. It exposes an OpenAI-compatible `POST /v1/audio/transcriptions` endpoint and shells out to a local `whisper-cli` compatible binary using `NIPUX_WHISPER_MODEL`. This keeps the app-local worker contract stable while leaving model/binary installation explicit.

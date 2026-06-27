@@ -63,7 +63,10 @@ function mediaAction(runtime: MediaRuntimePlan): SetupAction {
       ? []
       : [
           command("Persist default URL", runtime.recommended ? "bun run media:defaults" : "bun run media:defaults --include-optional"),
-          command("Environment", `${runtime.envVar}=${runtime.defaultUrl} bun run start`),
+          command(
+            runtime.kind === "transcription" ? "Start bundled worker" : "Environment",
+            runtime.commands[0]?.command || `${runtime.envVar}=${runtime.defaultUrl} bun run start`,
+          ),
           command("Worker contract", `POST ${runtime.defaultUrl}${runtime.endpoint}`, false),
           command("Refresh planner", "bun run media:runtimes"),
         ];

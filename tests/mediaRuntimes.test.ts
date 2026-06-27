@@ -30,6 +30,9 @@ test("media runtime planner exposes all local worker lanes", async () => {
   expect(image.envVar).toBe("NIPUX_IMAGE_WORKER_URL");
   expect(image.localOnly).toBe(true);
   expect(image.endpoint).toBe("/v1/images/generations");
+  const transcription = json.runtimes.find((runtime: { kind: string }) => runtime.kind === "transcription");
+  expect(transcription.commands.some((item: { command: string }) => item.command.includes("bun run worker:transcription"))).toBe(true);
+  expect(json.nextSteps.some((step: string) => step.includes("bun run worker:transcription"))).toBe(true);
   expect(json.hardware.totalRamGb).toBeGreaterThan(0);
 });
 

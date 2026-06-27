@@ -101,5 +101,6 @@ This file translates the product goal into independently owned workstreams. The 
 - Maintain health checks so configured worker URLs only show ready when local processes respond.
 - Maintain built-in local speech fallback while keeping Kokoro/Piper-style workers as the higher-quality replaceable path.
 - Add bundled local image generation when install/runtime/licensing details are clear.
-- Add Whisper.cpp and Kokoro/Piper setup automation after worker APIs are stable.
+- Maintain the bundled whisper.cpp-compatible transcription worker and add stronger whisper.cpp setup automation.
+- Add Kokoro/Piper setup automation after worker APIs are stable.
 - Add video generation as queued, hardware-aware jobs.

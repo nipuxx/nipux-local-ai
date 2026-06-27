@@ -69,6 +69,29 @@ test("media capabilities do not treat offline loopback workers as ready", async 
   }
 });
 
+test("media capabilities do not treat unhealthy loopback workers as ready", async () => {
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    fetch() {
+      return new Response(null, { status: 503 });
+    },
+  });
+
+  try {
+    await patchSettings({ transcriptionWorkerUrl: `http://127.0.0.1:${server.port}` });
+    const res = await route(new Request("http://localhost/api/media/capabilities"));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.capabilities.transcription.status).toBe("offline");
+    expect(json.capabilities.transcription.health.reachable).toBe(false);
+    expect(json.capabilities.transcription.health.statusCode).toBe(503);
+  } finally {
+    server.stop(true);
+    await patchSettings({ transcriptionWorkerUrl: "" });
+  }
+});
+
 test("OpenAI-compatible image route proxies to a local worker", async () => {
   const server = Bun.serve({
     hostname: "127.0.0.1",
