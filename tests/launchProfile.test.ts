@@ -9,9 +9,11 @@ process.env.NIPUX_HOME = testHome;
 process.env.NIPUX_FAKE_LLM = "1";
 
 const { getLaunchProfile, writeLaunchProfileFiles } = await import("../src/services/launchProfile.ts");
+const { clearImageBackendPreset, selectImageBackendPreset } = await import("../src/services/imageSetup.ts");
 const { route } = await import("../src/main.ts");
 
 test("launch profile captures local run commands without API secrets", async () => {
+  await clearImageBackendPreset();
   const profile = await getLaunchProfile();
 
   expect(profile.localUrl).toContain("127.0.0.1");
@@ -28,6 +30,17 @@ test("launch profile captures local run commands without API secrets", async () 
   expect(profile.env.local.NIPUX_VIDEO_COMMAND).toBeDefined();
   expect(profile.env.dev.NIPUX_FAKE_LLM).toBe("1");
   expect(profile.media.length).toBe(4);
+});
+
+test("launch profile includes selected image backend env", async () => {
+  await selectImageBackendPreset("diffusers-sdxl-turbo");
+  const profile = await getLaunchProfile();
+
+  expect(profile.env.local.NIPUX_IMAGE_BACKEND_PRESET).toBe("diffusers-sdxl-turbo");
+  expect(profile.env.local.NIPUX_IMAGE_ARGS).toContain("diffusers-image.py");
+  expect(profile.env.local.NIPUX_IMAGE_MODEL).toBe("stabilityai/sdxl-turbo");
+
+  await clearImageBackendPreset();
 });
 
 test("launch profile writer emits json, env, and local launcher files", async () => {

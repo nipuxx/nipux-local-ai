@@ -188,3 +188,24 @@ test("image backend route returns local-only setup presets", async () => {
   expect(json.presets.every((preset: { localOnly: boolean }) => preset.localOnly)).toBe(true);
   expect(json.nextSteps.some((step: string) => step.includes("image:backends"))).toBe(true);
 });
+
+test("image backend selection persists worker defaults", async () => {
+  const selected = await route(
+    new Request("http://localhost/api/media/images/backends/select", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ presetId: "diffusers-sdxl-turbo" }),
+    }),
+  );
+  expect(selected.status).toBe(200);
+  const selectedJson = await selected.json();
+  expect(selectedJson.selectedPresetId).toBe("diffusers-sdxl-turbo");
+  expect(selectedJson.settings.imageWorkerUrl).toBe("http://127.0.0.1:8081");
+  expect(selectedJson.plan.selectedPresetId).toBe("diffusers-sdxl-turbo");
+
+  const cleared = await route(new Request("http://localhost/api/media/images/backends/selection", { method: "DELETE" }));
+  expect(cleared.status).toBe(200);
+  const clearedJson = await cleared.json();
+  expect(clearedJson.selectedPresetId).toBe("");
+  expect(clearedJson.settings.imageWorkerUrl).toBe("");
+});

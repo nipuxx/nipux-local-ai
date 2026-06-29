@@ -3,9 +3,11 @@ import { join } from "node:path";
 import { NIPUX_HOME } from "../config.ts";
 import type { HardwareProfile } from "../types.ts";
 import { detectHardware } from "./hardware.ts";
+import { getRawSetting, setRawSetting, updateAppSettings } from "./settings.ts";
 
 export const DEFAULT_IMAGE_COMMAND_PLACEHOLDER = "/path/to/local-image-command";
 export const DIFFUSERS_IMAGE_BACKEND_SCRIPT = "scripts/image-backends/diffusers-image.py";
+export const IMAGE_BACKEND_SETTING_KEY = "image_backend_preset";
 
 export interface ImageBackendCommand {
   label: string;
@@ -29,7 +31,14 @@ export interface ImageBackendPlan {
   hardware: HardwareProfile;
   presets: ImageBackendPreset[];
   recommendedPresetId: string;
+  selectedPresetId: string;
   nextSteps: string[];
+}
+
+export interface ImageBackendSelectionResult {
+  selectedPresetId: string;
+  plan: ImageBackendPlan;
+  settings: ReturnType<typeof updateAppSettings>;
 }
 
 function shellArg(value: string) {
@@ -84,6 +93,16 @@ function diffusersStartCommand(model: string) {
     `NIPUX_IMAGE_MODEL=${shellArg(model)}`,
     "bun run worker:image",
   ].join(" ");
+}
+
+export function imageBackendWorkerEnv(presetId: string) {
+  const model = presetId === "diffusers-sd15" ? "runwayml/stable-diffusion-v1-5" : presetId === "diffusers-sdxl-turbo" ? "stabilityai/sdxl-turbo" : "";
+  if (!model) return null;
+  return {
+    NIPUX_IMAGE_COMMAND: diffusersPythonCommand(),
+    NIPUX_IMAGE_ARGS: `${DIFFUSERS_IMAGE_BACKEND_SCRIPT} {input} {output}`,
+    NIPUX_IMAGE_MODEL: model,
+  };
 }
 
 function imageFit(hardware: HardwareProfile, kind: "fast" | "fallback" | "custom") {
@@ -156,13 +175,19 @@ export function buildImageBackendPlan(hardware: HardwareProfile): ImageBackendPl
     },
   ];
   const recommendedPresetId = presets.find((preset) => preset.recommended)?.id ?? "custom-command";
+  const selected = getRawSetting(IMAGE_BACKEND_SETTING_KEY, "");
+  const selectedPresetId = presets.some((preset) => preset.id === selected) ? selected : "";
   return {
     hardware,
     presets,
     recommendedPresetId,
+    selectedPresetId,
     nextSteps: [
-      `Review presets with bun run image:backends.`,
-      `Start a local image worker with the ${presets.find((preset) => preset.id === recommendedPresetId)?.label ?? "custom"} command.`,
+      selectedPresetId
+        ? `Selected image backend: ${presets.find((preset) => preset.id === selectedPresetId)?.label ?? selectedPresetId}.`
+        : `Review presets with bun run image:backends.`,
+      selectedPresetId ? "Run bun run image:clear to return to manual image worker configuration." : `Select one with bun run image:select ${recommendedPresetId}.`,
+      `Install the selected local backend dependencies before starting bun run local.`,
       "Run bun run media:defaults --include-optional to point Settings at the local worker URL.",
     ],
   };
@@ -176,6 +201,7 @@ export function formatImageBackendPlan(plan: ImageBackendPlan) {
   const lines = [
     `Hardware: ${plan.hardware.os} ${plan.hardware.arch}, ${plan.hardware.totalRamGb}GB RAM, ${plan.hardware.accelerator}`,
     `Recommended image backend: ${plan.recommendedPresetId}`,
+    `Selected image backend: ${plan.selectedPresetId || "none"}`,
     "",
   ];
   for (const preset of plan.presets) {
@@ -189,4 +215,18 @@ export function formatImageBackendPlan(plan: ImageBackendPlan) {
   lines.push("Next steps:");
   for (const step of plan.nextSteps) lines.push(`  - ${step}`);
   return lines.join("\n").trimEnd();
+}
+
+export async function selectImageBackendPreset(presetId: string): Promise<ImageBackendSelectionResult> {
+  const plan = await getImageBackendPlan();
+  if (!plan.presets.some((preset) => preset.id === presetId)) throw new Error(`Unknown image backend preset: ${presetId}`);
+  setRawSetting(IMAGE_BACKEND_SETTING_KEY, presetId);
+  const settings = updateAppSettings({ imageWorkerUrl: "http://127.0.0.1:8081" });
+  return { selectedPresetId: presetId, plan: await getImageBackendPlan(), settings };
+}
+
+export async function clearImageBackendPreset(): Promise<ImageBackendSelectionResult> {
+  setRawSetting(IMAGE_BACKEND_SETTING_KEY, "");
+  const settings = updateAppSettings({ imageWorkerUrl: "" });
+  return { selectedPresetId: "", plan: await getImageBackendPlan(), settings };
 }

@@ -2,8 +2,9 @@ import { existsSync } from "node:fs";
 import { platform } from "node:os";
 import { spawnSync } from "node:child_process";
 import { BIND_HOST, LLAMA_BASE_URL, PORT } from "../config.ts";
+import { IMAGE_BACKEND_SETTING_KEY, imageBackendWorkerEnv } from "./imageSetup.ts";
 import { getModel } from "./modelRegistry.ts";
-import { getAppSettings } from "./settings.ts";
+import { getAppSettings, getRawSetting } from "./settings.ts";
 
 type ManagedKind = "app" | "llm" | "image" | "transcription" | "video";
 type ManagedStatus = "ready" | "skipped";
@@ -137,25 +138,36 @@ function configuredLlmPlan(): ManagedProcessPlan {
   };
 }
 
+function configuredImagePlan(): ManagedProcessPlan {
+  const selectedPresetId = process.env.NIPUX_IMAGE_BACKEND_PRESET || getRawSetting(IMAGE_BACKEND_SETTING_KEY, "");
+  const selectedEnv = !process.env.NIPUX_IMAGE_COMMAND && selectedPresetId ? imageBackendWorkerEnv(selectedPresetId) : null;
+  const env = {
+    NIPUX_IMAGE_COMMAND: process.env.NIPUX_IMAGE_COMMAND ?? selectedEnv?.NIPUX_IMAGE_COMMAND ?? "",
+    NIPUX_IMAGE_ARGS: process.env.NIPUX_IMAGE_ARGS ?? selectedEnv?.NIPUX_IMAGE_ARGS ?? "",
+    NIPUX_IMAGE_MODEL: process.env.NIPUX_IMAGE_MODEL ?? selectedEnv?.NIPUX_IMAGE_MODEL ?? "",
+  };
+  const imageReady = Boolean(env.NIPUX_IMAGE_COMMAND) && (!selectedEnv || commandExists(env.NIPUX_IMAGE_COMMAND));
+  return {
+    kind: "image",
+    label: selectedEnv ? `Image worker (${selectedPresetId})` : "Image worker",
+    status: imageReady ? "ready" : "skipped",
+    command: ["bun", "run", "worker:image"],
+    env,
+    url: workerUrl(8081),
+    reason: imageReady
+      ? undefined
+      : selectedEnv
+        ? "Install the selected local image backend dependencies with bun run image:backends, then rerun bun run local."
+        : "Set NIPUX_IMAGE_COMMAND or choose a local image backend with bun run image:backends.",
+  };
+}
+
 function configuredWorkerPlans(): ManagedProcessPlan[] {
-  const imageReady = Boolean(process.env.NIPUX_IMAGE_COMMAND);
   const transcriptionReady = Boolean(process.env.NIPUX_WHISPER_MODEL);
   const videoReady = Boolean(process.env.NIPUX_VIDEO_COMMAND);
 
   return [
-    {
-      kind: "image",
-      label: "Image worker",
-      status: imageReady ? "ready" : "skipped",
-      command: ["bun", "run", "worker:image"],
-      env: {
-        NIPUX_IMAGE_COMMAND: process.env.NIPUX_IMAGE_COMMAND ?? "",
-        NIPUX_IMAGE_ARGS: process.env.NIPUX_IMAGE_ARGS ?? "",
-        NIPUX_IMAGE_MODEL: process.env.NIPUX_IMAGE_MODEL ?? "",
-      },
-      url: workerUrl(8081),
-      reason: imageReady ? undefined : "Set NIPUX_IMAGE_COMMAND to start the bundled image command worker.",
-    },
+    configuredImagePlan(),
     {
       kind: "transcription",
       label: "Transcription worker",

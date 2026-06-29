@@ -709,15 +709,19 @@ async function loadMedia() {
   $("#imageBackendPlan").innerHTML = state.imageBackendPlan.presets
     .map(
       (preset) => `
-        <div class="media-runtime ${preset.recommended ? "" : "media-warn"}">
+        <div class="media-runtime ${preset.id === state.imageBackendPlan.selectedPresetId || preset.recommended ? "" : "media-warn"}">
           <div>
             <strong>${h(preset.label)}</strong>
-            <span>${preset.recommended ? "recommended" : "optional"}</span>
+            <span>${preset.id === state.imageBackendPlan.selectedPresetId ? "selected" : preset.recommended ? "recommended" : "optional"}</span>
           </div>
           <div class="meta">${h(preset.description)}</div>
           <div class="meta">${h(preset.hardwareFit)}</div>
           <code>${h(preset.commands.find((item) => item.label.includes("Start"))?.command || preset.commands[0]?.command || "")}</code>
           <div class="meta">${h(preset.model)}</div>
+          <div class="button-row">
+            <button class="select-image-backend" data-preset-id="${h(preset.id)}">${preset.id === state.imageBackendPlan.selectedPresetId ? "Selected" : "Use"}</button>
+            ${preset.id === state.imageBackendPlan.selectedPresetId ? `<button class="clear-image-backend">Clear</button>` : ""}
+          </div>
         </div>`,
     )
     .join("");
@@ -1392,6 +1396,25 @@ document.addEventListener("click", async (event) => {
   if (target.matches(".download-file")) await downloadFile(target);
   if (target.matches(".install-model")) await installModel(target);
   if (target.matches(".set-default-model")) await setDefaultModel(target);
+  if (target.matches(".select-image-backend")) {
+    target.textContent = "Saving";
+    const data = await api("/api/media/images/backends/select", {
+      method: "POST",
+      body: JSON.stringify({ presetId: target.dataset.presetId }),
+    });
+    state.settingsStatus = { settings: data.settings, env: state.settingsStatus?.env || null };
+    if (state.status) state.status.settings = data.settings;
+    applySettingsToUi();
+    await Promise.all([loadMedia(), loadCapabilityProfile(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor()]);
+  }
+  if (target.matches(".clear-image-backend")) {
+    target.textContent = "Clearing";
+    const data = await api("/api/media/images/backends/selection", { method: "DELETE", body: "{}" });
+    state.settingsStatus = { settings: data.settings, env: state.settingsStatus?.env || null };
+    if (state.status) state.status.settings = data.settings;
+    applySettingsToUi();
+    await Promise.all([loadMedia(), loadCapabilityProfile(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor()]);
+  }
   if (target.matches(".revoke-api-key")) {
     const revoked = state.apiKeys.find((key) => key.id === target.dataset.id);
     await api(`/api/api-keys/${target.dataset.id}`, { method: "DELETE", body: "{}" });

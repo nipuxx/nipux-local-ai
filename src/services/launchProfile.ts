@@ -4,10 +4,11 @@ import { API_KEYS, BIND_HOST, IS_FAKE_LLM, LLAMA_BASE_URL, NIPUX_HOME, PORT, PUB
 import type { HardwareProfile } from "../types.ts";
 import { activeStoredApiKeyCount } from "./apiKeys.ts";
 import { detectHardware } from "./hardware.ts";
+import { IMAGE_BACKEND_SETTING_KEY, imageBackendWorkerEnv } from "./imageSetup.ts";
 import { getMediaRuntimePlan, type MediaRuntimePlan } from "./mediaRuntimes.ts";
 import { getModel, llamaServeCommand } from "./modelRegistry.ts";
 import { getReadinessReport, type ReadinessReport } from "./readiness.ts";
-import { getAppSettings, type AppSettings } from "./settings.ts";
+import { getAppSettings, getRawSetting, type AppSettings } from "./settings.ts";
 
 const REPO_ROOT = resolve(import.meta.dir, "../..");
 
@@ -96,6 +97,8 @@ function powershellQuote(value: string) {
 }
 
 function envFor(settings: AppSettings, fakeLlm: boolean) {
+  const selectedImagePreset = process.env.NIPUX_IMAGE_BACKEND_PRESET || getRawSetting(IMAGE_BACKEND_SETTING_KEY, "");
+  const imageBackendEnv = process.env.NIPUX_IMAGE_COMMAND ? null : imageBackendWorkerEnv(selectedImagePreset);
   return {
     NIPUX_HOME,
     NIPUX_PORT: String(PORT),
@@ -106,9 +109,10 @@ function envFor(settings: AppSettings, fakeLlm: boolean) {
     NIPUX_LLAMA_MODEL_PATH: process.env.NIPUX_LLAMA_MODEL_PATH ?? "",
     NIPUX_SEARXNG_URL: settings.searxngUrl,
     NIPUX_IMAGE_WORKER_URL: settings.imageWorkerUrl,
-    NIPUX_IMAGE_COMMAND: process.env.NIPUX_IMAGE_COMMAND ?? "",
-    NIPUX_IMAGE_ARGS: process.env.NIPUX_IMAGE_ARGS ?? "",
-    NIPUX_IMAGE_MODEL: process.env.NIPUX_IMAGE_MODEL ?? "",
+    NIPUX_IMAGE_BACKEND_PRESET: selectedImagePreset,
+    NIPUX_IMAGE_COMMAND: process.env.NIPUX_IMAGE_COMMAND ?? imageBackendEnv?.NIPUX_IMAGE_COMMAND ?? "",
+    NIPUX_IMAGE_ARGS: process.env.NIPUX_IMAGE_ARGS ?? imageBackendEnv?.NIPUX_IMAGE_ARGS ?? "",
+    NIPUX_IMAGE_MODEL: process.env.NIPUX_IMAGE_MODEL ?? imageBackendEnv?.NIPUX_IMAGE_MODEL ?? "",
     NIPUX_SPEECH_WORKER_URL: settings.speechWorkerUrl,
     NIPUX_TRANSCRIPTION_WORKER_URL: settings.transcriptionWorkerUrl,
     NIPUX_VIDEO_WORKER_URL: settings.videoWorkerUrl,

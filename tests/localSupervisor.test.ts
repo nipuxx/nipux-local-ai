@@ -1,6 +1,6 @@
 import { afterAll, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 
 const originalHome = process.env.NIPUX_HOME;
@@ -19,6 +19,7 @@ const previous = {
 };
 
 const { formatLocalSupervisorPlan, getLocalSupervisorPlan, runLocalSupervisor } = await import("../src/services/localSupervisor.ts");
+const { clearImageBackendPreset, imageBackendWorkerEnv, selectImageBackendPreset } = await import("../src/services/imageSetup.ts");
 
 afterAll(() => {
   if (originalHome === undefined) delete process.env.NIPUX_HOME;
@@ -41,7 +42,8 @@ afterAll(() => {
   else process.env.NIPUX_VIDEO_COMMAND = previous.videoCommand;
 });
 
-test("local supervisor plan starts app and skips unconfigured workers", () => {
+test("local supervisor plan starts app and skips unconfigured workers", async () => {
+  await clearImageBackendPreset();
   delete process.env.NIPUX_FAKE_LLM;
   delete process.env.NIPUX_LLAMA_COMMAND;
   delete process.env.NIPUX_LLAMA_MODEL_PATH;
@@ -56,6 +58,25 @@ test("local supervisor plan starts app and skips unconfigured workers", () => {
   expect(plan.nextSteps.some((step) => step.includes("NIPUX_IMAGE_COMMAND"))).toBe(true);
   expect(plan.nextSteps.some((step) => step.includes("transcription:install"))).toBe(true);
   expect(plan.nextSteps.some((step) => step.includes("NIPUX_VIDEO_COMMAND"))).toBe(false);
+});
+
+test("local supervisor uses selected image backend when installed", async () => {
+  await selectImageBackendPreset("diffusers-sdxl-turbo");
+  delete process.env.NIPUX_IMAGE_COMMAND;
+  delete process.env.NIPUX_IMAGE_ARGS;
+  delete process.env.NIPUX_IMAGE_MODEL;
+  const fakePython = imageBackendWorkerEnv("diffusers-sdxl-turbo")!.NIPUX_IMAGE_COMMAND;
+  mkdirSync(dirname(fakePython), { recursive: true });
+  writeFileSync(fakePython, "");
+
+  const plan = getLocalSupervisorPlan();
+  const image = plan.ready.find((item) => item.kind === "image");
+  expect(image?.label).toContain("diffusers-sdxl-turbo");
+  expect(image?.env.NIPUX_IMAGE_COMMAND).toBe(fakePython);
+  expect(image?.env.NIPUX_IMAGE_ARGS).toContain("diffusers-image.py");
+  expect(image?.env.NIPUX_IMAGE_MODEL).toBe("stabilityai/sdxl-turbo");
+
+  await clearImageBackendPreset();
 });
 
 test("local supervisor plan wires configured workers into the app environment", async () => {

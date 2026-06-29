@@ -810,8 +810,7 @@ h2 {
   }
 
   .sidebar {
-    position: sticky;
-    top: 0;
+    position: static;
     z-index: 2;
     border-right: 0;
     border-bottom: 1px solid var(--line);

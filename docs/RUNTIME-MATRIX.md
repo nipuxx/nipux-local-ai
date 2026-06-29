@@ -135,6 +135,14 @@ The default image command receives `{input} {output}`. The input is a JSON file 
 
 For a direct local Diffusers setup, run `bun run image:backends` and use the recommended preset. The bundled `scripts/image-backends/diffusers-image.py` command can run SDXL Turbo or another Diffusers text-to-image model after Python dependencies are installed. This remains opt-in because local model downloads, VRAM, and model license terms vary by machine.
 
+Select a preset for `bun run local`:
+
+```bash
+bun run image:select diffusers-sdxl-turbo
+```
+
+Selection stores the preset and local image worker URL. It does not install Python packages or model weights by itself; use the install command printed by `bun run image:backends`.
+
 Start the bundled video command worker:
 
 ```bash

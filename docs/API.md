@@ -299,6 +299,20 @@ Returns hardware-aware local image backend presets. The current presets include 
 
 The repo also includes `scripts/image-backends/diffusers-image.py`, which implements the `{input} {output}` command contract for local Diffusers pipelines.
 
+### `POST /api/media/images/backends/select`
+
+Persists a selected image backend preset and sets the image worker URL to the local default. The local supervisor uses the selected preset to populate `NIPUX_IMAGE_COMMAND`, `NIPUX_IMAGE_ARGS`, and `NIPUX_IMAGE_MODEL` when env vars do not override them.
+
+```json
+{
+  "presetId": "diffusers-sdxl-turbo"
+}
+```
+
+### `DELETE /api/media/images/backends/selection`
+
+Clears the selected image backend preset and clears the persisted image worker URL.
+
 The video runtime can use the bundled local command worker:
 
 ```bash

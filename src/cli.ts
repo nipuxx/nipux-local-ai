@@ -10,7 +10,7 @@ import { applyRecommendedMediaRuntimeDefaults, formatMediaRuntimePlan, getMediaR
 import { formatReadinessReport, getReadinessReport } from "./services/readiness.ts";
 import { formatSetupActions, getSetupActions } from "./services/setupActions.ts";
 import { formatLaunchProfile, getLaunchProfile, writeLaunchProfileFiles } from "./services/launchProfile.ts";
-import { formatImageBackendPlan, getImageBackendPlan, imageStartCommand } from "./services/imageSetup.ts";
+import { clearImageBackendPreset, formatImageBackendPlan, getImageBackendPlan, imageStartCommand, selectImageBackendPreset } from "./services/imageSetup.ts";
 import { formatLocalSupervisorPlan, getLocalSupervisorPlan, runLocalSupervisor } from "./services/localSupervisor.ts";
 import { installWhisperModel, WHISPER_MODEL_PRESETS, whisperInstallCommand, whisperStartCommand } from "./services/transcriptionSetup.ts";
 import { videoStartCommand } from "./services/videoSetup.ts";
@@ -34,6 +34,7 @@ Commands:
   bun run media:runtimes          Show local media runtime setup plan
   bun run capabilities            Show this machine's consumer capability profile
   bun run image:backends          Show local image backend setup presets
+  bun run image:select <preset>   Select a local image backend for bun run local
   bun run media:defaults          Persist recommended local media worker URLs
   bun run worker:image            Start bundled local image command worker
   bun run transcription:install   Download the default local Whisper transcription model
@@ -261,6 +262,30 @@ async function main() {
     }
     console.log(`\nNipux Local AI image backend setup`);
     console.log(formatImageBackendPlan(plan));
+    return;
+  }
+
+  if (command === "image-select" || command === "image:select") {
+    const preset = process.argv[3];
+    if (!preset) throw new Error("preset is required. Run bun run image:backends to list presets.");
+    const result = await selectImageBackendPreset(preset);
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+    console.log(`Selected image backend: ${result.selectedPresetId}`);
+    console.log(`Worker URL: ${result.settings.imageWorkerUrl}`);
+    console.log("Next: install the backend dependencies from bun run image:backends, then run bun run local.");
+    return;
+  }
+
+  if (command === "image-clear" || command === "image:clear") {
+    const result = await clearImageBackendPreset();
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+    console.log("Cleared selected image backend.");
     return;
   }
 

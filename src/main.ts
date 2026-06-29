@@ -43,7 +43,7 @@ import { indexPath } from "./services/fileIndexer.ts";
 import { getHermesStatus } from "./services/hermes.ts";
 import { detectHardware } from "./services/hardware.ts";
 import { getDiagnosticsReport } from "./services/diagnostics.ts";
-import { getImageBackendPlan } from "./services/imageSetup.ts";
+import { clearImageBackendPreset, getImageBackendPlan, selectImageBackendPreset } from "./services/imageSetup.ts";
 import { getLaunchProfile, writeLaunchProfileFiles } from "./services/launchProfile.ts";
 import { getLocalSupervisorPlan } from "./services/localSupervisor.ts";
 import {
@@ -780,6 +780,18 @@ export async function route(req: Request): Promise<Response> {
   if (url.pathname === "/api/media/capabilities" && req.method === "GET") return json(await getMediaCapabilities());
   if (url.pathname === "/api/media/runtimes" && req.method === "GET") return json(await getMediaRuntimePlan());
   if (url.pathname === "/api/media/images/backends" && req.method === "GET") return json(await getImageBackendPlan());
+  if (url.pathname === "/api/media/images/backends/select" && req.method === "POST") {
+    const body = await readJson<{ presetId?: string }>(req);
+    if (!body.presetId) return json({ error: "presetId is required" }, 400);
+    try {
+      return json(await selectImageBackendPreset(body.presetId));
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  }
+  if (url.pathname === "/api/media/images/backends/selection" && req.method === "DELETE") {
+    return json(await clearImageBackendPreset());
+  }
   if (url.pathname === "/api/media/runtimes/defaults" && req.method === "POST") {
     const body = await readJson<{ includeOptional?: boolean; overwrite?: boolean; kinds?: MediaKind[] }>(req);
     return json(await applyRecommendedMediaRuntimeDefaults(body));
