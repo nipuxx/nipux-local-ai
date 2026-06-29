@@ -86,6 +86,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Image generation can run through the bundled local command worker when a local image backend command is configured.
 - Hardware-aware local image backend presets exist, including an optional Diffusers command bridge for the image worker.
 - Image backend preset selection persists to Settings and can be used by `bun run local` when the selected local backend is installed.
+- Managed Diffusers image backend presets report install status and expose `bun run image:install <preset>` for one-command local Python runtime setup.
 - Video generation can run through the bundled local command worker when a local video backend command is configured.
 - Built-in local speech generation exists when the host OS has a supported system speech engine.
 - Assistant chat messages can be played through the local speech route.

@@ -291,13 +291,17 @@ Returns hardware-aware local image backend presets. The current presets include 
       "label": "Diffusers SDXL Turbo",
       "model": "stabilityai/sdxl-turbo",
       "recommended": true,
-      "localOnly": true
+      "localOnly": true,
+      "install": {
+        "installed": false,
+        "command": "bun run image:install diffusers-sdxl-turbo"
+      }
     }
   ]
 }
 ```
 
-The repo also includes `scripts/image-backends/diffusers-image.py`, which implements the `{input} {output}` command contract for local Diffusers pipelines.
+The repo also includes `scripts/image-backends/diffusers-image.py`, which implements the `{input} {output}` command contract for local Diffusers pipelines. Managed Diffusers presets include an `install` object with the current local runtime status, Python path, and one-command installer.
 
 ### `POST /api/media/images/backends/select`
 

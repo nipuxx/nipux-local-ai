@@ -707,23 +707,29 @@ async function loadMedia() {
     )
     .join("");
   $("#imageBackendPlan").innerHTML = state.imageBackendPlan.presets
-    .map(
-      (preset) => `
+    .map((preset) => {
+      const selected = preset.id === state.imageBackendPlan.selectedPresetId;
+      const availability = preset.install?.installed ? "installed" : "install needed";
+      const installCommand = preset.commands.find((item) => item.label.includes("Install"))?.command || "";
+      const startCommand = preset.commands.find((item) => item.label.includes("Start"))?.command || preset.commands[0]?.command || "";
+      return `
         <div class="media-runtime ${preset.id === state.imageBackendPlan.selectedPresetId || preset.recommended ? "" : "media-warn"}">
           <div>
             <strong>${h(preset.label)}</strong>
-            <span>${preset.id === state.imageBackendPlan.selectedPresetId ? "selected" : preset.recommended ? "recommended" : "optional"}</span>
+            <span>${h(`${selected ? "selected" : preset.recommended ? "recommended" : "optional"} · ${availability}`)}</span>
           </div>
           <div class="meta">${h(preset.description)}</div>
           <div class="meta">${h(preset.hardwareFit)}</div>
-          <code>${h(preset.commands.find((item) => item.label.includes("Start"))?.command || preset.commands[0]?.command || "")}</code>
+          <div class="meta">${h(preset.install?.detail || "")}</div>
+          ${installCommand ? `<code>${h(installCommand)}</code>` : ""}
+          <code>${h(startCommand)}</code>
           <div class="meta">${h(preset.model)}</div>
           <div class="button-row">
-            <button class="select-image-backend" data-preset-id="${h(preset.id)}">${preset.id === state.imageBackendPlan.selectedPresetId ? "Selected" : "Use"}</button>
-            ${preset.id === state.imageBackendPlan.selectedPresetId ? `<button class="clear-image-backend">Clear</button>` : ""}
+            <button class="select-image-backend" data-preset-id="${h(preset.id)}">${selected ? "Selected" : "Use"}</button>
+            ${selected ? `<button class="clear-image-backend">Clear</button>` : ""}
           </div>
-        </div>`,
-    )
+        </div>`;
+    })
     .join("");
   $("#mediaCapabilities").innerHTML = Object.values(state.mediaCapabilities)
     .map(

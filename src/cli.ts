@@ -10,7 +10,14 @@ import { applyRecommendedMediaRuntimeDefaults, formatMediaRuntimePlan, getMediaR
 import { formatReadinessReport, getReadinessReport } from "./services/readiness.ts";
 import { formatSetupActions, getSetupActions } from "./services/setupActions.ts";
 import { formatLaunchProfile, getLaunchProfile, writeLaunchProfileFiles } from "./services/launchProfile.ts";
-import { clearImageBackendPreset, formatImageBackendPlan, getImageBackendPlan, imageStartCommand, selectImageBackendPreset } from "./services/imageSetup.ts";
+import {
+  clearImageBackendPreset,
+  formatImageBackendPlan,
+  getImageBackendPlan,
+  imageStartCommand,
+  installImageBackendPreset,
+  selectImageBackendPreset,
+} from "./services/imageSetup.ts";
 import { formatLocalSupervisorPlan, getLocalSupervisorPlan, runLocalSupervisor } from "./services/localSupervisor.ts";
 import { installWhisperModel, WHISPER_MODEL_PRESETS, whisperInstallCommand, whisperStartCommand } from "./services/transcriptionSetup.ts";
 import { videoStartCommand } from "./services/videoSetup.ts";
@@ -34,6 +41,7 @@ Commands:
   bun run media:runtimes          Show local media runtime setup plan
   bun run capabilities            Show this machine's consumer capability profile
   bun run image:backends          Show local image backend setup presets
+  bun run image:install <preset>  Install local image backend dependencies
   bun run image:select <preset>   Select a local image backend for bun run local
   bun run media:defaults          Persist recommended local media worker URLs
   bun run worker:image            Start bundled local image command worker
@@ -275,7 +283,42 @@ async function main() {
     }
     console.log(`Selected image backend: ${result.selectedPresetId}`);
     console.log(`Worker URL: ${result.settings.imageWorkerUrl}`);
-    console.log("Next: install the backend dependencies from bun run image:backends, then run bun run local.");
+    const selectedPreset = result.plan.presets.find((item) => item.id === result.selectedPresetId);
+    console.log(
+      selectedPreset?.install.command.includes("image:install")
+        ? `Next: ${selectedPreset.install.command}`
+        : "Next: set NIPUX_IMAGE_COMMAND to your local image backend command",
+    );
+    console.log("Then: bun run local");
+    return;
+  }
+
+  if (command === "image-install" || command === "image:install") {
+    const plan = await getImageBackendPlan();
+    const requestedPreset = process.argv[3] && !process.argv[3].startsWith("--") ? process.argv[3] : "";
+    const installableRecommended = plan.presets.find((preset) => preset.id === plan.recommendedPresetId && preset.install.command.includes("image:install"));
+    const installableFallback = plan.presets.find((preset) => preset.install.command.includes("image:install"));
+    const preset = requestedPreset || installableRecommended?.id || installableFallback?.id;
+    if (!preset) throw new Error("No automated local image backend installer is available.");
+
+    const result = await installImageBackendPreset(preset, { dryRun: process.argv.includes("--dry-run") });
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+
+    console.log(result.dryRun ? "\nNipux Local AI image backend install plan" : "\nNipux Local AI image backend installed");
+    console.log(`  Preset:  ${result.presetId}`);
+    console.log(`  Runtime: ${result.runtimeDir}`);
+    console.log(`  Python:  ${result.pythonPath}`);
+    console.log(`  Status:  ${result.installed ? "installed" : result.dryRun ? "not installed yet" : "install command finished, runtime still missing"}`);
+    console.log("\nCommands:");
+    for (const item of result.commands) console.log(`  ${item}`);
+    if (!result.dryRun) {
+      console.log("\nNext steps:");
+      console.log(`  bun run image:select ${result.presetId}`);
+      console.log("  bun run local");
+    }
     return;
   }
 

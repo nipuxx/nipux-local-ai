@@ -1,5 +1,6 @@
+import { existsSync, mkdirSync } from "node:fs";
 import { platform } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { NIPUX_HOME } from "../config.ts";
 import type { HardwareProfile } from "../types.ts";
 import { detectHardware } from "./hardware.ts";
@@ -8,6 +9,7 @@ import { getRawSetting, setRawSetting, updateAppSettings } from "./settings.ts";
 export const DEFAULT_IMAGE_COMMAND_PLACEHOLDER = "/path/to/local-image-command";
 export const DIFFUSERS_IMAGE_BACKEND_SCRIPT = "scripts/image-backends/diffusers-image.py";
 export const IMAGE_BACKEND_SETTING_KEY = "image_backend_preset";
+const DIFFUSERS_PACKAGES = ["torch", "diffusers", "transformers", "accelerate", "safetensors", "pillow"];
 
 export interface ImageBackendCommand {
   label: string;
@@ -23,6 +25,13 @@ export interface ImageBackendPreset {
   localOnly: true;
   hardwareFit: string;
   description: string;
+  install: {
+    installed: boolean;
+    runtimeDir: string;
+    pythonPath: string;
+    command: string;
+    detail: string;
+  };
   commands: ImageBackendCommand[];
   notes: string[];
 }
@@ -39,6 +48,16 @@ export interface ImageBackendSelectionResult {
   selectedPresetId: string;
   plan: ImageBackendPlan;
   settings: ReturnType<typeof updateAppSettings>;
+}
+
+export interface ImageBackendInstallResult {
+  presetId: string;
+  installed: boolean;
+  dryRun: boolean;
+  runtimeDir: string;
+  pythonPath: string;
+  commands: string[];
+  output: string[];
 }
 
 function shellArg(value: string) {
@@ -67,23 +86,44 @@ function diffusersPythonCommand() {
   return join(dir, "bin", "python");
 }
 
-function diffusersInstallCommands() {
+function diffusersInstallCommand(presetId: string) {
+  return `bun run image:install ${presetId}`;
+}
+
+function diffusersManualInstallCommand() {
   const dir = diffusersRuntimeDir();
   if (platform() === "win32") {
     const winDir = "%USERPROFILE%\\.nipux-local-ai\\runtimes\\image-diffusers";
-    return [
-      command(
-        "Install backend",
-        `py -3 -m venv "${winDir}" && "${winDir}\\Scripts\\python.exe" -m pip install --upgrade pip torch diffusers transformers accelerate safetensors pillow`,
-      ),
-    ];
+    return `py -3 -m venv "${winDir}" && "${winDir}\\Scripts\\python.exe" -m pip install --upgrade pip ${DIFFUSERS_PACKAGES.join(" ")}`;
   }
-  return [
-    command(
-      "Install backend",
-      `python3 -m venv ${shellArg(dir)} && ${shellArg(join(dir, "bin", "python"))} -m pip install --upgrade pip torch diffusers transformers accelerate safetensors pillow`,
-    ),
-  ];
+  return `python3 -m venv ${shellArg(dir)} && ${shellArg(join(dir, "bin", "python"))} -m pip install --upgrade pip ${DIFFUSERS_PACKAGES.join(" ")}`;
+}
+
+function diffusersInstallStatus(presetId: string) {
+  const runtimeDir = diffusersRuntimeDir();
+  const pythonPath = diffusersPythonCommand();
+  const installed = existsSync(pythonPath);
+  return {
+    installed,
+    runtimeDir,
+    pythonPath,
+    command: diffusersInstallCommand(presetId),
+    detail: installed
+      ? "Local Diffusers Python runtime exists. Package imports are checked when the worker starts."
+      : "Install needed before bun run local can start this selected image worker.",
+  };
+}
+
+function customInstallStatus() {
+  return {
+    installed: Boolean(process.env.NIPUX_IMAGE_COMMAND),
+    runtimeDir: "",
+    pythonPath: process.env.NIPUX_IMAGE_COMMAND ?? "",
+    command: imageStartCommand(),
+    detail: process.env.NIPUX_IMAGE_COMMAND
+      ? "Custom image command is configured in this environment."
+      : "Set NIPUX_IMAGE_COMMAND or choose a managed local backend preset.",
+  };
 }
 
 function diffusersStartCommand(model: string) {
@@ -133,10 +173,12 @@ export function buildImageBackendPlan(hardware: HardwareProfile): ImageBackendPl
       localOnly: true,
       hardwareFit: imageFit(hardware, "fast"),
       description: "Fast local Diffusers path for GPU or strong unified-memory machines.",
+      install: diffusersInstallStatus("diffusers-sdxl-turbo"),
       commands: [
-        ...diffusersInstallCommands(),
+        command("Install backend", diffusersInstallCommand("diffusers-sdxl-turbo")),
         command("Start image worker", diffusersStartCommand("stabilityai/sdxl-turbo")),
         command("Persist worker URL", "bun run media:defaults --include-optional"),
+        command("Manual install", diffusersManualInstallCommand(), false),
       ],
       notes: [
         "Downloads model weights locally through Diffusers on first use.",
@@ -151,10 +193,12 @@ export function buildImageBackendPlan(hardware: HardwareProfile): ImageBackendPl
       localOnly: true,
       hardwareFit: imageFit(hardware, "fallback"),
       description: "Older, lighter Diffusers fallback when SDXL-class models are too heavy.",
+      install: diffusersInstallStatus("diffusers-sd15"),
       commands: [
-        ...diffusersInstallCommands(),
+        command("Install backend", diffusersInstallCommand("diffusers-sd15")),
         command("Start image worker", diffusersStartCommand("runwayml/stable-diffusion-v1-5")),
         command("Persist worker URL", "bun run media:defaults --include-optional"),
+        command("Manual install", diffusersManualInstallCommand(), false),
       ],
       notes: ["Use smaller sizes on low-memory systems.", "CPU runs can take a long time."],
     },
@@ -166,6 +210,7 @@ export function buildImageBackendPlan(hardware: HardwareProfile): ImageBackendPl
       localOnly: true,
       hardwareFit: imageFit(hardware, "custom"),
       description: "Adapter for any local image runtime that can read the Nipux request JSON and write an output image.",
+      install: customInstallStatus(),
       commands: [
         command("Start image worker", imageStartCommand()),
         command("Worker contract", imageWorkerContract(), false),
@@ -177,6 +222,20 @@ export function buildImageBackendPlan(hardware: HardwareProfile): ImageBackendPl
   const recommendedPresetId = presets.find((preset) => preset.recommended)?.id ?? "custom-command";
   const selected = getRawSetting(IMAGE_BACKEND_SETTING_KEY, "");
   const selectedPresetId = presets.some((preset) => preset.id === selected) ? selected : "";
+  const selectedPreset = presets.find((preset) => preset.id === selectedPresetId);
+  const recommendedPreset = presets.find((preset) => preset.id === recommendedPresetId);
+  const managedInstallPreset = presets.find((preset) => preset.install.command.includes("image:install"));
+  const installStep = selectedPreset?.install.installed
+    ? "Selected backend runtime exists; bun run local can start the image worker."
+    : selectedPreset?.install.command.includes("image:install")
+      ? `Run ${selectedPreset.install.command} before starting bun run local.`
+      : selectedPreset
+        ? "Set NIPUX_IMAGE_COMMAND before starting bun run local."
+        : recommendedPreset?.install.command.includes("image:install")
+          ? `Run ${recommendedPreset.install.command} before starting bun run local.`
+          : managedInstallPreset
+            ? `For managed Diffusers, run ${managedInstallPreset.install.command}; custom backends need NIPUX_IMAGE_COMMAND.`
+            : "Configure a local image command before starting bun run local.";
   return {
     hardware,
     presets,
@@ -187,7 +246,7 @@ export function buildImageBackendPlan(hardware: HardwareProfile): ImageBackendPl
         ? `Selected image backend: ${presets.find((preset) => preset.id === selectedPresetId)?.label ?? selectedPresetId}.`
         : `Review presets with bun run image:backends.`,
       selectedPresetId ? "Run bun run image:clear to return to manual image worker configuration." : `Select one with bun run image:select ${recommendedPresetId}.`,
-      `Install the selected local backend dependencies before starting bun run local.`,
+      installStep,
       "Run bun run media:defaults --include-optional to point Settings at the local worker URL.",
     ],
   };
@@ -208,6 +267,7 @@ export function formatImageBackendPlan(plan: ImageBackendPlan) {
     lines.push(`${preset.label}${preset.recommended ? " (recommended)" : ""}`);
     lines.push(`  Model: ${preset.model}`);
     lines.push(`  Fit: ${preset.hardwareFit}`);
+    lines.push(`  Install: ${preset.install.installed ? "installed" : "needed"} - ${preset.install.detail}`);
     lines.push(`  ${preset.description}`);
     for (const item of preset.commands) lines.push(`  ${item.label}: ${item.command}`);
     lines.push("");
@@ -229,4 +289,29 @@ export async function clearImageBackendPreset(): Promise<ImageBackendSelectionRe
   setRawSetting(IMAGE_BACKEND_SETTING_KEY, "");
   const settings = updateAppSettings({ imageWorkerUrl: "" });
   return { selectedPresetId: "", plan: await getImageBackendPlan(), settings };
+}
+
+async function runProcess(commandParts: string[], cwd?: string) {
+  const proc = Bun.spawn(commandParts, { cwd, stdout: "pipe", stderr: "pipe" });
+  const [stdout, stderr, exitCode] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
+  if (exitCode !== 0) throw new Error(stderr || stdout || `${commandParts.join(" ")} failed with exit code ${exitCode}`);
+  return [stdout, stderr].filter((item) => item.trim()).join("\n").trim();
+}
+
+export async function installImageBackendPreset(presetId: string, input: { dryRun?: boolean } = {}): Promise<ImageBackendInstallResult> {
+  if (!["diffusers-sdxl-turbo", "diffusers-sd15"].includes(presetId)) {
+    throw new Error(`Image backend preset ${presetId} does not have an automated installer.`);
+  }
+  const runtimeDir = diffusersRuntimeDir();
+  const pythonPath = diffusersPythonCommand();
+  const venvCommand = platform() === "win32" ? ["py", "-3", "-m", "venv", runtimeDir] : ["python3", "-m", "venv", runtimeDir];
+  const pipCommand = [pythonPath, "-m", "pip", "install", "--upgrade", "pip", ...DIFFUSERS_PACKAGES];
+  const commands = [venvCommand.join(" "), pipCommand.join(" ")];
+  if (input.dryRun) {
+    return { presetId, installed: existsSync(pythonPath), dryRun: true, runtimeDir, pythonPath, commands, output: [] };
+  }
+
+  mkdirSync(dirname(runtimeDir), { recursive: true });
+  const output = [await runProcess(venvCommand), await runProcess(pipCommand)];
+  return { presetId, installed: existsSync(pythonPath), dryRun: false, runtimeDir, pythonPath, commands, output: output.filter(Boolean) };
 }

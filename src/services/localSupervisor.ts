@@ -157,7 +157,7 @@ function configuredImagePlan(): ManagedProcessPlan {
     reason: imageReady
       ? undefined
       : selectedEnv
-        ? "Install the selected local image backend dependencies with bun run image:backends, then rerun bun run local."
+        ? `Run bun run image:install ${selectedPresetId}, then rerun bun run local.`
         : "Set NIPUX_IMAGE_COMMAND or choose a local image backend with bun run image:backends.",
   };
 }

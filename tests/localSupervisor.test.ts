@@ -1,5 +1,5 @@
 import { afterAll, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -75,6 +75,20 @@ test("local supervisor uses selected image backend when installed", async () => 
   expect(image?.env.NIPUX_IMAGE_COMMAND).toBe(fakePython);
   expect(image?.env.NIPUX_IMAGE_ARGS).toContain("diffusers-image.py");
   expect(image?.env.NIPUX_IMAGE_MODEL).toBe("stabilityai/sdxl-turbo");
+
+  await clearImageBackendPreset();
+});
+
+test("local supervisor points selected missing image backend to installer", async () => {
+  await selectImageBackendPreset("diffusers-sdxl-turbo");
+  delete process.env.NIPUX_IMAGE_COMMAND;
+  delete process.env.NIPUX_IMAGE_ARGS;
+  delete process.env.NIPUX_IMAGE_MODEL;
+  rmSync(imageBackendWorkerEnv("diffusers-sdxl-turbo")!.NIPUX_IMAGE_COMMAND, { force: true });
+
+  const plan = getLocalSupervisorPlan();
+  const image = plan.skipped.find((item) => item.kind === "image");
+  expect(image?.reason).toContain("bun run image:install diffusers-sdxl-turbo");
 
   await clearImageBackendPreset();
 });

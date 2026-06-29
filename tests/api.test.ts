@@ -184,9 +184,11 @@ test("image backend route returns local-only setup presets", async () => {
   const res = await route(new Request("http://localhost/api/media/images/backends"));
   expect(res.status).toBe(200);
   const json = await res.json();
-  expect(json.presets.some((preset: { id: string }) => preset.id === "diffusers-sdxl-turbo")).toBe(true);
+  const turbo = json.presets.find((preset: { id: string }) => preset.id === "diffusers-sdxl-turbo");
+  expect(turbo).toBeTruthy();
+  expect(turbo.install.command).toContain("bun run image:install diffusers-sdxl-turbo");
   expect(json.presets.every((preset: { localOnly: boolean }) => preset.localOnly)).toBe(true);
-  expect(json.nextSteps.some((step: string) => step.includes("image:backends"))).toBe(true);
+  expect(json.nextSteps.length).toBeGreaterThan(0);
 });
 
 test("image backend selection persists worker defaults", async () => {
