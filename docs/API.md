@@ -475,14 +475,15 @@ Returns a chat and its messages.
 
 ### `POST /api/chats/:id/respond`
 
-Runs the app-native chat flow: persists the user message, searches indexed local documents, injects relevant local context into the model prompt, streams or returns the assistant response, appends deterministic source lines, and persists the assistant message.
+Runs the app-native chat flow: persists the user message, searches indexed local documents, executes clear local image/speech/video media requests, injects relevant local context and media tool activity into the model prompt, streams or returns the assistant response, appends deterministic source/tool lines, and persists the assistant message with any media job ids.
 
 ```json
 {
   "content": "Search local notes for the launch requirements.",
   "modelPreset": "balanced",
   "stream": true,
-  "useLocalSearch": true
+  "useLocalSearch": true,
+  "useMediaTools": true
 }
 ```
 

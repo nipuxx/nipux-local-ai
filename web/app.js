@@ -281,13 +281,18 @@ function applySettingsToUi() {
 }
 
 function addMessage(role, content = "", options = {}) {
-  const { scroll = true } = options;
+  const { scroll = true, mediaJobs = [] } = options;
   const el = document.createElement("div");
   el.className = `message ${role}`;
   const body = document.createElement("div");
   body.className = "message-content";
   body.textContent = content;
   el.appendChild(body);
+  if (mediaJobs.length) {
+    const artifacts = document.createElement("div");
+    artifacts.innerHTML = renderMediaJobs(mediaJobs, "Chat media artifacts");
+    el.appendChild(artifacts);
+  }
   if (role === "assistant") {
     const tools = document.createElement("div");
     tools.className = "message-tools";
@@ -309,7 +314,9 @@ function renderMessages(options = {}) {
     return;
   }
   let lastMessage = null;
-  for (const message of state.messages) lastMessage = addMessage(message.role, message.content, { scroll: false });
+  for (const message of state.messages) {
+    lastMessage = addMessage(message.role, message.content, { scroll: false, mediaJobs: message.mediaJobs || [] });
+  }
   if (scroll) lastMessage?.scrollIntoView({ block: "end" });
 }
 
@@ -332,7 +339,7 @@ async function loadChats() {
 async function openChat(id) {
   const data = await api(`/api/chats/${id}`);
   state.activeChatId = data.chat.id;
-  state.messages = data.messages.map((message) => ({ role: message.role, content: message.content }));
+  state.messages = data.messages.map((message) => ({ role: message.role, content: message.content, mediaJobs: message.mediaJobs || [] }));
   $("#presetSelect").value = data.chat.modelPreset || $("#presetSelect").value;
   renderMessages({ scroll: Boolean(state.messages.length) });
   await loadChats();
@@ -1278,7 +1285,7 @@ function mediaJobBodyHtml(job) {
   return `<div class="meta">Job is ${h(job.status)}.</div>`;
 }
 
-function renderAgentMediaJobs(jobs = []) {
+function renderMediaJobs(jobs = [], ariaLabel = "Local media artifacts") {
   const mediaJobs = jobs.filter((job) => job && job.kind);
   if (!mediaJobs.length) return "";
   const labelFor = (kind) => {
@@ -1289,7 +1296,7 @@ function renderAgentMediaJobs(jobs = []) {
     return `${kind} artifact`;
   };
   return `
-    <div class="agent-artifacts" aria-label="Agent media artifacts">
+    <div class="agent-artifacts" aria-label="${h(ariaLabel)}">
       ${mediaJobs
         .map((job) => {
           const failed = job.status === "failed";
@@ -1308,6 +1315,10 @@ function renderAgentMediaJobs(jobs = []) {
         })
         .join("")}
     </div>`;
+}
+
+function renderAgentMediaJobs(jobs = []) {
+  return renderMediaJobs(jobs, "Agent media artifacts");
 }
 
 function renderAgentOutputHtml(output = "", mediaJobs = []) {
@@ -2325,7 +2336,13 @@ async function sendChat(event) {
     }
   }
   state.messages.push({ role: "assistant", content: full });
-  await Promise.all([loadUsage(), loadChats()]);
+  const refreshed = await api(`/api/chats/${chatId}`);
+  state.messages = refreshed.messages.map((message) => ({ role: message.role, content: message.content, mediaJobs: message.mediaJobs || [] }));
+  renderMessages({ scroll: true });
+  const hasMedia = state.messages.some((message) => message.mediaJobs?.length);
+  const refreshes = [loadUsage(), loadChats()];
+  if (hasMedia) refreshes.push(loadMedia());
+  await Promise.all(refreshes);
 }
 
 async function runAgentForm(event) {

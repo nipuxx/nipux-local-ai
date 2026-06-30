@@ -19,6 +19,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - One-click Chat-page start/stop controls for the managed local model runtime when a GGUF model is installed
 - Local speech playback for assistant chat messages
 - Microphone recording in chat that transcribes through a configured local transcription worker
+- Main chat requests can create local-only image/speech/video jobs and persist generated artifacts in chat history
 - Fast / Balanced / Smart model modes
 - Qwen3 GGUF defaults:
   - Fast: `Qwen/Qwen3-4B-GGUF:Qwen3-4B-Q4_K_M.gguf`
@@ -61,6 +62,10 @@ bun run dev
 Open `http://127.0.0.1:3434`.
 
 Dev mode sets `NIPUX_FAKE_LLM=1`, so chat streams immediately without a real model.
+
+## Chat
+
+The main Chat page stays the everyday entry point. It streams normal assistant responses, cites indexed local context when relevant, supports local voice input/output, and can create image, speech, or video media jobs from clear natural-language requests. Chat-created media uses the same local-only worker system as the Media and Agents pages, records setup failures honestly, and persists generated artifacts with the assistant message so reopening the chat shows the same media cards.
 
 ## Run With llama.cpp
 

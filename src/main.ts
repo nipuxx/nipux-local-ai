@@ -57,6 +57,7 @@ import {
   type MediaKind,
   type MediaJob,
 } from "./services/media.ts";
+import { formatMediaGenerationToolEvents, runMediaGenerationTools, type MediaGenerationToolEvent } from "./services/mediaGenerationTools.ts";
 import { applyRecommendedMediaRuntimeDefaults, getMediaRuntimePlan } from "./services/mediaRuntimes.ts";
 import {
   createAgentMemory,
@@ -272,6 +273,9 @@ function streamNativeChat(input: {
   upstream: Response;
   sourceAppendix: string;
   citations: ChatCitation[];
+  mediaActivity: string;
+  mediaEvents: MediaGenerationToolEvent[];
+  mediaJobs: MediaJob[];
   started: number;
   tokensIn: number;
 }) {
@@ -306,14 +310,17 @@ function streamNativeChat(input: {
             }
           }
 
-          if (input.sourceAppendix) {
-            const appendix = `\n\n${input.sourceAppendix}`;
+          const appendices = [input.sourceAppendix, input.mediaActivity].filter(Boolean).join("\n\n");
+          if (appendices) {
+            const appendix = `\n\n${appendices}`;
             output += appendix;
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(chatChunk(input.model, appendix))}\n\n`));
           }
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(doneChunk(input.model))}\n\n`));
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          if (output.trim()) addChatMessage(input.chatId, "assistant", output);
+          if (output.trim() || input.mediaJobs.length) {
+            addChatMessage(input.chatId, "assistant", output, input.mediaJobs.map((job) => job.id));
+          }
           recordUsage({
             kind: "chat",
             model: input.model,
@@ -321,7 +328,13 @@ function streamNativeChat(input: {
             tokensOut: Math.ceil(output.length / 4),
             latencyMs: Date.now() - input.started,
             status: "ok",
-            meta: { native: true, stream: true, citations: input.citations.length },
+            meta: {
+              native: true,
+              stream: true,
+              citations: input.citations.length,
+              mediaJobs: input.mediaJobs.length,
+              mediaTools: input.mediaEvents.map((event) => ({ tool: event.tool, status: event.status })),
+            },
           });
           controller.close();
         } catch (error) {
@@ -350,21 +363,34 @@ function streamNativeChat(input: {
 
 async function handleNativeChatRespond(chatId: string, req: Request) {
   const started = Date.now();
-  const body = await readJson<{ content?: string; modelPreset?: string; stream?: boolean; useLocalSearch?: boolean }>(req);
+  const body = await readJson<{ content?: string; modelPreset?: string; stream?: boolean; useLocalSearch?: boolean; useMediaTools?: boolean }>(req);
   const content = body.content?.trim();
   if (!content) return json({ error: "content is required" }, 400);
 
   const model = body.modelPreset ?? getAppSettings().defaultModelPreset;
   updateChatModel(chatId, model);
   addChatMessage(chatId, "user", content);
+  const mediaRun = body.useMediaTools === false
+    ? { mediaJobs: [] as MediaJob[], events: [] as MediaGenerationToolEvent[], contextBlock: "" }
+    : await runMediaGenerationTools(content);
+  const mediaActivity = formatMediaGenerationToolEvents(mediaRun.events);
   const storedMessages = listChatMessages(chatId).map((message) => ({ role: message.role, content: message.content }));
   const context = body.useLocalSearch === false
     ? { citations: [] as ChatCitation[], messages: storedMessages, sourceAppendix: "" }
     : buildChatContext(content, storedMessages);
-  const tokensIn = estimateMessageTokens(context.messages);
+  const mediaContext = mediaActivity
+    ? `Local media tool context:
+${mediaRun.contextBlock}
+
+Rules:
+- Treat this media tool context as the authoritative record of what actually happened.
+- Do not claim image, speech, or video media was generated unless the matching tool event is ok and a completed media job exists.`
+    : "";
+  const messages = mediaContext ? [{ role: "system" as const, content: mediaContext }, ...context.messages] : context.messages;
+  const tokensIn = estimateMessageTokens(messages);
 
   try {
-    const upstream = await chatCompletion({ model, messages: context.messages, stream: body.stream !== false });
+    const upstream = await chatCompletion({ model, messages, stream: body.stream !== false });
     if (body.stream !== false) {
       if (!upstream.body) throw new Error("Chat backend did not return a stream.");
       return streamNativeChat({
@@ -373,6 +399,9 @@ async function handleNativeChatRespond(chatId: string, req: Request) {
         upstream,
         sourceAppendix: context.sourceAppendix,
         citations: context.citations,
+        mediaActivity,
+        mediaEvents: mediaRun.events,
+        mediaJobs: mediaRun.mediaJobs,
         started,
         tokensIn,
       });
@@ -380,8 +409,11 @@ async function handleNativeChatRespond(chatId: string, req: Request) {
 
     const payload = (await upstream.json()) as { choices?: Array<{ message?: { content?: string } }> };
     const modelOutput = payload.choices?.[0]?.message?.content ?? "";
-    const output = context.sourceAppendix ? `${modelOutput}\n\n${context.sourceAppendix}` : modelOutput;
-    const message = output.trim() ? addChatMessage(chatId, "assistant", output) : null;
+    const appendices = [context.sourceAppendix, mediaActivity].filter(Boolean).join("\n\n");
+    const output = appendices ? `${modelOutput}\n\n${appendices}` : modelOutput;
+    const message = output.trim() || mediaRun.mediaJobs.length
+      ? addChatMessage(chatId, "assistant", output, mediaRun.mediaJobs.map((job) => job.id))
+      : null;
     recordUsage({
       kind: "chat",
       model,
@@ -389,12 +421,37 @@ async function handleNativeChatRespond(chatId: string, req: Request) {
       tokensOut: Math.ceil(output.length / 4),
       latencyMs: Date.now() - started,
       status: "ok",
-      meta: { native: true, stream: false, citations: context.citations.length },
+      meta: {
+        native: true,
+        stream: false,
+        citations: context.citations.length,
+        mediaJobs: mediaRun.mediaJobs.length,
+        mediaTools: mediaRun.events.map((event) => ({ tool: event.tool, status: event.status })),
+      },
     });
-    return json({ chat: getChat(chatId), message, output, citations: context.citations });
+    return json({
+      chat: getChat(chatId),
+      message,
+      output,
+      citations: context.citations,
+      mediaJobs: mediaRun.mediaJobs.map(publicMediaJob),
+      toolEvents: mediaRun.events,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    recordUsage({ kind: "chat", model, tokensIn, latencyMs: Date.now() - started, status: "error", meta: { native: true, error: message } });
+    recordUsage({
+      kind: "chat",
+      model,
+      tokensIn,
+      latencyMs: Date.now() - started,
+      status: "error",
+      meta: {
+        native: true,
+        error: message,
+        mediaJobs: mediaRun.mediaJobs.length,
+        mediaTools: mediaRun.events.map((event) => ({ tool: event.tool, status: event.status })),
+      },
+    });
     return json({ error: message }, 503);
   }
 }
