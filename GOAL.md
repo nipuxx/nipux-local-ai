@@ -84,6 +84,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Persisted app settings exist for default mode, SearXNG URL, browser headless mode, dev mode, and managed hashed server API keys.
 - API exposure planning exists for private localhost mode, protected LAN/public mode, key counts, warnings, LAN URLs, copyable launch commands, and OpenAI-compatible client quickstarts.
 - Protected authenticated client setup exists so Settings can copy usable OpenAI-compatible env and curl snippets with the browser-held API key while `/api/exposure` remains non-secret discovery metadata.
+- Public/native API clients can call one `/api/chat/respond` route to create or reuse a chat and run the same local search, web search, media, and browser tool flow as the Chat UI.
 - The UI has a Settings page and hides advanced controls unless dev mode is enabled.
 - Platform-aware install preflight exists for Bun, git, local folders, llama.cpp, Playwright Chromium, and SearXNG.
 - macOS/Linux and Windows installer scripts clone the pushed repo, use the lockfile, run setup, and optionally install Playwright Chromium.

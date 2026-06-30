@@ -16,6 +16,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - Persisted chat conversations through native `/api/chats` routes
 - Main chat can retrieve indexed local documents and append source citations
 - Main chat can create agent-owned browser sessions for browser/navigation prompts, approve, run, or deny pending browser actions inline, and control browser navigation, typing, Enter, persisted local screenshots, and screenshot clicks in chat
+- Public/native API clients can call `/api/chat/respond` once to create or reuse a chat and run the same local search, web search, media, and browser tool flow as the UI
 - Consumer-facing Local Chat Status guide for model/runtime, indexed context, local voice, API exposure, and the next run/install command
 - One-click Chat-page start/stop controls for the managed local model runtime when a GGUF model is installed
 - Local speech playback for assistant chat messages
@@ -317,6 +318,8 @@ The Settings page also includes copyable OpenAI-compatible client snippets:
 OPENAI_BASE_URL=http://127.0.0.1:3434/v1
 OPENAI_API_KEY=not-required-for-private-local-mode
 ```
+
+It also shows a copyable `/api/chat/respond` curl for clients that want the app-native local tool flow instead of a plain OpenAI-compatible chat proxy.
 
 When protected LAN/public mode is enabled, the discovery snippets use `<api-key>` placeholders and `x-api-key: <api-key>` headers instead of exposing managed server keys. `GET /api/exposure` returns non-secret discovery metadata, copyable launch commands, LAN URLs, client snippets, warnings, and next steps. The Settings page can also copy authenticated client snippets from `GET /api/exposure/client`; that protected route only includes the API key supplied by the current browser request, and the UI keeps that key redacted on screen. If public mode is started without any configured key, protected routes stay locked until a managed server key or env key exists.
 

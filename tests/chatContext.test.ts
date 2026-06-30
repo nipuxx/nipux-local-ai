@@ -225,6 +225,30 @@ test("native chat browser requests create visible sessions and pending approvals
   ).toBe(true);
 });
 
+test("one-shot native chat response creates a chat and returns local tool artifacts", async () => {
+  const res = await jsonRequest("/api/chat/respond", {
+    content: "Open a browser and visit example.com.",
+    modelPreset: "balanced",
+    stream: false,
+    useLocalSearch: false,
+    useWebSearch: false,
+    useMediaTools: false,
+  });
+  expect(res.status).toBe(200);
+  const json = await res.json();
+
+  expect(res.headers.get("x-nipux-chat-id")).toBe(json.chat.id);
+  expect(json.chat.id).toBeTruthy();
+  expect(json.output).toContain("browser_navigation pending");
+  expect(json.toolEvents.some((event: { tool: string; status: string }) => event.tool === "browser_session" && event.status === "ok")).toBe(true);
+  expect(json.browserSessions.length).toBe(1);
+
+  const loaded = await route(new Request(`http://localhost/api/chats/${json.chat.id}`));
+  const loadedJson = await loaded.json();
+  expect(loadedJson.messages.map((message: { role: string }) => message.role)).toEqual(["user", "assistant"]);
+  expect(loadedJson.messages[1].browserSessions.length).toBe(1);
+});
+
 test("native streamed chat browser requests persist browser sessions", async () => {
   const chat = await createChat();
 

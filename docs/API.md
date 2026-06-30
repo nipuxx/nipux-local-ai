@@ -194,7 +194,8 @@ Returns non-secret LAN/public API exposure metadata for the Settings page and se
     "authHeader": "",
     "env": "OPENAI_BASE_URL=http://127.0.0.1:3434/v1\nOPENAI_API_KEY=not-required-for-private-local-mode",
     "modelsCurl": "curl 'http://127.0.0.1:3434/v1/models'",
-    "chatCurl": "curl 'http://127.0.0.1:3434/v1/chat/completions' \\\n  -H 'content-type: application/json' \\\n  --data '{\"model\":\"balanced\",\"messages\":[{\"role\":\"user\",\"content\":\"Say hello from Nipux.\"}],\"stream\":false}'"
+    "chatCurl": "curl 'http://127.0.0.1:3434/v1/chat/completions' \\\n  -H 'content-type: application/json' \\\n  --data '{\"model\":\"balanced\",\"messages\":[{\"role\":\"user\",\"content\":\"Say hello from Nipux.\"}],\"stream\":false}'",
+    "nativeToolsCurl": "curl 'http://127.0.0.1:3434/api/chat/respond' \\\n  -H 'content-type: application/json' \\\n  --data '{\"content\":\"Search local notes for launch requirements.\",\"modelPreset\":\"balanced\",\"stream\":false,\"useLocalSearch\":true,\"useWebSearch\":true,\"useMediaTools\":true,\"useBrowserTools\":true}'"
   }
 }
 ```
@@ -442,6 +443,24 @@ When no speech worker is configured, this route returns a JSON payload containin
 ### `GET /api/chats`
 
 Lists persisted chats.
+
+### `POST /api/chat/respond`
+
+One-call app-native chat response for API clients. If `chatId` is omitted, the server creates a chat, runs the same local tool flow used by the web Chat page, and returns the created `chat`. If `chatId` is supplied, the response is appended to that existing chat. Streaming responses include the `x-nipux-chat-id` header.
+
+```json
+{
+  "content": "Search local notes for launch requirements.",
+  "modelPreset": "balanced",
+  "stream": false,
+  "useLocalSearch": true,
+  "useWebSearch": true,
+  "useMediaTools": true,
+  "useBrowserTools": true
+}
+```
+
+Non-streaming responses include `chat`, `message`, `output`, `citations`, `toolEvents`, `mediaJobs`, and `browserSessions`.
 
 ### `POST /api/chats`
 

@@ -30,10 +30,20 @@ function redactApiKey(value: string) {
 function clientExamples(apiBaseUrl: string, requiresKey: boolean, apiKey = "") {
   const apiKeyValue = requiresKey ? apiKey || "<api-key>" : "not-required-for-private-local-mode";
   const authHeader = requiresKey ? ` \\\n  -H ${shellQuote(`x-api-key: ${apiKeyValue}`)}` : "";
+  const appBaseUrl = apiBaseUrl.replace(/\/v1\/?$/, "");
   const chatPayload = JSON.stringify({
     model: "balanced",
     messages: [{ role: "user", content: "Say hello from Nipux." }],
     stream: false,
+  });
+  const nativeToolsPayload = JSON.stringify({
+    content: "Search local notes for launch requirements.",
+    modelPreset: "balanced",
+    stream: false,
+    useLocalSearch: true,
+    useWebSearch: true,
+    useMediaTools: true,
+    useBrowserTools: true,
   });
 
   return {
@@ -44,6 +54,7 @@ function clientExamples(apiBaseUrl: string, requiresKey: boolean, apiKey = "") {
     env: `OPENAI_BASE_URL=${apiBaseUrl}\nOPENAI_API_KEY=${apiKeyValue}`,
     modelsCurl: `curl ${shellQuote(`${apiBaseUrl}/models`)}${authHeader}`,
     chatCurl: `curl ${shellQuote(`${apiBaseUrl}/chat/completions`)}${authHeader} \\\n  -H 'content-type: application/json' \\\n  --data ${shellQuote(chatPayload)}`,
+    nativeToolsCurl: `curl ${shellQuote(`${appBaseUrl}/api/chat/respond`)}${authHeader} \\\n  -H 'content-type: application/json' \\\n  --data ${shellQuote(nativeToolsPayload)}`,
   };
 }
 

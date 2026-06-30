@@ -153,6 +153,7 @@ test("managed API keys can protect local routes and be revoked", async () => {
   expect(exposureJson.commands.protectedLan).toContain("NIPUX_PUBLIC_API=1");
   expect(exposureJson.client.baseUrl).toContain("/v1");
   expect(exposureJson.client.chatCurl).toContain("/v1/chat/completions");
+  expect(exposureJson.client.nativeToolsCurl).toContain("/api/chat/respond");
   expect(exposureJson.client.chatCurl).toContain("<api-key>");
   expect(JSON.stringify(exposureJson.client)).not.toContain(createdJson.key);
 
@@ -165,8 +166,11 @@ test("managed API keys can protect local routes and be revoked", async () => {
   expect(clientPackageJson.containsSecret).toBe(true);
   expect(clientPackageJson.env).toContain(createdJson.key);
   expect(clientPackageJson.modelsCurl).toContain(`x-api-key: ${createdJson.key}`);
+  expect(clientPackageJson.nativeToolsCurl).toContain(`/api/chat/respond`);
+  expect(clientPackageJson.nativeToolsCurl).toContain(`x-api-key: ${createdJson.key}`);
   expect(clientPackageJson.redacted.env).not.toContain(createdJson.key);
   expect(clientPackageJson.redacted.modelsCurl).not.toContain(createdJson.key);
+  expect(clientPackageJson.redacted.nativeToolsCurl).not.toContain(createdJson.key);
 
   const authed = authorizeRequest(
     new Request("http://localhost/v1/models", { headers: { "x-api-key": createdJson.key } }),
@@ -203,6 +207,7 @@ test("API exposure route is safe discovery metadata", async () => {
   expect(json.client.env).toContain("OPENAI_BASE_URL=");
   expect(json.client.modelsCurl).toContain("/v1/models");
   expect(json.client.chatCurl).toContain("/v1/chat/completions");
+  expect(json.client.nativeToolsCurl).toContain("/api/chat/respond");
   expect(json.auth).not.toHaveProperty("keys");
   expect(json.client).not.toHaveProperty("key");
 

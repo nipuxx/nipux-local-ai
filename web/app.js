@@ -479,7 +479,8 @@ function renderApiClientPackage() {
     ${pkg.containsSecret ? `<div class="browser-error">${h(pkg.warning)}</div>` : ""}
     ${clientPackageRow("Client env", pkg.env, pkg.redacted?.env || pkg.env)}
     ${clientPackageRow("List models", pkg.modelsCurl, pkg.redacted?.modelsCurl || pkg.modelsCurl)}
-    ${clientPackageRow("Chat completion", pkg.chatCurl, pkg.redacted?.chatCurl || pkg.chatCurl)}`;
+    ${clientPackageRow("Chat completion", pkg.chatCurl, pkg.redacted?.chatCurl || pkg.chatCurl)}
+    ${clientPackageRow("Local tools chat", pkg.nativeToolsCurl, pkg.redacted?.nativeToolsCurl || pkg.nativeToolsCurl)}`;
 }
 
 async function loadApiClientPackage(plan = state.apiExposure) {
@@ -558,6 +559,13 @@ async function loadApiExposure() {
           <code>${h(client.chatCurl || "")}</code>
         </div>
         <button class="copy-command" data-command="${h(client.chatCurl || "")}">Copy</button>
+      </div>
+      <div class="command-row">
+        <div>
+          <span>Local tools chat</span>
+          <code>${h(client.nativeToolsCurl || "")}</code>
+        </div>
+        <button class="copy-command" data-command="${h(client.nativeToolsCurl || "")}">Copy</button>
       </div>
       ${
         plan.auth.required && !plan.auth.configured

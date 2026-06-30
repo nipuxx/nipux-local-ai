@@ -268,6 +268,16 @@ function doneChunk(model: string) {
   };
 }
 
+interface NativeChatRespondBody {
+  content?: string;
+  modelPreset?: string;
+  stream?: boolean;
+  useLocalSearch?: boolean;
+  useWebSearch?: boolean;
+  useMediaTools?: boolean;
+  useBrowserTools?: boolean;
+}
+
 function formatChatToolEvents(events: ChatMessageToolEvent[]) {
   if (!events.length) return "";
   return `Tool activity:\n${events
@@ -388,16 +398,11 @@ function streamNativeChat(input: {
 }
 
 async function handleNativeChatRespond(chatId: string, req: Request) {
+  return handleNativeChatRespondBody(chatId, await readJson<NativeChatRespondBody>(req));
+}
+
+async function handleNativeChatRespondBody(chatId: string, body: NativeChatRespondBody) {
   const started = Date.now();
-  const body = await readJson<{
-    content?: string;
-    modelPreset?: string;
-    stream?: boolean;
-    useLocalSearch?: boolean;
-    useWebSearch?: boolean;
-    useMediaTools?: boolean;
-    useBrowserTools?: boolean;
-  }>(req);
   const content = body.content?.trim();
   if (!content) return json({ error: "content is required" }, 400);
 
@@ -512,6 +517,19 @@ Rules:
     });
     return json({ error: message }, 503);
   }
+}
+
+async function handleNativeChatRespondOneShot(req: Request) {
+  const body = await readJson<NativeChatRespondBody & { chatId?: string; title?: string }>(req);
+  const content = body.content?.trim();
+  if (!content) return json({ error: "content is required" }, 400);
+
+  const chat = body.chatId
+    ? getChat(body.chatId)
+    : createChat(body.modelPreset ?? getAppSettings().defaultModelPreset, body.title ?? "New chat");
+  const response = await handleNativeChatRespondBody(chat.id, body);
+  response.headers.set("x-nipux-chat-id", chat.id);
+  return response;
 }
 
 async function readTranscriptionInput(req: Request) {
@@ -648,6 +666,14 @@ export async function route(req: Request): Promise<Response> {
       return json(await testModelPrompt(body.prompt, body.modelPreset ?? getAppSettings().defaultModelPreset));
     } catch (error) {
       return json({ error: error instanceof Error ? error.message : String(error) }, 503);
+    }
+  }
+
+  if (url.pathname === "/api/chat/respond" && req.method === "POST") {
+    try {
+      return await handleNativeChatRespondOneShot(req);
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : String(error) }, 404);
     }
   }
 
