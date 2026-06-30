@@ -13,6 +13,7 @@ const previous = {
   imageArgs: process.env.NIPUX_IMAGE_ARGS,
   llamaCommand: process.env.NIPUX_LLAMA_COMMAND,
   llamaModelPath: process.env.NIPUX_LLAMA_MODEL_PATH,
+  openBrowser: process.env.NIPUX_OPEN_BROWSER,
   whisperModel: process.env.NIPUX_WHISPER_MODEL,
   whisperCommand: process.env.NIPUX_WHISPER_COMMAND,
   videoCommand: process.env.NIPUX_VIDEO_COMMAND,
@@ -34,6 +35,8 @@ afterAll(() => {
   else process.env.NIPUX_LLAMA_COMMAND = previous.llamaCommand;
   if (previous.llamaModelPath === undefined) delete process.env.NIPUX_LLAMA_MODEL_PATH;
   else process.env.NIPUX_LLAMA_MODEL_PATH = previous.llamaModelPath;
+  if (previous.openBrowser === undefined) delete process.env.NIPUX_OPEN_BROWSER;
+  else process.env.NIPUX_OPEN_BROWSER = previous.openBrowser;
   if (previous.whisperModel === undefined) delete process.env.NIPUX_WHISPER_MODEL;
   else process.env.NIPUX_WHISPER_MODEL = previous.whisperModel;
   if (previous.whisperCommand === undefined) delete process.env.NIPUX_WHISPER_COMMAND;
@@ -52,12 +55,24 @@ test("local supervisor plan starts app and skips unconfigured workers", async ()
   delete process.env.NIPUX_VIDEO_COMMAND;
 
   const plan = getLocalSupervisorPlan();
+  expect(plan.openBrowser).toBe(false);
+  expect(plan.openCommand.length).toBeGreaterThan(0);
   expect(plan.ready.map((item) => item.kind)).toEqual(["app"]);
   expect(plan.skipped.map((item) => item.kind)).toEqual(["llm", "image", "transcription", "video"]);
   expect(plan.nextSteps.some((step) => step.includes("llama.cpp") || step.includes("model:install"))).toBe(true);
   expect(plan.nextSteps.some((step) => step.includes("NIPUX_IMAGE_COMMAND"))).toBe(true);
   expect(plan.nextSteps.some((step) => step.includes("transcription:install"))).toBe(true);
   expect(plan.nextSteps.some((step) => step.includes("NIPUX_VIDEO_COMMAND"))).toBe(false);
+  expect(formatLocalSupervisorPlan(plan)).toContain("use bun run local --open");
+});
+
+test("local supervisor can plan browser opening when requested", async () => {
+  process.env.NIPUX_OPEN_BROWSER = "1";
+  const plan = getLocalSupervisorPlan();
+  expect(plan.openBrowser).toBe(true);
+  expect(plan.openCommand.at(-1)).toBe(plan.appUrl);
+  expect(formatLocalSupervisorPlan(plan)).toContain("Browser: will open");
+  delete process.env.NIPUX_OPEN_BROWSER;
 });
 
 test("local supervisor uses selected image backend when installed", async () => {

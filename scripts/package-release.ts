@@ -227,7 +227,7 @@ export function buildReleaseManifest(input: {
     install: {
       unix: "curl -fsSL https://raw.githubusercontent.com/nipuxx/nipux-local-ai/main/scripts/install.sh | bash",
       windows: "irm https://raw.githubusercontent.com/nipuxx/nipux-local-ai/main/scripts/install.ps1 | iex",
-      local: ["bun install --frozen-lockfile", "bun run setup", "bun run preflight"],
+      local: ["bun install --frozen-lockfile", "bun run setup", "bun run preflight", "bun run local --open"],
     },
     files: input.files.map((file) => ({
       path: file.archivePath,

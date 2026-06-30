@@ -86,7 +86,7 @@ export function buildCapabilityProfile(hardware: HardwareProfile): CapabilityPro
       defaultEnabled: true,
       summary: `${recommendedPreset[0].toUpperCase()}${recommendedPreset.slice(1)} mode is the default LLM target for this machine.`,
       limits: ram < 8 ? ["Use small GGUF models and shorter context windows."] : ["Model size still depends on installed local weights."],
-      commands: [`bun run model:install ${recommendedPreset}`, "bun run local"],
+      commands: [`bun run model:install ${recommendedPreset}`, "bun run local --open"],
     }),
     lane({
       id: "search",
@@ -189,7 +189,7 @@ export function buildCapabilityProfile(hardware: HardwareProfile): CapabilityPro
       "Media lanes stay local-only and require loopback workers before they are marked ready.",
     ],
     commands: {
-      startLocal: "bun run local",
+      startLocal: "bun run local --open",
       startDev: "bun run dev",
       installModel: `bun run model:install ${recommendedPreset}`,
       mediaDefaults: "bun run media:defaults",

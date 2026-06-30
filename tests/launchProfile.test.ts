@@ -19,9 +19,10 @@ test("launch profile captures local run commands without API secrets", async () 
   expect(profile.localUrl).toContain("127.0.0.1");
   expect(profile.apiBaseUrl).toContain("/v1");
   expect(profile.files.profileJson).toContain(profile.home);
-  expect(profile.commands.oneCommandLocal).toBe("bun run setup && bun run local");
+  expect(profile.commands.oneCommandLocal).toBe("bun run setup && bun run local --open");
   expect(profile.commands.oneCommandDev).toBe("bun run setup && bun run dev");
   expect(profile.commands.appLocal).toBe("bun run local");
+  expect(profile.commands.appLocalOpen).toBe("bun run local --open");
   expect(profile.commands.model).toContain("llama serve");
   expect(profile.model.llamaRef).toContain("gguf");
   expect(profile.env.local.NIPUX_API_KEY).toBeUndefined();
@@ -54,9 +55,9 @@ test("launch profile writer emits json, env, and local launcher files", async ()
   expect(readFileSync(result.profile.files.envFile, "utf8")).toContain("NIPUX_IMAGE_COMMAND=");
   expect(readFileSync(result.profile.files.envFile, "utf8")).toContain("NIPUX_VIDEO_COMMAND=");
   expect(readFileSync(result.profile.files.startDevSh, "utf8")).toContain("NIPUX_FAKE_LLM='1'");
-  expect(readFileSync(result.profile.files.startDevSh, "utf8")).toContain("exec bun run local");
+  expect(readFileSync(result.profile.files.startDevSh, "utf8")).toContain("exec bun run local --open");
   expect(readFileSync(result.profile.files.startLocalPs1, "utf8")).toContain("$env:NIPUX_FAKE_LLM = '0'");
-  expect(readFileSync(result.profile.files.startLocalPs1, "utf8")).toContain("bun run local");
+  expect(readFileSync(result.profile.files.startLocalPs1, "utf8")).toContain("bun run local --open");
 
   const parsed = JSON.parse(readFileSync(result.profile.files.profileJson, "utf8"));
   expect(parsed.files.envFile).toBe(result.profile.files.envFile);

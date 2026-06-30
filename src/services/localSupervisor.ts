@@ -22,6 +22,8 @@ export interface ManagedProcessPlan {
 
 export interface LocalSupervisorPlan {
   appUrl: string;
+  openBrowser: boolean;
+  openCommand: string[];
   processes: ManagedProcessPlan[];
   ready: ManagedProcessPlan[];
   skipped: ManagedProcessPlan[];
@@ -50,6 +52,13 @@ function commandExists(command: string) {
   if (command.includes("/") || command.includes("\\")) return existsSync(command);
   const check = platform() === "win32" ? spawnSync("where", [command]) : spawnSync("which", [command]);
   return check.status === 0;
+}
+
+function openCommandFor(url: string) {
+  const os = platform();
+  if (os === "win32") return ["cmd", "/c", "start", "", url];
+  if (os === "darwin") return ["open", url];
+  return ["xdg-open", url];
 }
 
 function llamaBaseUrl() {
@@ -220,8 +229,11 @@ export function getLocalSupervisorPlan(): LocalSupervisorPlan {
   };
   const skippedServices = [llm, ...workers].filter((item) => item.status === "skipped");
   const processes = [...readyServices, app, ...skippedServices];
+  const openBrowser = process.env.NIPUX_OPEN_BROWSER === "1";
   return {
     appUrl: app.url!,
+    openBrowser,
+    openCommand: openCommandFor(app.url!),
     processes,
     ready: processes.filter((item) => item.status === "ready"),
     skipped: processes.filter((item) => item.status === "skipped"),
@@ -260,6 +272,7 @@ export function formatLocalSupervisorPlan(plan: LocalSupervisorPlan) {
   const lines = [
     "Nipux Local AI local supervisor",
     `Open: ${plan.appUrl}`,
+    `Browser: ${plan.openBrowser ? `will open with ${displayCommand(plan.openCommand, {})}` : "not opened automatically; use bun run local --open"}`,
     "",
     "Will start:",
     ...plan.ready.map((item) => `  [start] ${item.label}: ${displayCommand(item.command, item.env)}`),
@@ -273,6 +286,35 @@ export function formatLocalSupervisorPlan(plan: LocalSupervisorPlan) {
     for (const step of plan.nextSteps) lines.push(`  - ${step}`);
   }
   return lines.join("\n");
+}
+
+async function waitForApp(url: string, timeoutMs = 8000) {
+  const statusUrl = `${url.replace(/\/$/, "")}/api/status`;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(statusUrl);
+      if (res.ok) return true;
+    } catch {
+      // The app process may still be binding the port.
+    }
+    await Bun.sleep(250);
+  }
+  return false;
+}
+
+async function openBrowserWhenReady(plan: LocalSupervisorPlan) {
+  const ready = await waitForApp(plan.appUrl);
+  if (!ready) {
+    console.log(`Browser not opened; ${plan.appUrl} did not respond yet.`);
+    return;
+  }
+  console.log(`Opening browser: ${plan.appUrl}`);
+  try {
+    Bun.spawn(plan.openCommand, { stdout: "ignore", stderr: "ignore" });
+  } catch (error) {
+    console.log(`Browser not opened; run ${plan.appUrl} manually. ${error instanceof Error ? error.message : ""}`.trim());
+  }
 }
 
 export async function runLocalSupervisor(input: { dryRun?: boolean } = {}) {
@@ -301,6 +343,7 @@ export async function runLocalSupervisor(input: { dryRun?: boolean } = {}) {
   try {
     console.log(formatLocalSupervisorPlan(plan));
     for (const processPlan of plan.ready) children.push(spawnManaged(processPlan));
+    if (plan.openBrowser) void openBrowserWhenReady(plan);
     const firstExitCode = await Promise.race(children.map((child) => child.exited));
     stopAll();
     await Promise.allSettled(children.map((child) => child.exited));

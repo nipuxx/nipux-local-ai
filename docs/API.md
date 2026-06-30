@@ -118,7 +118,7 @@ Returns the consumer-facing machine profile used by the Setup page and `bun run 
   "defaultLanes": ["chat", "search", "agents", "browser", "speech", "transcription", "api"],
   "blockedLanes": ["image", "video"],
   "commands": {
-    "startLocal": "bun run local",
+    "startLocal": "bun run local --open",
     "installModel": "bun run model:install balanced"
   }
 }
@@ -157,7 +157,7 @@ Returns the machine-specific launch profile used by the Setup page and `bun run 
 
 ### `GET /api/launch/supervisor`
 
-Returns the dry-run plan for `bun run local`: the app process, managed local llama.cpp process when `llama` and a local GGUF model path are available, bundled local workers that would start from configured environment variables, skipped processes, and next steps. It never starts processes.
+Returns the dry-run plan for `bun run local`: the app process, managed local llama.cpp process when `llama` and a local GGUF model path are available, bundled local workers that would start from configured environment variables, whether `--open`/`NIPUX_OPEN_BROWSER=1` would open the browser, skipped processes, and next steps. It never starts processes.
 
 ### `GET /api/exposure`
 

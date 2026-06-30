@@ -202,7 +202,7 @@ test("capability profile route returns machine defaults", async () => {
   expect(json.tierLabel).toBeTruthy();
   expect(json.recommendedPreset).toMatch(/fast|balanced|smart/);
   expect(json.lanes.some((lane: { id: string }) => lane.id === "chat")).toBe(true);
-  expect(json.commands.startLocal).toBe("bun run local");
+  expect(json.commands.startLocal).toBe("bun run local --open");
 });
 
 test("image backend route returns local-only setup presets", async () => {

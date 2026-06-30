@@ -70,7 +70,7 @@ if ($InstallBrowsers -ne "0") {
 
 Write-Host ""
 Write-Host "Start the local app and managed backends:"
-Write-Host "  cd $InstallDir; bun run local"
+Write-Host "  cd $InstallDir; bun run local --open"
 Write-Host ""
 Write-Host "Try the UI without a model:"
 Write-Host "  cd $InstallDir; bun run dev"

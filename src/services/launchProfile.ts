@@ -46,6 +46,7 @@ export interface LaunchProfile {
     setup: string;
     appDev: string;
     appLocal: string;
+    appLocalOpen: string;
     model: string;
     readiness: string;
     preflight: string;
@@ -138,7 +139,7 @@ function shLauncher(profile: LaunchProfile, fakeLlm: boolean) {
     "set -eu",
     `cd ${shellQuote(profile.repoRoot)}`,
     ...Object.entries(env).map(([key, value]) => `export ${key}=${shellQuote(value)}`),
-    "exec bun run local",
+    "exec bun run local --open",
     "",
   ].join("\n");
 }
@@ -148,7 +149,7 @@ function ps1Launcher(profile: LaunchProfile, fakeLlm: boolean) {
   return [
     `Set-Location ${powershellQuote(profile.repoRoot)}`,
     ...Object.entries(env).map(([key, value]) => `$env:${key} = ${powershellQuote(value)}`),
-    "bun run local",
+    "bun run local --open",
     "",
   ].join("\n");
 }
@@ -198,11 +199,12 @@ export async function getLaunchProfile(): Promise<LaunchProfile> {
       health: runtime.health,
     })),
     commands: {
-      oneCommandLocal: "bun run setup && bun run local",
+      oneCommandLocal: "bun run setup && bun run local --open",
       oneCommandDev: "bun run setup && bun run dev",
       setup: "bun run setup",
       appDev: "NIPUX_FAKE_LLM=1 NIPUX_DEV_UI=1 bun run local",
       appLocal: "bun run local",
+      appLocalOpen: "bun run local --open",
       model: llamaServeCommand(model.id),
       readiness: "bun run ready",
       preflight: "bun run preflight",
@@ -267,6 +269,7 @@ export function formatLaunchProfile(profile: LaunchProfile) {
     `  Dev:   ${profile.commands.oneCommandDev}`,
     `  Model: ${profile.commands.model}`,
     `  App:   ${profile.commands.appLocal}`,
+    `  Open:  ${profile.commands.appLocalOpen}`,
     `  Ready: ${profile.commands.readiness}`,
     "",
     "Files:",

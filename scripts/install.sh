@@ -70,7 +70,7 @@ fi
 
 echo
 echo "Start the local app and managed backends:"
-echo "  cd $INSTALL_DIR && bun run local"
+echo "  cd $INSTALL_DIR && bun run local --open"
 echo
 echo "Try the UI without a model:"
 echo "  cd $INSTALL_DIR && bun run dev"

@@ -219,14 +219,14 @@ bun run capabilities
 
 `bun run ready` summarizes the user-facing state: chat, browser agents, voice output/input, image/video workers, search, and API exposure. `bun run capabilities` explains what should be enabled by default on this hardware. `bun run setup:actions` turns that state into a ranked next action plus copyable install/start/configure commands. `bun run preflight` keeps the lower-level installer checks.
 
-Start the app plus managed local backends:
+Start the app, managed local backends, and browser UI:
 
 ```bash
-bun run local
+bun run local --open
 bun run src/cli.ts local --dry-run
 ```
 
-`bun run local` starts the UI/API server, the local llama.cpp backend when a local GGUF model path is available, and any bundled image, transcription, or video workers whose required environment variables are configured. The dry run shows exactly which processes will start and which are skipped. Set `NIPUX_LLAMA_MODEL_PATH=/path/to/model.gguf` when using a GGUF file outside the built-in model registry.
+`bun run local --open` starts the UI/API server, opens the private local UI in the browser, starts the local llama.cpp backend when a local GGUF model path is available, and starts any bundled image, transcription, or video workers whose required environment variables are configured. Use `bun run local` for server-only/headless launches. The dry run shows exactly which processes will start and which are skipped. Set `NIPUX_LLAMA_MODEL_PATH=/path/to/model.gguf` when using a GGUF file outside the built-in model registry.
 
 Generate or rewrite the local launch profile:
 
@@ -235,7 +235,7 @@ bun run launch:profile
 bun run launch:write
 ```
 
-`bun run setup` also writes `launch-profile.json`, `nipux.env`, `start-dev.sh`, `start-local.sh`, `start-dev.ps1`, and `start-local.ps1` under `~/.nipux-local-ai`. The launcher scripts use `bun run local`.
+`bun run setup` also writes `launch-profile.json`, `nipux.env`, `start-dev.sh`, `start-local.sh`, `start-dev.ps1`, and `start-local.ps1` under `~/.nipux-local-ai`. The launcher scripts use `bun run local --open`.
 
 ## Release Packaging
 
@@ -266,6 +266,7 @@ This writes a source zip, JSON manifest, and `SHA256SUMS.txt` into `dist/`. See 
 | `NIPUX_VIDEO_WORKER_URL` | empty | Local video generation worker URL |
 | `NIPUX_FAKE_LLM` | `0` | Enable streaming dev backend |
 | `NIPUX_DEV_UI` | `0` | Boot default for showing dev controls |
+| `NIPUX_OPEN_BROWSER` | `0` | Set by `bun run local --open` to open the private local UI after the server responds |
 | `NIPUX_BROWSER_HEADLESS` | `1` | Boot default for headless Playwright browser windows. Set to `0` for visible windows. |
 | `HF_TOKEN` | empty | Hugging Face token for gated models |
 

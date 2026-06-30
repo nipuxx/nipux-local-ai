@@ -96,8 +96,8 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Chat microphone input records audio and can transcribe through the configured local transcription worker, including the bundled whisper.cpp-compatible worker wrapper and local Whisper model install path.
 - Setup page, `bun run ready`, `bun run capabilities`, `bun run setup:actions`, and `bun run src/cli.ts local --dry-run` summarize readiness, hardware capability, and copyable setup/launch commands, including the local supervisor start/skip plan.
 - The Setup page surfaces a ranked next setup action before the detailed readiness and capability sections.
-- Launch profile generation exists for machine-specific env, commands, and local launcher scripts that use the local supervisor.
-- `bun run local` starts the app, local llama.cpp when `llama` and a local GGUF path are available, and configured bundled local workers from one command.
+- Launch profile generation exists for machine-specific env, commands, and local launcher scripts that use the local supervisor and open the private local UI.
+- `bun run local --open` starts the app, opens the browser UI, starts local llama.cpp when `llama` and a local GGUF path are available, and starts configured bundled local workers from one command; `bun run local` remains available for server-only launches.
 - One-command setup CLI and install scripts exist.
 - CI exists for macOS, Linux, and Windows.
 

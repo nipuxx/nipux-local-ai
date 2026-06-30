@@ -84,7 +84,7 @@ The Setup page is the non-dev status surface. It calls `/api/readiness`, `/api/c
 
 The Settings page owns API safety controls. It can create and revoke managed server keys, store a client key locally in the browser, and show the `/api/exposure` plan so users can copy a private-local or protected-LAN launch command plus OpenAI-compatible client snippets without guessing bind flags or headers.
 
-`bun run local` is the consumer launch command. It starts the app, starts llama.cpp when `llama` and a local GGUF model path are available, and starts any bundled image, transcription, or video workers whose required environment variables are configured. `GET /api/launch/supervisor` and `bun run src/cli.ts local --dry-run` expose the same plan without starting processes.
+`bun run local --open` is the consumer launch command. It starts the app, opens the private local UI in the browser, starts llama.cpp when `llama` and a local GGUF model path are available, and starts any bundled image, transcription, or video workers whose required environment variables are configured. Plain `bun run local` keeps the same process supervision without opening a browser for server/headless use. `GET /api/launch/supervisor` and `bun run src/cli.ts local --dry-run` expose the same plan without starting processes.
 
 ## Agent Memory
 

@@ -42,6 +42,7 @@ Commands:
   bun run setup                   One-command setup: creates dirs, detects hardware, checks backends
   bun run src/cli.ts install      Prepare local folders and print runtime setup
   bun run local                   Start the app plus configured bundled local workers
+  bun run local --open            Start the app and open the local UI in the browser
   bun run src/cli.ts local --dry-run
   bun run src/cli.ts preflight    Check install/runtime readiness with repair hints
   bun run ready                   Show everyday readiness summary
@@ -202,6 +203,7 @@ async function main() {
   }
 
   if (command === "local" || command === "run-local" || command === "run:local") {
+    if (process.argv.includes("--open")) process.env.NIPUX_OPEN_BROWSER = "1";
     const dryRun = process.argv.includes("--dry-run") || process.argv.includes("--json");
     const plan = dryRun ? getLocalSupervisorPlan() : await runLocalSupervisor();
     if (process.argv.includes("--json")) {

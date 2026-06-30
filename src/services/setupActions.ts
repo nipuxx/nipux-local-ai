@@ -228,12 +228,13 @@ export async function getSetupActions(): Promise<SetupActionsResult> {
   actions.push(
     action({
       id: "start-local-supervisor",
-      label: "Start app and local backends",
+      label: "Start app and open local UI",
       kind: "start",
       status: "recommended",
-      description: "Starts the local UI, managed llama.cpp backend when a local GGUF model is available, and configured bundled media workers.",
+      description: "Starts the local UI, opens it in the browser, starts managed llama.cpp when a local GGUF model is available, and starts configured bundled media workers.",
       commands: [
-        command("Command", "bun run local"),
+        command("Command", "bun run local --open"),
+        command("Server only", "bun run local"),
         command("Dry run", "bun run src/cli.ts local --dry-run"),
       ],
       related: ["ui", "chat", "workers", "local"],

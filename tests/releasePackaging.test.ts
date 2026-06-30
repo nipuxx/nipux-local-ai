@@ -29,6 +29,7 @@ test("release manifest records archive checksum and install commands", () => {
   expect(manifest.archive.sha256).toBe("abc123");
   expect(manifest.install.unix).toContain("install.sh");
   expect(manifest.install.windows).toContain("install.ps1");
+  expect(manifest.install.local).toContain("bun run local --open");
 });
 
 test("install scripts surface capability and readiness commands", () => {
@@ -38,7 +39,7 @@ test("install scripts surface capability and readiness commands", () => {
   for (const script of [unix, windows]) {
     expect(script).toContain("bun run capabilities");
     expect(script).toContain("bun run ready");
-    expect(script).toContain("bun run local");
+    expect(script).toContain("bun run local --open");
     expect(script).toContain("bun run setup:actions");
   }
 });
