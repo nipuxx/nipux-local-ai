@@ -30,7 +30,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - Browser action logs and exact approval gates for agent-originated risky actions
 - Manual document indexing, browser file/folder import, safe dev file-path indexing, and local search
 - SearXNG adapter for local web search
-- Media tab plus local-only image, speech, transcription, and video worker API surfaces
+- Media tab plus local-only image setup guidance, speech, transcription, and video worker API surfaces
 - Consumer capability profile for CPU-only, GPU, and high-memory machines
 - Hardware-aware media runtime planner for image, speech, transcription, and video workers
 - Media worker health checks so configured loopback URLs show `offline` until a worker actually responds
@@ -144,7 +144,7 @@ bun run image:install diffusers-sdxl-turbo
 bun run image:select diffusers-sdxl-turbo
 ```
 
-The repo includes `scripts/image-backends/diffusers-image.py`, a small Diffusers bridge for the image command worker. It is optional and local-only: it uses local Python packages, downloads model weights through Diffusers on first use, writes an output image file, and never calls hosted image APIs. `bun run image:backends` reports whether the managed Python runtime exists and prints the installer command. Selecting a backend stores the preset and default loopback image worker URL; after the local Python backend is installed, `bun run local` can start the selected image worker automatically.
+The repo includes `scripts/image-backends/diffusers-image.py`, a small Diffusers bridge for the image command worker. It is optional and local-only: it uses local Python packages, downloads model weights through Diffusers on first use, writes an output image file, and never calls hosted image APIs. `bun run image:backends` reports whether the managed Python runtime exists and prints the installer command. The Media page shows a normal-user Local Image Setup panel for the recommended or selected backend. Selecting a backend stores the preset and default loopback image worker URL; after the local Python backend is installed, `bun run local` can start the selected image worker automatically.
 
 Video generation can use the bundled local command worker. It follows the same pattern, but writes a video request JSON file and expects a local backend to write a video file:
 

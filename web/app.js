@@ -832,6 +832,78 @@ function mediaRuntimeHealth(runtime) {
   return runtime.health?.detail || runtime.setup || "";
 }
 
+function imageBackendCommand(preset, labelPart) {
+  return preset.commands.find((item) => item.label.toLowerCase().includes(labelPart))?.command || "";
+}
+
+function renderImageBackendGuide(plan) {
+  const presets = plan.presets || [];
+  const selected = presets.find((preset) => preset.id === plan.selectedPresetId);
+  const recommended = presets.find((preset) => preset.id === plan.recommendedPresetId) || presets.find((preset) => preset.recommended) || presets[0];
+  const focus = selected || recommended;
+  if (!focus) {
+    $("#imageBackendGuide").innerHTML = `
+      <div>
+        <h2>Local Image Setup</h2>
+        <div class="meta">No local image backend presets are available on this machine yet.</div>
+      </div>`;
+    return;
+  }
+  const installCommand = imageBackendCommand(focus, "install");
+  const startCommand = imageBackendCommand(focus, "start") || focus.commands[0]?.command || "";
+  const persistCommand = imageBackendCommand(focus, "persist");
+  const isRecommended = focus.id === plan.recommendedPresetId || focus.recommended;
+  const status = selected ? "selected" : isRecommended ? "recommended" : "available";
+  $("#imageBackendGuide").innerHTML = `
+    <div class="image-guide-head">
+      <div>
+        <h2>Local Image Setup</h2>
+        <div class="meta">Local-only image generation. Hosted image APIs are not used.</div>
+      </div>
+      <span>${h(status)}</span>
+    </div>
+    <div class="image-guide-card">
+      <div>
+        <strong>${h(focus.label)}</strong>
+        <div class="meta">${h(focus.description)}</div>
+        <div class="meta">${h(focus.hardwareFit)}</div>
+        <div class="meta">${h(focus.install?.detail || "")}</div>
+      </div>
+      <div class="button-row">
+        ${
+          selected
+            ? `<button class="clear-image-backend">Clear</button>`
+            : `<button class="select-image-backend" data-preset-id="${h(focus.id)}">${isRecommended ? "Use Recommended" : "Use Backend"}</button>`
+        }
+      </div>
+    </div>
+    <div class="setup-next-list">${(plan.nextSteps || []).map((step) => `<span>${h(step)}</span>`).join("")}</div>
+    ${installCommand ? `
+      <div class="command-row">
+        <div>
+          <span>Install local backend</span>
+          <code>${h(installCommand)}</code>
+        </div>
+        <button class="copy-command" data-command="${h(installCommand)}">Copy</button>
+      </div>` : ""}
+    ${startCommand ? `
+      <div class="command-row">
+        <div>
+          <span>Start image worker</span>
+          <code>${h(startCommand)}</code>
+        </div>
+        <button class="copy-command" data-command="${h(startCommand)}">Copy</button>
+      </div>` : ""}
+    ${persistCommand ? `
+      <div class="command-row">
+        <div>
+          <span>Persist worker URL</span>
+          <code>${h(persistCommand)}</code>
+        </div>
+        <button class="copy-command" data-command="${h(persistCommand)}">Copy</button>
+      </div>` : ""}`;
+}
+
 async function loadMedia() {
   const [capabilities, runtimePlan, imageBackendPlan, jobs] = await Promise.all([
     api("/api/media/capabilities"),
@@ -843,6 +915,7 @@ async function loadMedia() {
   state.mediaRuntimePlan = runtimePlan;
   state.imageBackendPlan = imageBackendPlan;
   state.mediaJobs = jobs.jobs;
+  renderImageBackendGuide(state.imageBackendPlan);
   $("#mediaRuntimePlan").innerHTML = state.mediaRuntimePlan.runtimes
     .map(
       (runtime) => `

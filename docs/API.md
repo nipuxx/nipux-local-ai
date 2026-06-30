@@ -298,7 +298,7 @@ The image worker exposes `POST /v1/images/generations` on `http://127.0.0.1:8081
 
 ### `GET /api/media/images/backends`
 
-Returns hardware-aware local image backend presets. The current presets include a Diffusers SDXL Turbo path, a lighter Diffusers SD 1.5 path, and a custom-command adapter. All presets are local-only and are meant to feed the bundled image command worker.
+Returns hardware-aware local image backend presets. The current presets include a Diffusers SDXL Turbo path, a lighter Diffusers SD 1.5 path, and a custom-command adapter. All presets are local-only and are meant to feed the bundled image command worker. The Media page uses this endpoint to show a compact Local Image Setup guide for the recommended or selected backend.
 
 ```json
 {

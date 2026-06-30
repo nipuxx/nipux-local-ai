@@ -335,6 +335,28 @@ h2 {
   gap: 7px;
 }
 
+.image-backend-guide {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.image-guide-head,
+.image-guide-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.image-guide-head span {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 9px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .media-runtime span {
   display: block;
   color: var(--muted);
@@ -951,6 +973,8 @@ h2 {
   .command-row,
   .row,
   .memory-search-row,
+  .image-guide-head,
+  .image-guide-card,
   .browser-head,
   .browser-controls {
     grid-template-columns: 1fr;
