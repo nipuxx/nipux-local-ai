@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 process.env.NIPUX_HOME = mkdtempSync(join(tmpdir(), "nipux-browsers-"));
 process.env.NIPUX_FAKE_LLM = "1";
 
-const { createBrowserSession, listBrowserSessions, normalizeBrowserUrl } = await import("../src/services/browserBroker.ts");
+const { createBrowserSession, listBrowserSessions, normalizeBrowserUrl, storeBrowserSessionScreenshot } = await import("../src/services/browserBroker.ts");
 const { assertBrowserActionAllowed, PermissionRequiredError, resolvePermissionRequest } = await import("../src/services/browserAudit.ts");
 const { route } = await import("../src/main.ts");
 
@@ -34,6 +34,17 @@ test("browser API creates sessions without launching a browser", async () => {
   expect(res.status).toBe(200);
   const json = await res.json();
   expect(json.session.label).toBe("API Browser");
+});
+
+test("browser sessions persist the latest local screenshot preview", () => {
+  const session = createBrowserSession(undefined, "Screenshot Browser");
+  const stored = storeBrowserSessionScreenshot(session.id, Buffer.from("fake png bytes"));
+
+  expect(stored.latestScreenshotAt).toBeTruthy();
+  expect(stored.latestScreenshotDataUrl).toBe(`data:image/png;base64,${Buffer.from("fake png bytes").toString("base64")}`);
+
+  const listed = listBrowserSessions().find((item) => item.id === session.id);
+  expect(listed?.latestScreenshotDataUrl).toBe(stored.latestScreenshotDataUrl);
 });
 
 test("agent browser navigation is blocked pending approval and logged", async () => {

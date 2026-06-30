@@ -115,6 +115,8 @@ export function migrate() {
       status TEXT NOT NULL,
       url TEXT,
       user_data_dir TEXT,
+      latest_screenshot_path TEXT,
+      latest_screenshot_at TEXT,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
@@ -191,6 +193,8 @@ export function migrate() {
   ensureColumn("messages", "media_job_ids_json", "TEXT NOT NULL DEFAULT '[]'");
   ensureColumn("messages", "tool_events_json", "TEXT NOT NULL DEFAULT '[]'");
   ensureColumn("messages", "browser_session_ids_json", "TEXT NOT NULL DEFAULT '[]'");
+  ensureColumn("browser_sessions", "latest_screenshot_path", "TEXT");
+  ensureColumn("browser_sessions", "latest_screenshot_at", "TEXT");
   db.exec("UPDATE agent_memories SET summary = substr(content, 1, 180) WHERE summary = '';");
   db.exec("UPDATE agent_memories SET token_count = CAST((length(content) + 3) / 4 AS INTEGER) WHERE token_count = 0;");
   db.exec("UPDATE agent_memories SET updated_at = created_at WHERE updated_at = '';");

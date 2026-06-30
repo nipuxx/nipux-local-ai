@@ -62,7 +62,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - llama.cpp-compatible chat proxy exists.
 - Dev fake LLM streaming exists.
 - Main chat can use indexed local search context, local SearXNG web search for current/web requests, and persist cited assistant responses.
-- Main chat can create agent-owned browser sessions from clear browser/navigation requests, persist the browser session and tool events with the assistant message, approve, run, or deny pending browser navigation approvals inline, and inspect/control browser screenshots, URL navigation, typing, and Enter from the chat card.
+- Main chat can create agent-owned browser sessions from clear browser/navigation requests, persist the browser session, latest local screenshot preview, and tool events with the assistant message, approve, run, or deny pending browser navigation approvals inline, and inspect/control browser screenshots, URL navigation, typing, and Enter from the chat card.
 - Main chat can create local-only image/speech/video media jobs from clear requests and persist generated artifacts with assistant messages.
 - The Chat page surfaces a consumer-facing Local Chat Status guide with model/runtime, local/web search context, local voice, API mode, and the next run/install command before users type.
 - The Chat page can start an installed local chat model and stop the managed runtime without enabling dev mode.

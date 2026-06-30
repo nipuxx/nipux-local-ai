@@ -331,6 +331,9 @@ function renderMessages(options = {}) {
 }
 
 function messageFromApi(message) {
+  for (const session of message.browserSessions || []) {
+    if (session.latestScreenshotDataUrl) state.browserShots[session.id] ??= session.latestScreenshotDataUrl;
+  }
   return {
     role: message.role,
     content: message.content,
@@ -1367,7 +1370,7 @@ function renderChatBrowserSessions(sessions = [], toolEvents = []) {
           const latestNavigation = [...events].reverse().find((event) => event.tool === "browser_navigation");
           const permissionStatus = pending?.permissionStatus || "pending";
           const hasActionPending = pending && permissionStatus === "pending";
-          const shot = state.browserShots[session.id];
+          const shot = state.browserShots[session.id] || session.latestScreenshotDataUrl;
           const error = state.browserErrors[session.id];
           return `
             <div class="chat-browser-session">
@@ -2001,6 +2004,9 @@ async function loadAgents() {
     .join("");
   const [browsers, actions] = await Promise.all([api("/api/browsers"), api("/api/browser-actions?limit=80")]);
   state.browserSessions = browsers.sessions;
+  for (const session of state.browserSessions) {
+    if (session.latestScreenshotDataUrl) state.browserShots[session.id] ??= session.latestScreenshotDataUrl;
+  }
   state.browserActions = actions.events;
   $("#browserList").innerHTML =
     state.browserSessions

@@ -642,7 +642,7 @@ bun run browsers:install
 
 ### `GET /api/browsers`
 
-Lists browser sessions.
+Lists browser sessions. Sessions include `latestScreenshotDataUrl` and `latestScreenshotAt` when a local screenshot has been captured for the session.
 
 ### `POST /api/browsers`
 
@@ -708,7 +708,7 @@ Closes the running browser context and keeps the session record.
 
 Agent-originated `navigate`, `click`, `type`, and `key` actions are gated. Pass `"actor": "agent"` in the request body to create a pending permission request instead of executing immediately. Re-run the action with `permissionRequestId` after approval.
 
-Chat-created browser cards reuse these same browser routes. Once a browser action is approved and run from Chat, the UI calls `GET /api/browsers/:id/screenshot` to show an inline page preview. The chat card can also send user-originated `navigate`, `type`, `key`, and screenshot-click actions through the same `/api/browsers/:id/*` routes.
+Chat-created browser cards reuse these same browser routes. Once a browser action is approved and run from Chat, the UI calls `GET /api/browsers/:id/screenshot` to show an inline page preview and persist the latest PNG locally under `NIPUX_HOME`. The chat card can also send user-originated `navigate`, `type`, `key`, and screenshot-click actions through the same `/api/browsers/:id/*` routes.
 
 ### `GET /api/browser-actions`
 

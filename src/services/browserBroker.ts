@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { NIPUX_HOME } from "../config.ts";
 import { db } from "../db.ts";
@@ -13,6 +14,21 @@ export interface BrowserSessionRecord {
   status: "ready" | "open" | "closed" | "error";
   url?: string | null;
   userDataDir: string;
+  latestScreenshotDataUrl?: string | null;
+  latestScreenshotAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface BrowserSessionRow {
+  id: string;
+  agentId?: string | null;
+  label: string;
+  status: BrowserSessionRecord["status"];
+  url?: string | null;
+  userDataDir: string;
+  latestScreenshotPath?: string | null;
+  latestScreenshotAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -42,6 +58,19 @@ interface RuntimePage {
 
 const activeSessions = new Map<string, RuntimeSession>();
 
+function screenshotDataUrl(path?: string | null) {
+  if (!path || !existsSync(path)) return null;
+  return `data:image/png;base64,${readFileSync(path).toString("base64")}`;
+}
+
+function browserSessionRow(row: BrowserSessionRow): BrowserSessionRecord {
+  const { latestScreenshotPath, ...session } = row;
+  return {
+    ...session,
+    latestScreenshotDataUrl: screenshotDataUrl(latestScreenshotPath),
+  };
+}
+
 export function createBrowserSession(agentId?: string, label = "Agent Browser"): BrowserSessionRecord {
   const id = crypto.randomUUID();
   const userDataDir = join(NIPUX_HOME, "browsers", id);
@@ -53,27 +82,30 @@ export function createBrowserSession(agentId?: string, label = "Agent Browser"):
 }
 
 export function listBrowserSessions(): BrowserSessionRecord[] {
-  return db
+  const rows = db
     .prepare(
       `SELECT id, agent_id AS agentId, label, status, url, user_data_dir AS userDataDir,
+        latest_screenshot_path AS latestScreenshotPath, latest_screenshot_at AS latestScreenshotAt,
         created_at AS createdAt, updated_at AS updatedAt
        FROM browser_sessions
        ORDER BY updated_at DESC`,
     )
-    .all() as BrowserSessionRecord[];
+    .all() as BrowserSessionRow[];
+  return rows.map(browserSessionRow);
 }
 
 export function getBrowserSession(id: string): BrowserSessionRecord {
   const session = db
     .prepare(
       `SELECT id, agent_id AS agentId, label, status, url, user_data_dir AS userDataDir,
+        latest_screenshot_path AS latestScreenshotPath, latest_screenshot_at AS latestScreenshotAt,
         created_at AS createdAt, updated_at AS updatedAt
        FROM browser_sessions
        WHERE id = ?`,
     )
-    .get(id) as BrowserSessionRecord | null;
+    .get(id) as BrowserSessionRow | null;
   if (!session) throw new Error(`Browser session ${id} was not found.`);
-  return session;
+  return browserSessionRow(session);
 }
 
 function updateBrowserSession(id: string, patch: Partial<Pick<BrowserSessionRecord, "status" | "url">>) {
@@ -83,6 +115,19 @@ function updateBrowserSession(id: string, patch: Partial<Pick<BrowserSessionReco
     patch.url ?? current.url ?? "about:blank",
     id,
   );
+  return getBrowserSession(id);
+}
+
+export function storeBrowserSessionScreenshot(id: string, buffer: Buffer) {
+  const session = getBrowserSession(id);
+  mkdirSync(session.userDataDir, { recursive: true });
+  const screenshotPath = join(session.userDataDir, "latest-screenshot.png");
+  writeFileSync(screenshotPath, buffer);
+  db.prepare(
+    `UPDATE browser_sessions
+     SET latest_screenshot_path = ?, latest_screenshot_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`,
+  ).run(screenshotPath, id);
   return getBrowserSession(id);
 }
 
@@ -248,7 +293,8 @@ export async function screenshotBrowserSession(id: string, context: BrowserActio
   try {
     const runtime = await ensureRuntimeSession(id);
     const buffer = await runtime.page.screenshot({ type: "png", fullPage: false });
-    const session = updateBrowserSession(id, { status: "open", url: runtime.page.url() || "about:blank" });
+    updateBrowserSession(id, { status: "open", url: runtime.page.url() || "about:blank" });
+    const session = storeBrowserSessionScreenshot(id, buffer);
     recordBrowserAction({
       browserSessionId: id,
       agentId: actionAgentId(sessionRecord, context),
