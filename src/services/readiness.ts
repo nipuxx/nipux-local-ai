@@ -79,7 +79,7 @@ function mediaFix(runtime: { status: string; setup: string; commands?: Array<{ c
   const installCommand = runtime.commands?.find((item) => item.command.includes("transcription:install"))?.command;
   if (startCommand?.includes("worker:transcription")) {
     return installCommand
-      ? `Run ${installCommand}, then run ${startCommand}, then run bun run media:defaults.`
+      ? `Run ${installCommand}, then run bun run local --open.`
       : `Run ${startCommand}, then run bun run media:defaults.`;
   }
   return runtime.setup;

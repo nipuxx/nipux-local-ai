@@ -183,11 +183,10 @@ Voice input in chat records microphone audio in the browser and sends it to `/v1
 
 ```bash
 bun run transcription:install base.en
-NIPUX_WHISPER_MODEL="$HOME/.nipux-local-ai/models/whisper.cpp/ggml-base.en.bin" bun run worker:transcription
-bun run media:defaults
+bun run local --open
 ```
 
-`bun run transcription:install` downloads the default local Whisper model and prints the exact start command for this machine. `NIPUX_WHISPER_COMMAND` defaults to `whisper-cli`, so the wrapper still expects a whisper.cpp-compatible binary on `PATH`. If no local transcription worker is configured or reachable, the UI shows the setup error.
+`bun run transcription:install` downloads the default local Whisper model, saves its path in local settings, and prints both the normal local launch command and the standalone worker command for this machine. `bun run local --open` can then start the bundled transcription worker automatically when the saved model exists. `NIPUX_WHISPER_COMMAND` defaults to `whisper-cli`, so the wrapper still expects a whisper.cpp-compatible binary on `PATH`. If no local transcription worker is configured or reachable, the UI shows the setup error.
 
 The Media page also shows a normal-user Local Voice Setup panel. It reports whether basic voice output can use the built-in local OS speech path, whether microphone transcription is ready, and the copyable local Whisper install/start/settings commands when voice input still needs setup.
 

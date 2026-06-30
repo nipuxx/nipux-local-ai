@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { mkdtempSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { platform, tmpdir } from "node:os";
 
 const testHome = mkdtempSync(join(tmpdir(), "nipux-launch-profile-"));
@@ -10,6 +10,8 @@ process.env.NIPUX_FAKE_LLM = "1";
 
 const { formatLaunchProfile, getLaunchProfile, writeLaunchProfileFiles } = await import("../src/services/launchProfile.ts");
 const { clearImageBackendPreset, selectImageBackendPreset } = await import("../src/services/imageSetup.ts");
+const { setRawSetting } = await import("../src/services/settings.ts");
+const { WHISPER_MODEL_SETTING_KEY } = await import("../src/services/transcriptionSetup.ts");
 const { route } = await import("../src/main.ts");
 
 function desktopPath(value: string) {
@@ -50,6 +52,22 @@ test("launch profile includes selected image backend env", async () => {
   expect(profile.env.local.NIPUX_IMAGE_MODEL).toBe("stabilityai/sdxl-turbo");
 
   await clearImageBackendPreset();
+});
+
+test("launch profile includes persisted Whisper model env", async () => {
+  delete process.env.NIPUX_WHISPER_MODEL;
+  const fakeWhisperModel = join(testHome, "models", "whisper.cpp", "ggml-base.en.bin");
+  mkdirSync(dirname(fakeWhisperModel), { recursive: true });
+  writeFileSync(fakeWhisperModel, "fake whisper model");
+  setRawSetting(WHISPER_MODEL_SETTING_KEY, fakeWhisperModel);
+
+  try {
+    const profile = await getLaunchProfile();
+    expect(profile.env.local.NIPUX_WHISPER_MODEL).toBe(fakeWhisperModel);
+    expect(profile.env.dev.NIPUX_WHISPER_MODEL).toBe(fakeWhisperModel);
+  } finally {
+    setRawSetting(WHISPER_MODEL_SETTING_KEY, "");
+  }
 });
 
 test("launch profile writer emits json, env, and local launcher files", async () => {

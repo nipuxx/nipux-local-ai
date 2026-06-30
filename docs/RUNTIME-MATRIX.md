@@ -160,8 +160,10 @@ Start the bundled transcription worker:
 
 ```bash
 bun run transcription:install base.en
-NIPUX_WHISPER_MODEL="$HOME/.nipux-local-ai/models/whisper.cpp/ggml-base.en.bin" bun run worker:transcription
+bun run local --open
 ```
+
+The installer saves the downloaded Whisper model path in local settings. `bun run local --open` uses that saved path to start the bundled transcription worker; the CLI still prints a standalone `NIPUX_WHISPER_MODEL=... bun run worker:transcription` command for manual worker launches.
 
 Speech also has a built-in local fallback when the OS provides a supported speech command:
 

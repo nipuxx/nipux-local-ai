@@ -248,7 +248,7 @@ export async function getMediaRuntimePlan(): Promise<MediaRuntimePlannerResult> 
         return [`Run ${startCommandFor(runtime)}, then run bun run media:defaults.`];
       }
       if (runtime.kind === "transcription") {
-        return [`Run ${whisperInstallCommand()}, then run ${startCommandFor(runtime)}, then run bun run media:defaults.`];
+        return [`Run ${whisperInstallCommand()}, then run bun run local --open.`];
       }
       if (runtime.kind === "video") {
         return [`Run ${startCommandFor(runtime)}, then run bun run media:defaults --include-optional.`];

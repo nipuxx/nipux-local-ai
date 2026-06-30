@@ -433,9 +433,11 @@ async function main() {
     console.log(`  Path:       ${result.targetPath}`);
     console.log(`  Size:       ${(result.sizeBytes / 1024 / 1024).toFixed(1)} MB`);
     console.log(`  Status:     ${result.downloaded ? "downloaded" : "already installed"}`);
+    console.log(`  Saved:      ${result.configured ? "yes" : "no"}`);
     console.log(`\nNext steps:`);
-    console.log(`  Start:      ${result.startCommand}`);
-    console.log(`  Configure:  ${result.defaultsCommand}`);
+    console.log(`  Launch:     ${result.localCommand}`);
+    console.log(`  Standalone: ${result.startCommand}`);
+    console.log(`  Settings:   ${result.defaultsCommand}`);
     return;
   }
 

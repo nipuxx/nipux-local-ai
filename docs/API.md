@@ -409,10 +409,10 @@ The transcription runtime can use the bundled worker wrapper:
 
 ```bash
 bun run transcription:install base.en
-NIPUX_WHISPER_MODEL="$HOME/.nipux-local-ai/models/whisper.cpp/ggml-base.en.bin" bun run worker:transcription
+bun run local --open
 ```
 
-The install command downloads the local Whisper model and prints the exact worker start command. The worker exposes `POST /v1/audio/transcriptions` on `http://127.0.0.1:8083` and invokes a local `whisper-cli` compatible command.
+The install command downloads the local Whisper model, saves its path for the local supervisor, and prints both the normal local launch command and the standalone worker start command. The worker exposes `POST /v1/audio/transcriptions` on `http://127.0.0.1:8083` and invokes a local `whisper-cli` compatible command.
 
 Runtime status values:
 

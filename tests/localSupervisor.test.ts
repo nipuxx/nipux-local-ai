@@ -21,6 +21,8 @@ const previous = {
 
 const { formatLocalSupervisorPlan, getLocalSupervisorPlan, runLocalSupervisor } = await import("../src/services/localSupervisor.ts");
 const { clearImageBackendPreset, imageBackendWorkerEnv, selectImageBackendPreset } = await import("../src/services/imageSetup.ts");
+const { setRawSetting } = await import("../src/services/settings.ts");
+const { WHISPER_MODEL_SETTING_KEY } = await import("../src/services/transcriptionSetup.ts");
 
 afterAll(() => {
   if (originalHome === undefined) delete process.env.NIPUX_HOME;
@@ -106,6 +108,25 @@ test("local supervisor points selected missing image backend to installer", asyn
   expect(image?.reason).toContain("bun run image:install diffusers-sdxl-turbo");
 
   await clearImageBackendPreset();
+});
+
+test("local supervisor uses persisted Whisper model for transcription", async () => {
+  delete process.env.NIPUX_WHISPER_MODEL;
+  delete process.env.NIPUX_WHISPER_COMMAND;
+  delete process.env.NIPUX_WHISPER_ARGS;
+  const fakeWhisperModel = join(process.env.NIPUX_HOME!, "models", "whisper.cpp", "ggml-base.en.bin");
+  mkdirSync(dirname(fakeWhisperModel), { recursive: true });
+  writeFileSync(fakeWhisperModel, "fake whisper model");
+  setRawSetting(WHISPER_MODEL_SETTING_KEY, fakeWhisperModel);
+
+  try {
+    const plan = getLocalSupervisorPlan();
+    const transcription = plan.ready.find((item) => item.kind === "transcription");
+    expect(transcription?.env.NIPUX_WHISPER_MODEL).toBe(fakeWhisperModel);
+    expect(plan.ready.some((item) => item.kind === "app")).toBe(true);
+  } finally {
+    setRawSetting(WHISPER_MODEL_SETTING_KEY, "");
+  }
 });
 
 test("local supervisor plan wires configured workers into the app environment", async () => {

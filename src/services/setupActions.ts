@@ -101,14 +101,16 @@ function mediaAction(runtime: MediaRuntimePlan): SetupAction {
   const status = statusForRuntime(runtime);
   const installCommand = runtime.commands.find((item) => item.label.toLowerCase().includes("install"))?.command;
   const startCommand = runtime.commands.find((item) => item.label.toLowerCase().includes("start"))?.command;
+  const isTranscription = runtime.kind === "transcription";
   const commands =
     status === "ready"
       ? []
       : [
           ...(installCommand ? [command("Install model", installCommand)] : []),
-          command("Persist default URL", runtime.recommended ? "bun run media:defaults" : "bun run media:defaults --include-optional"),
+          ...(isTranscription ? [command("Launch local app", "bun run local --open")] : []),
+          ...(isTranscription ? [] : [command("Persist default URL", runtime.recommended ? "bun run media:defaults" : "bun run media:defaults --include-optional")]),
           command(
-            ["image", "transcription", "video"].includes(runtime.kind) ? "Start bundled worker" : "Environment",
+            ["image", "transcription", "video"].includes(runtime.kind) ? (isTranscription ? "Standalone worker" : "Start bundled worker") : "Environment",
             startCommand || runtime.commands[0]?.command || `${runtime.envVar}=${runtime.defaultUrl} bun run start`,
           ),
           command("Worker contract", `POST ${runtime.defaultUrl}${runtime.endpoint}`, false),

@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 process.env.NIPUX_HOME = mkdtempSync(join(tmpdir(), "nipux-transcription-setup-"));
 
 const {
+  getConfiguredWhisperModelPath,
   getWhisperModelPreset,
   installWhisperModel,
   whisperInstallCommand,
@@ -40,10 +41,14 @@ test("whisper setup downloads the selected model into the local model directory"
     expect(result.targetPath).toBe(whisperModelPath("tiny.en"));
     expect(existsSync(result.targetPath)).toBe(true);
     expect(readFileSync(result.targetPath, "utf8")).toBe("fake whisper model");
+    expect(result.configured).toBe(true);
+    expect(result.localCommand).toBe("bun run local --open");
     expect(result.startCommand).toContain(result.targetPath);
+    expect(getConfiguredWhisperModelPath()).toBe(result.targetPath);
 
     const second = await installWhisperModel("tiny.en");
     expect(second.downloaded).toBe(false);
+    expect(second.configured).toBe(true);
   } finally {
     server.stop(true);
     delete process.env.NIPUX_WHISPER_MODEL_BASE_URL;

@@ -9,6 +9,7 @@ import { getMediaRuntimePlan, type MediaRuntimePlan } from "./mediaRuntimes.ts";
 import { getModel, llamaServeCommand } from "./modelRegistry.ts";
 import { getReadinessReport, type ReadinessReport } from "./readiness.ts";
 import { getAppSettings, getRawSetting, type AppSettings } from "./settings.ts";
+import { getConfiguredWhisperModelPath } from "./transcriptionSetup.ts";
 
 const REPO_ROOT = resolve(import.meta.dir, "../..");
 
@@ -126,6 +127,9 @@ function envFor(settings: AppSettings, fakeLlm: boolean) {
     NIPUX_IMAGE_MODEL: process.env.NIPUX_IMAGE_MODEL ?? imageBackendEnv?.NIPUX_IMAGE_MODEL ?? "",
     NIPUX_SPEECH_WORKER_URL: settings.speechWorkerUrl,
     NIPUX_TRANSCRIPTION_WORKER_URL: settings.transcriptionWorkerUrl,
+    NIPUX_WHISPER_MODEL: getConfiguredWhisperModelPath(),
+    NIPUX_WHISPER_COMMAND: process.env.NIPUX_WHISPER_COMMAND ?? "",
+    NIPUX_WHISPER_ARGS: process.env.NIPUX_WHISPER_ARGS ?? "",
     NIPUX_VIDEO_WORKER_URL: settings.videoWorkerUrl,
     NIPUX_VIDEO_COMMAND: process.env.NIPUX_VIDEO_COMMAND ?? "",
     NIPUX_VIDEO_ARGS: process.env.NIPUX_VIDEO_ARGS ?? "",

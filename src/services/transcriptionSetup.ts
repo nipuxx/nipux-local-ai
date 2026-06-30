@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, renameSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { MODEL_DIR } from "../config.ts";
+import { getRawSetting, setRawSetting } from "./settings.ts";
 
 export interface WhisperModelPreset {
   id: "tiny.en" | "base.en";
@@ -15,13 +16,16 @@ export interface WhisperModelInstallResult {
   preset: WhisperModelPreset;
   targetPath: string;
   downloaded: boolean;
+  configured: boolean;
   sizeBytes: number;
   startCommand: string;
+  localCommand: string;
   defaultsCommand: string;
   sourceUrl: string;
 }
 
 export const DEFAULT_WHISPER_MODEL_PRESET = "base.en";
+export const WHISPER_MODEL_SETTING_KEY = "whisper_model_path";
 
 export const WHISPER_MODEL_PRESETS: WhisperModelPreset[] = [
   {
@@ -67,6 +71,13 @@ export function whisperModelSourceUrl(id = DEFAULT_WHISPER_MODEL_PRESET) {
   return `${baseUrl.replace(/\/$/, "")}/${preset.filename}`;
 }
 
+export function getConfiguredWhisperModelPath() {
+  const envPath = process.env.NIPUX_WHISPER_MODEL?.trim();
+  if (envPath) return envPath;
+  const storedPath = getRawSetting(WHISPER_MODEL_SETTING_KEY, "").trim();
+  return storedPath && existsSync(storedPath) ? storedPath : "";
+}
+
 export function whisperStartCommand(id = DEFAULT_WHISPER_MODEL_PRESET) {
   return `NIPUX_WHISPER_MODEL=${shellArg(whisperModelPath(id))} bun run worker:transcription`;
 }
@@ -84,12 +95,15 @@ export async function installWhisperModel(id = DEFAULT_WHISPER_MODEL_PRESET): Pr
 
   mkdirSync(targetDir, { recursive: true });
   if (existsSync(targetPath)) {
+    setRawSetting(WHISPER_MODEL_SETTING_KEY, targetPath);
     return {
       preset,
       targetPath,
       downloaded: false,
+      configured: true,
       sizeBytes: statSync(targetPath).size,
       startCommand: whisperStartCommand(preset.id),
+      localCommand: "bun run local --open",
       defaultsCommand: "bun run media:defaults",
       sourceUrl,
     };
@@ -110,13 +124,16 @@ export async function installWhisperModel(id = DEFAULT_WHISPER_MODEL_PRESET): Pr
     throw new Error(`Whisper model download failed: ${stderr || stdout}`);
   }
   renameSync(partialPath, targetPath);
+  setRawSetting(WHISPER_MODEL_SETTING_KEY, targetPath);
 
   return {
     preset,
     targetPath,
     downloaded: true,
+    configured: true,
     sizeBytes: statSync(targetPath).size,
     startCommand: whisperStartCommand(preset.id),
+    localCommand: "bun run local --open",
     defaultsCommand: "bun run media:defaults",
     sourceUrl,
   };

@@ -5,6 +5,7 @@ import { BIND_HOST, LLAMA_BASE_URL, PORT } from "../config.ts";
 import { IMAGE_BACKEND_SETTING_KEY, imageBackendWorkerEnv } from "./imageSetup.ts";
 import { getModel } from "./modelRegistry.ts";
 import { getAppSettings, getRawSetting } from "./settings.ts";
+import { getConfiguredWhisperModelPath, WHISPER_MODEL_SETTING_KEY } from "./transcriptionSetup.ts";
 
 type ManagedKind = "app" | "llm" | "image" | "transcription" | "video";
 type ManagedStatus = "ready" | "skipped";
@@ -172,7 +173,9 @@ function configuredImagePlan(): ManagedProcessPlan {
 }
 
 function configuredWorkerPlans(): ManagedProcessPlan[] {
-  const transcriptionReady = Boolean(process.env.NIPUX_WHISPER_MODEL);
+  const configuredWhisperModel = getConfiguredWhisperModelPath();
+  const storedWhisperModel = getRawSetting(WHISPER_MODEL_SETTING_KEY, "");
+  const transcriptionReady = Boolean(configuredWhisperModel);
   const videoReady = Boolean(process.env.NIPUX_VIDEO_COMMAND);
 
   return [
@@ -183,12 +186,16 @@ function configuredWorkerPlans(): ManagedProcessPlan[] {
       status: transcriptionReady ? "ready" : "skipped",
       command: ["bun", "run", "worker:transcription"],
       env: {
-        NIPUX_WHISPER_MODEL: process.env.NIPUX_WHISPER_MODEL ?? "",
+        NIPUX_WHISPER_MODEL: configuredWhisperModel,
         NIPUX_WHISPER_COMMAND: process.env.NIPUX_WHISPER_COMMAND ?? "",
         NIPUX_WHISPER_ARGS: process.env.NIPUX_WHISPER_ARGS ?? "",
       },
       url: workerUrl(8083),
-      reason: transcriptionReady ? undefined : "Run bun run transcription:install base.en, then set NIPUX_WHISPER_MODEL.",
+      reason: transcriptionReady
+        ? undefined
+        : storedWhisperModel
+          ? `Saved Whisper model is missing: ${storedWhisperModel}. Run bun run transcription:install base.en.`
+          : "Run bun run transcription:install base.en, then rerun bun run local --open.",
     },
     {
       kind: "video",

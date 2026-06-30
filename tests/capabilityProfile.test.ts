@@ -48,6 +48,7 @@ test("capability profile identifies high-memory GPU machines as workstation clas
   expect(lane(profile, "image").status).toBe("available");
   expect(lane(profile, "video").status).toBe("optional");
   expect(lane(profile, "chat").commands).toContain("bun run local --open");
+  expect(lane(profile, "transcription").commands).toContain("bun run local --open");
   expect(profile.commands.startLocal).toBe("bun run local --open");
   expect(profile.commands.installModel).toBe("bun run model:install smart");
 });
