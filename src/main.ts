@@ -68,6 +68,7 @@ import {
 } from "./services/memory.ts";
 import {
   downloadHuggingFaceFile,
+  getModelInstallPlan,
   installModelPreset,
   listHuggingFaceFiles,
   listModels,
@@ -481,6 +482,13 @@ export async function route(req: Request): Promise<Response> {
   if (url.pathname === "/api/launch/profile/write" && req.method === "POST") return json(await writeLaunchProfileFiles());
 
   if (url.pathname === "/api/models" && req.method === "GET") return json({ models: listModels() });
+  if (url.pathname === "/api/models/install-plan" && req.method === "GET") {
+    try {
+      return json(await getModelInstallPlan(url.searchParams.get("modelPreset") ?? getAppSettings().defaultModelPreset));
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : String(error) }, 502);
+    }
+  }
   if (url.pathname === "/api/models/test" && req.method === "POST") {
     const body = await readJson<{ baseUrl?: string }>(req);
     return json(await testLlamaBackend(body.baseUrl));
@@ -499,8 +507,9 @@ export async function route(req: Request): Promise<Response> {
     return json(await downloadHuggingFaceFile(body.repo, body.filename));
   }
   if (url.pathname === "/api/models/install" && req.method === "POST") {
-    const body = await readJson<{ modelPreset?: string; filename?: string }>(req);
+    const body = await readJson<{ modelPreset?: string; filename?: string; dryRun?: boolean; skipRemote?: boolean }>(req);
     try {
+      if (body.dryRun) return json(await getModelInstallPlan(body.modelPreset ?? getAppSettings().defaultModelPreset, { filename: body.filename, skipRemote: body.skipRemote }));
       return json(await installModelPreset(body.modelPreset ?? getAppSettings().defaultModelPreset, body.filename));
     } catch (error) {
       return json({ error: error instanceof Error ? error.message : String(error) }, 502);

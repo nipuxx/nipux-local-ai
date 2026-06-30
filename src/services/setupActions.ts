@@ -158,7 +158,10 @@ export async function getSetupActions(): Promise<SetupActionsResult> {
       commands:
         recommendedModel.state === "available"
           ? []
-          : [command("Command", `bun run model:install ${recommendedModel.id}`)],
+          : [
+              command("Review download", `bun run model:plan ${recommendedModel.id}`),
+              command("Install model", `bun run model:install ${recommendedModel.id}`),
+            ],
       related: ["chat", "model", recommendedModel.id],
       reason: `${recommendedModel.estimatedRamGb}GB estimated RAM; this machine is in ${media.hardware.recommendedPreset} mode.`,
     }),

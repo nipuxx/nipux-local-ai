@@ -56,12 +56,14 @@ bun run setup:actions
 The app can start and stop an app-managed llama.cpp process:
 
 ```bash
+bun run model:plan balanced
+bun run model:install balanced --dry-run
 POST /api/runtime/start
 POST /api/runtime/stop
 GET /api/runtime/status
 ```
 
-This requires the `llama` executable to be installed and available on `PATH`, or `NIPUX_LLAMA_COMMAND` to point at the local executable. `bun run local` can also start llama.cpp when a local GGUF model is installed in the registry or `NIPUX_LLAMA_MODEL_PATH` points at one. If a user starts llama.cpp outside the app, `GET /api/runtime/status` still reports backend health through the configured `NIPUX_LLAMA_BASE_URL`.
+This requires the `llama` executable to be installed and available on `PATH`, or `NIPUX_LLAMA_COMMAND` to point at the local executable. `bun run model:plan` and `model:install --dry-run` preview the selected GGUF file before a large download starts. `bun run local` can also start llama.cpp when a local GGUF model is installed in the registry or `NIPUX_LLAMA_MODEL_PATH` points at one. If a user starts llama.cpp outside the app, `GET /api/runtime/status` still reports backend health through the configured `NIPUX_LLAMA_BASE_URL`.
 
 ## SearXNG
 

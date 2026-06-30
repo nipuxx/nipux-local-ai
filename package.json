@@ -14,6 +14,7 @@
     "ready": "bun run src/cli.ts readiness",
     "setup:actions": "bun run src/cli.ts setup-actions",
     "install:local": "bun run src/cli.ts install",
+    "model:plan": "bun run src/cli.ts model-plan",
     "model:install": "bun run src/cli.ts model-install",
     "media:runtimes": "bun run src/cli.ts media-runtimes",
     "capabilities": "bun run src/cli.ts capabilities",

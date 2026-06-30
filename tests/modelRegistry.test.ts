@@ -5,7 +5,17 @@ import { tmpdir } from "node:os";
 
 process.env.NIPUX_HOME = mkdtempSync(join(tmpdir(), "nipux-models-"));
 const { db } = await import("../src/db.ts");
-const { DEFAULT_PRESETS, getModel, llamaServeCommand, listModels, registerDownloadedModel, seedModelRegistry, selectBestGgufFile } = await import(
+const {
+  DEFAULT_PRESETS,
+  formatModelInstallPlan,
+  getModel,
+  getModelInstallPlan,
+  llamaServeCommand,
+  listModels,
+  registerDownloadedModel,
+  seedModelRegistry,
+  selectBestGgufFile,
+} = await import(
   "../src/services/modelRegistry.ts"
 );
 const { getAppSettings, updateAppSettings } = await import("../src/services/settings.ts");
@@ -49,6 +59,22 @@ test("llama command uses local GGUF path when a preset is installed", () => {
   const localPath = join(tmpdir(), "nipux local fast.gguf");
   db.prepare("UPDATE models SET state = 'available', local_path = ?, file_name = ? WHERE id = 'fast'").run(localPath, "fast.gguf");
   expect(llamaServeCommand("fast")).toContain(`-m '${localPath}'`);
+});
+
+test("model install plan previews selected Qwen download", async () => {
+  const plan = await getModelInstallPlan("balanced", {
+    files: [
+      { rfilename: "Qwen3-8B-Q5_K_M.gguf", size: 900 },
+      { rfilename: "Qwen3-8B-Q4_K_M.gguf", size: 8 * 1024 ** 3 },
+    ],
+  });
+
+  expect(plan.installed).toBe(false);
+  expect(plan.selectedFilename).toBe("Qwen3-8B-Q4_K_M.gguf");
+  expect(plan.selectedSizeLabel).toBe("8.0 GB");
+  expect(plan.installCommand).toContain("bun run model:install balanced");
+  expect(plan.startCommand).toContain("Qwen3-8B-Q4_K_M.gguf");
+  expect(formatModelInstallPlan(plan)).toContain("Download size: 8.0 GB");
 });
 
 test("preset reseed clears stale local paths when repo changes", () => {

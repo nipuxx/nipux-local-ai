@@ -62,6 +62,21 @@ test("OpenAI models route returns model list", async () => {
   expect(json.data.length).toBeGreaterThanOrEqual(3);
 });
 
+test("model install dry run returns a download plan", async () => {
+  const res = await route(
+    new Request("http://localhost/api/models/install", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ modelPreset: "balanced", filename: "Qwen3-8B-Q4_K_M.gguf", dryRun: true, skipRemote: true }),
+    }),
+  );
+  expect(res.status).toBe(200);
+  const json = await res.json();
+  expect(json.modelPreset).toBe("balanced");
+  expect(json.selectedFilename).toBe("Qwen3-8B-Q4_K_M.gguf");
+  expect(json.installCommand).toContain("bun run model:install balanced");
+});
+
 test("chat API persists conversations and messages", async () => {
   const created = await route(
     new Request("http://localhost/api/chats", {

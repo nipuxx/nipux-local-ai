@@ -492,6 +492,10 @@ Searches Hugging Face GGUF models.
 
 Lists GGUF files for a Hugging Face model repo.
 
+### `GET /api/models/install-plan?modelPreset=balanced`
+
+Returns the selected built-in model, chosen GGUF filename, reported download size when available, target path, install command, and llama.cpp start command. Use this before triggering a large model download.
+
 ### `POST /api/models/download`
 
 ```json
@@ -512,6 +516,15 @@ Uses `HF_TOKEN` when present. When the repo is not one of the built-in presets, 
 ```
 
 Downloads the GGUF file for a built-in preset. If `filename` is omitted, the server lists the preset repository and selects the best `.gguf` file matching the preset quantization. Runtime start commands use the downloaded local path after install.
+
+Set `"dryRun": true` to return the same install plan without downloading:
+
+```json
+{
+  "modelPreset": "balanced",
+  "dryRun": true
+}
+```
 
 ### `POST /api/agents/run`
 

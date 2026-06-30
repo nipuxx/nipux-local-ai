@@ -64,6 +64,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Main chat can use indexed local search context and persist cited assistant responses.
 - Qwen3 Fast/Balanced/Smart model presets exist.
 - Built-in model preset install plus Hugging Face GGUF search/list/download hooks exist; arbitrary downloaded GGUF files are registered as selectable custom local models.
+- Model install planning and dry-run commands preview the selected GGUF file, reported size, target path, install command, and start command before downloading.
 - Hermes status/config adapter exists.
 - Agent memory and run history exist.
 - Agent memory CRUD, scored retrieval, summaries, provenance, and compaction exist.

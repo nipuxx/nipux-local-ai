@@ -2,7 +2,15 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { DATA_DIR, MODEL_DIR, NIPUX_HOME, PORT, RUNTIME_DIR } from "./config.ts";
 import { detectHardware } from "./services/hardware.ts";
-import { downloadHuggingFaceFile, installModelPreset, listHuggingFaceFiles, listModels, llamaServeCommand } from "./services/modelRegistry.ts";
+import {
+  downloadHuggingFaceFile,
+  formatModelInstallPlan,
+  getModelInstallPlan,
+  installModelPreset,
+  listHuggingFaceFiles,
+  listModels,
+  llamaServeCommand,
+} from "./services/modelRegistry.ts";
 import { testLlamaBackend } from "./providers/llamaCpp.ts";
 import { getUsageSummary } from "./services/usage.ts";
 import { formatSetupCheck, getSetupPreflight } from "./services/setupChecks.ts";
@@ -53,6 +61,7 @@ Commands:
   bun run launch:write            Write launch profile, env, and launcher scripts
   bun run src/cli.ts doctor       Detect hardware and backend health
   bun run src/cli.ts models       List built-in model presets
+  bun run model:plan [preset]     Preview the selected model download and start command
   bun run model:install [preset]  Download the GGUF file for a built-in preset
   bun run src/cli.ts llama-command [id]   Print the llama.cpp serve command
   bun run src/cli.ts files <repo> List GGUF files from Hugging Face
@@ -425,9 +434,35 @@ async function main() {
     return;
   }
 
+  if (command === "model-plan" || command === "model:plan") {
+    const args = process.argv.slice(3).filter((arg) => !arg.startsWith("--"));
+    const modelPreset = args[0] ?? (await detectHardware()).recommendedPreset;
+    const filename = args[1];
+    const plan = await getModelInstallPlan(modelPreset, { filename });
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(plan, null, 2));
+      return;
+    }
+    console.log(`\nNipux Local AI model install plan`);
+    console.log(formatModelInstallPlan(plan));
+    return;
+  }
+
   if (command === "model-install" || command === "model:install") {
-    const modelPreset = process.argv[3] ?? (await detectHardware()).recommendedPreset;
-    const result = await installModelPreset(modelPreset);
+    const args = process.argv.slice(3).filter((arg) => !arg.startsWith("--"));
+    const modelPreset = args[0] ?? (await detectHardware()).recommendedPreset;
+    const filename = args[1];
+    if (process.argv.includes("--dry-run")) {
+      const plan = await getModelInstallPlan(modelPreset, { filename });
+      if (process.argv.includes("--json")) {
+        console.log(JSON.stringify(plan, null, 2));
+        return;
+      }
+      console.log(`\nNipux Local AI model install dry run`);
+      console.log(formatModelInstallPlan(plan));
+      return;
+    }
+    const result = await installModelPreset(modelPreset, filename);
     if (process.argv.includes("--json")) {
       console.log(JSON.stringify(result, null, 2));
       return;

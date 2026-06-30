@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { db } from "../db.ts";
 import { MODEL_DIR } from "../config.ts";
@@ -7,6 +7,21 @@ import type { LocalModelRecord, ModelPreset } from "../types.ts";
 export interface HuggingFaceModelFile {
   rfilename: string;
   size?: number;
+}
+
+export interface ModelInstallPlan {
+  modelPreset: string;
+  model: LocalModelRecord;
+  installed: boolean;
+  installCommand: string;
+  dryRunCommand: string;
+  startCommand: string;
+  selectedFilename?: string;
+  selectedSizeBytes?: number;
+  selectedSizeLabel?: string;
+  targetPath?: string;
+  warnings: string[];
+  nextSteps: string[];
 }
 
 export const DEFAULT_PRESETS: ModelPreset[] = [
@@ -175,10 +190,113 @@ function shellArg(value: string) {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
+function modelTargetPath(repo: string, filename: string) {
+  const targetDir = join(MODEL_DIR, repo.replaceAll("/", "__"));
+  return join(targetDir, filename.split("/").pop() ?? filename);
+}
+
+function formatBytes(bytes?: number) {
+  if (!bytes || bytes <= 0) return undefined;
+  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+  if (bytes >= 1024 ** 2) return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+  return `${bytes} bytes`;
+}
+
+function modelInstallCommand(modelId: string, filename?: string) {
+  return `bun run model:install ${modelId}${filename ? ` ${shellArg(filename)}` : ""}`;
+}
+
+async function huggingFaceFileSize(repo: string, filename: string) {
+  const headers = new Headers();
+  if (process.env.HF_TOKEN) headers.set("Authorization", `Bearer ${process.env.HF_TOKEN}`);
+  const res = await fetch(`https://huggingface.co/${repo}/resolve/main/${filename}?download=true`, { method: "HEAD", headers });
+  if (!res.ok) return undefined;
+  const size = Number(res.headers.get("content-length") ?? "");
+  return Number.isFinite(size) && size > 0 ? size : undefined;
+}
+
 export function llamaServeCommand(modelId = "balanced", port = 8080) {
   const model = getModel(modelId);
   const source = model.localPath ? `-m ${shellArg(model.localPath)}` : `-hf ${model.llamaRef}`;
   return `llama serve ${source} --port ${port} --ctx-size ${Math.min(model.contextTokens, 32768)}`;
+}
+
+export async function getModelInstallPlan(
+  modelId = "balanced",
+  input: { filename?: string; files?: HuggingFaceModelFile[]; skipRemote?: boolean } = {},
+): Promise<ModelInstallPlan> {
+  const model = getModel(modelId);
+  let selectedFilename = input.filename || model.fileName || undefined;
+  let selectedSizeBytes: number | undefined;
+  const warnings: string[] = [];
+
+  if (model.localPath && existsSync(model.localPath)) {
+    selectedSizeBytes = statSync(model.localPath).size;
+  }
+
+  if (!selectedFilename && input.files) {
+    const selected = selectBestGgufFile(input.files, model.quant);
+    selectedFilename = selected?.rfilename;
+    selectedSizeBytes = selected?.size;
+  }
+
+  if (!selectedFilename && !input.skipRemote) {
+    const files = await listHuggingFaceFiles(model.repo);
+    const selected = selectBestGgufFile(files, model.quant);
+    selectedFilename = selected?.rfilename;
+    selectedSizeBytes = selected?.size;
+  }
+
+  if (selectedFilename && !selectedSizeBytes && !model.localPath && !input.skipRemote) {
+    selectedSizeBytes = await huggingFaceFileSize(model.repo, selectedFilename);
+  }
+
+  if (!selectedFilename) warnings.push(`No GGUF file matching ${model.quant} has been selected for ${model.repo}.`);
+  if (selectedFilename && !selectedSizeBytes && !model.localPath) warnings.push("Hugging Face did not report a file size for the selected GGUF.");
+
+  const installed = model.state === "available" && Boolean(model.localPath) && Boolean(model.localPath && existsSync(model.localPath));
+  const targetPath = installed ? model.localPath ?? undefined : selectedFilename ? modelTargetPath(model.repo, selectedFilename) : undefined;
+  const installCommand = selectedFilename ? modelInstallCommand(model.id, selectedFilename) : modelInstallCommand(model.id);
+  const startCommand = llamaServeCommand(model.id);
+  return {
+    modelPreset: model.id,
+    model,
+    installed,
+    installCommand,
+    dryRunCommand: `bun run model:install ${model.id} --dry-run`,
+    startCommand,
+    selectedFilename,
+    selectedSizeBytes,
+    selectedSizeLabel: formatBytes(selectedSizeBytes),
+    targetPath,
+    warnings,
+    nextSteps: installed
+      ? [`Start local chat with: ${startCommand}`, "Run bun run local to start the app and any configured local workers."]
+      : selectedFilename
+        ? [`Review the download size, then run: ${installCommand}`, `After install, start local chat with: ${startCommand}`]
+        : [`Run bun run model:plan ${model.id} after checking Hugging Face access, or pass a filename to bun run model:install ${model.id} <file>.`],
+  };
+}
+
+export function formatModelInstallPlan(plan: ModelInstallPlan) {
+  const lines = [
+    `Model: ${plan.model.label} (${plan.modelPreset})`,
+    `Repo: ${plan.model.repo}`,
+    `Quant: ${plan.model.quant}`,
+    `State: ${plan.installed ? "installed" : plan.model.state}`,
+    `Selected file: ${plan.selectedFilename ?? "not selected"}`,
+    `Download size: ${plan.selectedSizeLabel ?? "unknown"}`,
+    `Target path: ${plan.targetPath ?? "unknown"}`,
+    `Install: ${plan.installCommand}`,
+    `Start: ${plan.startCommand}`,
+  ];
+  if (plan.warnings.length) {
+    lines.push("", "Warnings:");
+    for (const warning of plan.warnings) lines.push(`  - ${warning}`);
+  }
+  lines.push("", "Next steps:");
+  for (const step of plan.nextSteps) lines.push(`  - ${step}`);
+  return lines.join("\n");
 }
 
 export async function searchHuggingFace(query: string) {
@@ -228,7 +346,7 @@ export async function downloadHuggingFaceFile(repo: string, filename: string) {
   mkdirSync(MODEL_DIR, { recursive: true });
   const targetDir = join(MODEL_DIR, repo.replaceAll("/", "__"));
   mkdirSync(targetDir, { recursive: true });
-  const targetPath = join(targetDir, filename.split("/").pop() ?? filename);
+  const targetPath = modelTargetPath(repo, filename);
   const headers: string[] = [];
   if (process.env.HF_TOKEN) headers.push("-H", `Authorization: Bearer ${process.env.HF_TOKEN}`);
   const url = `https://huggingface.co/${repo}/resolve/main/${filename}?download=true`;
