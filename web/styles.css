@@ -335,26 +335,51 @@ h2 {
   gap: 7px;
 }
 
-.image-backend-guide {
+.image-backend-guide,
+.voice-setup-guide {
   display: grid;
   gap: 10px;
   margin-bottom: 18px;
 }
 
 .image-guide-head,
-.image-guide-card {
+.image-guide-card,
+.voice-guide-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: start;
 }
 
-.image-guide-head span {
+.image-guide-head span,
+.voice-guide-head span,
+.voice-guide-card span {
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 4px 9px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.voice-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.voice-guide-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  display: grid;
+  gap: 7px;
+}
+
+.voice-guide-card > div:first-child {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .media-runtime span {
@@ -975,8 +1000,14 @@ h2 {
   .memory-search-row,
   .image-guide-head,
   .image-guide-card,
+  .voice-guide-head,
+  .voice-guide-grid,
   .browser-head,
   .browser-controls {
     grid-template-columns: 1fr;
+  }
+
+  .voice-guide-card > div:first-child {
+    display: grid;
   }
 }

@@ -30,7 +30,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - Browser action logs and exact approval gates for agent-originated risky actions
 - Manual document indexing, browser file/folder import, safe dev file-path indexing, and local search
 - SearXNG adapter for local web search
-- Media tab plus local-only image setup guidance, speech, transcription, and video worker API surfaces
+- Media tab plus local-only image and voice setup guidance, speech, transcription, and video worker API surfaces
 - Consumer capability profile for CPU-only, GPU, and high-memory machines
 - Hardware-aware media runtime planner for image, speech, transcription, and video workers
 - Media worker health checks so configured loopback URLs show `offline` until a worker actually responds
@@ -172,6 +172,8 @@ bun run media:defaults
 ```
 
 `bun run transcription:install` downloads the default local Whisper model and prints the exact start command for this machine. `NIPUX_WHISPER_COMMAND` defaults to `whisper-cli`, so the wrapper still expects a whisper.cpp-compatible binary on `PATH`. If no local transcription worker is configured or reachable, the UI shows the setup error.
+
+The Media page also shows a normal-user Local Voice Setup panel. It reports whether basic voice output can use the built-in local OS speech path, whether microphone transcription is ready, and the copyable local Whisper install/start/settings commands when voice input still needs setup.
 
 Inspect the hardware-aware local media runtime plan:
 

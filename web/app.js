@@ -836,6 +836,31 @@ function imageBackendCommand(preset, labelPart) {
   return preset.commands.find((item) => item.label.toLowerCase().includes(labelPart))?.command || "";
 }
 
+function mediaRuntimeByKind(plan, kind) {
+  return (plan.runtimes || []).find((runtime) => runtime.kind === kind);
+}
+
+function mediaRuntimeCommand(runtime, labelPart) {
+  return (runtime?.commands || []).find((item) => item.label.toLowerCase().includes(labelPart))?.command || "";
+}
+
+function voiceStatus(runtime) {
+  if (!runtime) return "unknown";
+  if (runtime.status === "ready" && runtime.source === "builtin") return "ready · built-in";
+  if (runtime.status === "ready") return "ready · local worker";
+  if (runtime.status === "offline") return "offline";
+  if (runtime.status === "invalid") return "needs fix";
+  return "needs setup";
+}
+
+function voiceRuntimeDetail(runtime, fallback) {
+  if (!runtime) return fallback;
+  if (runtime.status === "offline") return `Worker configured at ${runtime.workerUrl}, but it is not responding.`;
+  if (runtime.status === "invalid") return `${runtime.envVar} must be a loopback URL such as ${runtime.defaultUrl}.`;
+  if (runtime.status === "ready") return runtime.source === "builtin" ? runtime.setup : `${runtime.workerLabel} is reachable at ${runtime.workerUrl}.`;
+  return runtime.setup || fallback;
+}
+
 function renderImageBackendGuide(plan) {
   const presets = plan.presets || [];
   const selected = presets.find((preset) => preset.id === plan.selectedPresetId);
@@ -904,6 +929,91 @@ function renderImageBackendGuide(plan) {
       </div>` : ""}`;
 }
 
+function renderVoiceSetupGuide(plan) {
+  const speech = mediaRuntimeByKind(plan, "speech");
+  const transcription = mediaRuntimeByKind(plan, "transcription");
+  const installTranscription = mediaRuntimeCommand(transcription, "install");
+  const startTranscription = mediaRuntimeCommand(transcription, "start");
+  const persistTranscription = mediaRuntimeCommand(transcription, "persist");
+  const speechPersist = mediaRuntimeCommand(speech, "persist");
+  const speechWorkerHelp = speech?.source === "builtin"
+    ? "No worker is required for basic voice output on this machine."
+    : "Use a supported system speech engine or run a local Kokoro/Piper-compatible speech worker.";
+  const transcriptionHelp = transcription?.status === "ready"
+    ? "Microphone input can transcribe through the configured local worker."
+    : "Install a small local Whisper model, start the bundled worker, then save the loopback URL.";
+
+  if (!speech && !transcription) {
+    $("#voiceSetupGuide").innerHTML = `
+      <div>
+        <h2>Local Voice Setup</h2>
+        <div class="meta">No local voice runtime plan is available on this machine yet.</div>
+      </div>`;
+    return;
+  }
+
+  $("#voiceSetupGuide").innerHTML = `
+    <div class="voice-guide-head">
+      <div>
+        <h2>Local Voice Setup</h2>
+        <div class="meta">Audio stays local. Hosted speech and transcription APIs are not used.</div>
+      </div>
+      <span>${h([voiceStatus(speech), voiceStatus(transcription)].filter(Boolean).join(" / "))}</span>
+    </div>
+    <div class="voice-guide-grid">
+      <div class="voice-guide-card">
+        <div>
+          <strong>Voice Output</strong>
+          <span>${h(voiceStatus(speech))}</span>
+        </div>
+        <div class="meta">${h(voiceRuntimeDetail(speech, "Local text-to-speech needs a supported system voice or loopback worker."))}</div>
+        <div class="meta">${h(speech?.hardwareFit || "")}</div>
+        <div class="meta">${h(speechWorkerHelp)}</div>
+      </div>
+      <div class="voice-guide-card">
+        <div>
+          <strong>Voice Input</strong>
+          <span>${h(voiceStatus(transcription))}</span>
+        </div>
+        <div class="meta">${h(voiceRuntimeDetail(transcription, "Local transcription needs the bundled Whisper worker."))}</div>
+        <div class="meta">${h(transcription?.hardwareFit || "")}</div>
+        <div class="meta">${h(transcriptionHelp)}</div>
+      </div>
+    </div>
+    ${speechPersist && speech?.source !== "builtin" ? `
+      <div class="command-row">
+        <div>
+          <span>Save speech worker URL</span>
+          <code>${h(speechPersist)}</code>
+        </div>
+        <button class="copy-command" data-command="${h(speechPersist)}">Copy</button>
+      </div>` : ""}
+    ${installTranscription ? `
+      <div class="command-row">
+        <div>
+          <span>Install local transcription model</span>
+          <code>${h(installTranscription)}</code>
+        </div>
+        <button class="copy-command" data-command="${h(installTranscription)}">Copy</button>
+      </div>` : ""}
+    ${startTranscription ? `
+      <div class="command-row">
+        <div>
+          <span>Start transcription worker</span>
+          <code>${h(startTranscription)}</code>
+        </div>
+        <button class="copy-command" data-command="${h(startTranscription)}">Copy</button>
+      </div>` : ""}
+    ${persistTranscription ? `
+      <div class="command-row">
+        <div>
+          <span>Save transcription worker URL</span>
+          <code>${h(persistTranscription)}</code>
+        </div>
+        <button class="copy-command" data-command="${h(persistTranscription)}">Copy</button>
+      </div>` : ""}`;
+}
+
 async function loadMedia() {
   const [capabilities, runtimePlan, imageBackendPlan, jobs] = await Promise.all([
     api("/api/media/capabilities"),
@@ -916,6 +1026,7 @@ async function loadMedia() {
   state.imageBackendPlan = imageBackendPlan;
   state.mediaJobs = jobs.jobs;
   renderImageBackendGuide(state.imageBackendPlan);
+  renderVoiceSetupGuide(state.mediaRuntimePlan);
   $("#mediaRuntimePlan").innerHTML = state.mediaRuntimePlan.runtimes
     .map(
       (runtime) => `

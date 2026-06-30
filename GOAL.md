@@ -94,6 +94,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Built-in local speech generation exists when the host OS has a supported system speech engine.
 - Assistant chat messages can be played through the local speech route.
 - Chat microphone input records audio and can transcribe through the configured local transcription worker, including the bundled whisper.cpp-compatible worker wrapper and local Whisper model install path.
+- The Media page surfaces a consumer-facing local voice setup guide for built-in speech output and bundled Whisper transcription setup.
 - Setup page, `bun run ready`, `bun run capabilities`, `bun run setup:actions`, and `bun run src/cli.ts local --dry-run` summarize readiness, hardware capability, and copyable setup/launch commands, including the local supervisor start/skip plan.
 - The Setup page surfaces a ranked next setup action before the detailed readiness and capability sections.
 - Launch profile generation exists for machine-specific env, commands, local launcher scripts, and clickable launcher files that use the local supervisor and open the private local UI; the Setup page shows those launcher paths with copy actions.
