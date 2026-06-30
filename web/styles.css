@@ -290,6 +290,49 @@ h2 {
   margin-bottom: 18px;
 }
 
+.search-setup-guide {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.search-guide-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.search-guide-head span,
+.search-guide-card span {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 9px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.search-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.search-guide-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  display: grid;
+  gap: 7px;
+}
+
+.search-guide-card > div:first-child {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .file-import-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1013,6 +1056,8 @@ h2 {
   .command-row,
   .row,
   .memory-search-row,
+  .search-guide-head,
+  .search-guide-grid,
   .image-guide-head,
   .image-guide-card,
   .voice-guide-head,
@@ -1024,6 +1069,7 @@ h2 {
   }
 
   .voice-guide-card > div:first-child,
+  .search-guide-card > div:first-child,
   .video-guide-card > div:first-child {
     display: grid;
   }

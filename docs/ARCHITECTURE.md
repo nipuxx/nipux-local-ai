@@ -104,7 +104,7 @@ The first agent implementation is intentionally conservative. It stores task sum
 
 ## Local Search
 
-Manual text indexing, browser file/folder import, and backend file/folder indexing share the same `local_documents` table and FTS index. Browser imports read selected text/code files in the app and send bounded batches to `/api/search/documents/bulk`, while dev-mode backend path indexing uses:
+Manual text indexing, browser file/folder import, and backend file/folder indexing share the same `local_documents` table and FTS index. The Search page surfaces indexed-document count and SearXNG URL status before the raw results list, so normal users can see whether local context and web search are ready without opening dev mode. Browser imports read selected text/code files in the app and send bounded batches to `/api/search/documents/bulk`, while dev-mode backend path indexing uses:
 
 - extension allow-list for text/code formats
 - maximum file count

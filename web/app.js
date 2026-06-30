@@ -20,6 +20,7 @@ const state = {
   mediaRuntimePlan: null,
   imageBackendPlan: null,
   mediaJobs: [],
+  documents: [],
   speechPlayback: null,
   voiceRecorder: null,
   readiness: null,
@@ -183,6 +184,18 @@ function currentSettings() {
   );
 }
 
+function isLoopbackUrl(value = "") {
+  const normalized = value.trim();
+  if (!normalized) return false;
+  try {
+    const url = new URL(normalized.includes("://") ? normalized : `http://${normalized}`);
+    const hostname = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+    return hostname === "localhost" || hostname === "::1" || hostname === "0:0:0:0:0:0:0:1" || hostname.startsWith("127.");
+  } catch {
+    return false;
+  }
+}
+
 function renderModelSelectors() {
   if (!state.models.length) return;
   const current = currentSettings().defaultModelPreset || "balanced";
@@ -223,6 +236,7 @@ function applySettingsToUi() {
       <div class="meta">Server keys: ${h((env.envKeyCount || 0) + (env.storedKeyCount || 0))} total · ${h(env.storedKeyCount || 0)} managed here</div>
     </div>`;
   $("#settingsStatus").textContent = JSON.stringify({ settings, env }, null, 2);
+  renderSearchSetupGuide();
 }
 
 function addMessage(role, content = "") {
@@ -1402,10 +1416,48 @@ async function loadMemories(query = "") {
       .join("") || `<div class="meta">No memories yet.</div>`;
 }
 
+function renderSearchSetupGuide(documents = state.documents || []) {
+  const target = $("#searchSetupGuide");
+  if (!target) return;
+  const settings = currentSettings();
+  const documentCount = documents.length;
+  const searxngUrl = settings.searxngUrl?.trim() || "";
+  const webConfigured = Boolean(searxngUrl);
+  const webLocal = webConfigured && isLoopbackUrl(searxngUrl);
+  target.innerHTML = `
+    <div class="search-guide-head">
+      <div>
+        <h2>Local Search Setup</h2>
+        <div class="meta">Search uses indexed local text first. Web results can use SearXNG when one is configured.</div>
+      </div>
+      <span>${h(documentCount ? `${documentCount} indexed` : "empty")}</span>
+    </div>
+    <div class="search-guide-grid">
+      <div class="search-guide-card">
+        <div>
+          <strong>Local Index</strong>
+          <span>${h(documentCount ? "ready" : "empty")}</span>
+        </div>
+        <div class="meta">${h(documentCount ? "Chat and Search can cite indexed local files." : "Import files or paste text to make local answers cite your context.")}</div>
+        <div class="meta">Browser imports accept up to ${h(IMPORT_MAX_FILES)} text/code files per batch, ${h(Math.round(IMPORT_MAX_BYTES / 1024 / 1024))} MB each.</div>
+      </div>
+      <div class="search-guide-card">
+        <div>
+          <strong>Web Search</strong>
+          <span>${h(webLocal ? "local SearXNG" : webConfigured ? "configured" : "off")}</span>
+        </div>
+        <div class="meta">${h(webConfigured ? searxngUrl : "Settings can point web search at a local SearXNG instance.")}</div>
+        <div class="meta">${h(webLocal ? "Web search stays on this computer when SearXNG is bound to loopback." : webConfigured ? "Use a localhost or 127.0.0.1 URL for a fully local web search setup." : "Web search stays off until SearXNG is configured.")}</div>
+      </div>
+    </div>`;
+}
+
 async function loadDocuments() {
   const data = await api("/api/search/documents");
+  state.documents = data.documents;
+  renderSearchSetupGuide(state.documents);
   $("#documentList").innerHTML =
-    data.documents
+    state.documents
       .map(
         (doc) => `
           <div>
