@@ -577,7 +577,7 @@ Set `"dryRun": true` to return the same install plan without downloading:
 }
 ```
 
-Runs the local agent with memory and local tool context. The response includes `toolEvents`, `localResults`, `webResults`, and any created `browserSessions`. Natural-language requests for local search, web search, or browser use are executed through the agent tool layer; agent browser navigation creates a pending approval instead of navigating immediately.
+Runs the local agent with memory and local tool context. The response includes `toolEvents`, `localResults`, `webResults`, any created `browserSessions`, and any created `mediaJobs`. Natural-language requests for local search, web search, browser use, or image generation are executed through the agent tool layer. Agent browser navigation creates a pending approval instead of navigating immediately. Agent image generation uses only the configured local image worker; without one, the agent records a failed media job and reports setup guidance.
 
 ### `GET /api/agents/:id/memories`
 

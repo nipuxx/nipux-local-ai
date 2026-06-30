@@ -88,7 +88,7 @@ The Settings page owns API safety controls. It can create and revoke managed ser
 
 The Models page keeps normal users on Fast/Balanced/Smart. Its Local Model Setup guide summarizes the selected default mode, local GGUF install state, llama.cpp runtime state, and the next copyable install/start command. Detailed Hugging Face search and raw runtime logs stay behind dev mode.
 
-The Agents page keeps the normal-user entry point status-first. Its Agent Setup guide summarizes the active agent and model preset, saved memory count, browser session and approval state, and local/web search readiness before exposing run, memory, browser, approval, and action-log controls.
+The Agents page keeps the normal-user entry point status-first. Its Agent Setup guide summarizes the active agent and model preset, saved memory count, browser session and approval state, and local/web search readiness before exposing run, memory, browser, approval, and action-log controls. Agent runs can request local image generation, but that path uses the same loopback-only media worker as the Media page and records a setup failure when no local worker is configured.
 
 The Usage page is the normal observability surface. It reads local SQLite usage events through `/api/usage/summary`, then shows aggregate totals, per-lane activity, model usage, recent errors, and recent timeline events. The diagnostics report uses the same usage aggregation and adds setup/runtime/storage state for copyable support bundles without returning API key values.
 

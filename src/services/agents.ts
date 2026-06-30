@@ -43,6 +43,16 @@ function readAgent(agentId?: string): Agent {
   return agent ?? getDefaultAgent();
 }
 
+function createAgentToolInstructions() {
+  return [
+    "Treat the tool activity above as the authoritative record of what actually happened.",
+    "Treat web search as unavailable if the tool activity or result says SearXNG is not configured.",
+    "Store only durable, reusable facts in memory.",
+    "Do not claim browser actions were executed unless a browser session event exists.",
+    "Do not claim an image was generated unless image_generation is ok and a completed media job exists.",
+  ].map((line) => `- ${line}`).join("\n");
+}
+
 export async function runAgent(input: string, agentId?: string, forcedPreset?: string) {
   const agent = readAgent(agentId);
   const runId = crypto.randomUUID();
@@ -73,10 +83,7 @@ Available tool context:
 ${toolRun.contextBlock}
 
 Rules:
-- Treat the tool activity above as the authoritative record of what actually happened.
-- Treat web search as unavailable if the tool activity or result says SearXNG is not configured.
-- Store only durable, reusable facts in memory.
-- Do not claim browser actions were executed unless a browser session event exists.`,
+${createAgentToolInstructions()}`,
       },
       { role: "user", content: input },
     ];
@@ -116,6 +123,7 @@ Rules:
       localResults: toolRun.localResults,
       webResults: toolRun.webResults,
       browserSessions: toolRun.browserSessions,
+      mediaJobs: toolRun.mediaJobs,
       toolEvents: toolRun.events,
       memories,
       compaction,

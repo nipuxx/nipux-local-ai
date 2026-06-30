@@ -1,9 +1,10 @@
 import type { Agent, SearchResult } from "../types.ts";
 import { PermissionRequiredError } from "./browserAudit.ts";
 import { createBrowserSession, navigateBrowserSession, type BrowserSessionRecord } from "./browserBroker.ts";
+import { generateImage, MediaUnavailableError, type MediaJob } from "./media.ts";
 import { localSearch, webSearch } from "./search.ts";
 
-export type AgentToolName = "local_search" | "web_search" | "browser_session" | "browser_navigation";
+export type AgentToolName = "local_search" | "web_search" | "browser_session" | "browser_navigation" | "image_generation";
 export type AgentToolStatus = "ok" | "pending" | "error";
 
 export interface AgentToolEvent {
@@ -12,6 +13,7 @@ export interface AgentToolEvent {
   summary: string;
   resultCount?: number;
   browserSessionId?: string;
+  mediaJobId?: string;
   permissionRequestId?: string;
   url?: string;
   error?: string;
@@ -21,6 +23,7 @@ export interface AgentToolRun {
   localResults: SearchResult[];
   webResults: SearchResult[];
   browserSessions: BrowserSessionRecord[];
+  mediaJobs: MediaJob[];
   events: AgentToolEvent[];
   contextBlock: string;
 }
@@ -41,6 +44,22 @@ function shouldUseBrowser(input: string) {
     /\b(browser session|browse|visit|navigate|go to)\b/i.test(input) ||
     /\bopen\s+(https?:\/\/|www\.|[a-z0-9-]+\.[a-z]{2,})/i.test(input)
   );
+}
+
+function shouldGenerateImage(input: string) {
+  return (
+    /\b(generate|create|make|draw|render|produce)\b.{0,80}\b(image|picture|photo|illustration|art|poster|logo|visual)\b/i.test(input) ||
+    /\b(image|picture|photo|illustration|art|poster|logo|visual)\b.{0,80}\b(generate|create|make|draw|render|produce)\b/i.test(input)
+  );
+}
+
+function imagePromptFromInput(input: string) {
+  const quoted = input.match(/["“](.+?)["”]/)?.[1]?.trim();
+  if (quoted) return quoted;
+  return input.replace(/\b(please|can you|could you|generate|create|make|draw|render|produce|an?|image|picture|photo|illustration|art|poster|logo|visual)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 900) || input.slice(0, 900);
 }
 
 function extractRequestedUrl(input: string) {
@@ -71,12 +90,20 @@ function formatBrowserSessions(sessions: BrowserSessionRecord[]) {
     .join("\n")}`;
 }
 
+function formatMediaJobs(jobs: MediaJob[]) {
+  if (!jobs.length) return "Media jobs: none requested";
+  return `Media jobs:\n${jobs
+    .map((job, index) => `${index + 1}. ${job.kind} (${job.id})\nstatus=${job.status}${job.error ? ` error=${job.error}` : ""}`)
+    .join("\n")}`;
+}
+
 export function formatAgentToolEvents(events: AgentToolEvent[]) {
   if (!events.length) return "";
   return `Tool activity:\n${events
     .map((event) => {
       const details = [
         event.browserSessionId ? `session=${event.browserSessionId}` : "",
+        event.mediaJobId ? `job=${event.mediaJobId}` : "",
         event.permissionRequestId ? `permission=${event.permissionRequestId}` : "",
         event.error ? `error=${event.error}` : "",
       ].filter(Boolean);
@@ -90,6 +117,7 @@ export async function runAgentTools(input: string, agent: Agent): Promise<AgentT
   const localResults: SearchResult[] = [];
   const webResults: SearchResult[] = [];
   const browserSessions: BrowserSessionRecord[] = [];
+  const mediaJobs: MediaJob[] = [];
   const events: AgentToolEvent[] = [];
 
   if (shouldUseLocalSearch(input)) {
@@ -130,6 +158,38 @@ export async function runAgentTools(input: string, agent: Agent): Promise<AgentT
         summary: "Web search failed.",
         error: error instanceof Error ? error.message : String(error),
       });
+    }
+  }
+
+  if (shouldGenerateImage(input)) {
+    const prompt = imagePromptFromInput(input);
+    try {
+      const result = await generateImage({ prompt, size: "1024x1024", n: 1, response_format: "b64_json" });
+      mediaJobs.push(result.job);
+      events.push({
+        tool: "image_generation",
+        status: "ok",
+        mediaJobId: result.job.id,
+        summary: `Created local image job ${result.job.id}.`,
+      });
+    } catch (error) {
+      if (error instanceof MediaUnavailableError) {
+        mediaJobs.push(error.job);
+        events.push({
+          tool: "image_generation",
+          status: "error",
+          mediaJobId: error.job.id,
+          summary: "Local image generation is not ready.",
+          error: error.message,
+        });
+      } else {
+        events.push({
+          tool: "image_generation",
+          status: "error",
+          summary: "Local image generation failed.",
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
   }
 
@@ -196,12 +256,14 @@ export async function runAgentTools(input: string, agent: Agent): Promise<AgentT
     formatResults("Local search", localResults),
     formatResults("Web search", webResults),
     formatBrowserSessions(browserSessions),
+    formatMediaJobs(mediaJobs),
   ];
 
   return {
     localResults,
     webResults,
     browserSessions,
+    mediaJobs,
     events,
     contextBlock: contextParts.join("\n\n"),
   };
