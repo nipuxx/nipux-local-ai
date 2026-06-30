@@ -348,6 +348,51 @@ h2 {
   grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
+.agent-setup-guide {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.agent-guide-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.agent-guide-head span,
+.agent-guide-card span {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 9px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.agent-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.agent-guide-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  display: grid;
+  gap: 7px;
+  align-content: start;
+}
+
+.agent-guide-card > div:first-child {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .list {
   display: grid;
   gap: 10px;
@@ -1149,6 +1194,8 @@ h2 {
 
   nav,
   .file-import-grid,
+  .agent-guide-head,
+  .agent-guide-grid,
   .model-grid,
   .model-guide-head,
   .model-guide-grid,
@@ -1193,6 +1240,7 @@ h2 {
   }
 
   .voice-guide-card > div:first-child,
+  .agent-guide-card > div:first-child,
   .search-guide-card > div:first-child,
   .model-guide-card > div:first-child,
   .usage-card > div:first-child,

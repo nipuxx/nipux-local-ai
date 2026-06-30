@@ -25,6 +25,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - Local SQLite persistence
 - Agent memory CRUD, scored retrieval, summaries, provenance, compaction, and run history
 - Agent tool activity for local search, SearXNG web search, and browser-session creation
+- Consumer-facing Agent Setup guide for active agent, memory, browser approvals/sessions, and search tool readiness
 - Hermes detection/config adapter with internal-memory-agent fallback
 - Agent browser sessions with Playwright-backed open, navigate, screenshot, click, type, key, and close APIs
 - Browser action logs and exact approval gates for agent-originated risky actions
@@ -107,7 +108,7 @@ Install the local Chromium runtime:
 bun run browsers:install
 ```
 
-The Agents view can create browser sessions, open them, navigate, capture screenshots, click inside screenshots, type text, press Enter, and close sessions. By default browsers run headless through the UI preview. Use Settings to switch browser sessions to visible Chromium windows, or set the boot default with:
+The Agents view starts with an Agent Setup guide so normal users can see the active agent, memory count, local/web search status, browser sessions, and pending approvals before touching the lower-level controls. It can create browser sessions, open them, navigate, capture screenshots, click inside screenshots, type text, press Enter, and close sessions. By default browsers run headless through the UI preview. Use Settings to switch browser sessions to visible Chromium windows, or set the boot default with:
 
 ```bash
 NIPUX_BROWSER_HEADLESS=0 bun run start

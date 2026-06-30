@@ -10,6 +10,7 @@ const state = {
   activeChatId: null,
   messages: [],
   memories: [],
+  browserSessions: [],
   browserShots: {},
   browserErrors: {},
   runtime: null,
@@ -238,6 +239,7 @@ function applySettingsToUi() {
   $("#settingsStatus").textContent = JSON.stringify({ settings, env }, null, 2);
   renderSearchSetupGuide();
   renderModelSetupGuide();
+  renderAgentSetupGuide();
 }
 
 function addMessage(role, content = "") {
@@ -439,6 +441,7 @@ async function loadModels() {
   state.models = data.models;
   renderModelSelectors();
   renderModelSetupGuide();
+  renderAgentSetupGuide();
   renderModels();
 }
 
@@ -1402,6 +1405,92 @@ function renderBrowserActionList() {
       .join("") || `<div class="meta">No browser actions yet.</div>`;
 }
 
+function activeAgent() {
+  return state.agents.find((agent) => agent.id === state.activeAgentId) || state.agents[0] || null;
+}
+
+function countLabel(count, singular, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function agentModelSummary(agent) {
+  const preset = agent?.modelPreset || currentSettings().defaultModelPreset || "balanced";
+  const model = state.models.find((item) => item.id === preset);
+  if (!model) return preset;
+  return `${model.label} · ${model.family} ${model.parametersB}B ${model.quant}`;
+}
+
+function agentModelStatus(agent) {
+  if (!agent) return "loading";
+  const model = state.models.find((item) => item.id === agent.modelPreset);
+  if (state.status?.fakeLlm) return "dev backend";
+  if (!model) return "configured";
+  return modelStateLabel(model);
+}
+
+function renderAgentSetupGuide() {
+  const target = $("#agentSetupGuide");
+  if (!target) return;
+  const agent = activeAgent();
+  const memoryCount = state.memories.length;
+  const sessions = state.browserSessions;
+  const openSessions = sessions.filter((session) => session.status === "open").length;
+  const pendingApprovals = state.permissions.length;
+  const settings = currentSettings();
+  const searxngUrl = settings.searxngUrl?.trim() || "";
+  const webConfigured = Boolean(searxngUrl);
+  const webLocal = webConfigured && isLoopbackUrl(searxngUrl);
+  const localSearchStatus = state.documents.length ? `${state.documents.length} indexed` : "empty";
+  const webSearchStatus = webLocal ? "local SearXNG" : webConfigured ? "configured" : "off";
+  const browserStatus = pendingApprovals
+    ? countLabel(pendingApprovals, "approval")
+    : sessions.length
+      ? countLabel(sessions.length, "session")
+      : "ready";
+  target.innerHTML = `
+    <div class="agent-guide-head">
+      <div>
+        <h2>Agent Setup</h2>
+        <div class="meta">Agents use local memory, search, and browser sessions while risky browser actions wait for approval.</div>
+      </div>
+      <span>${h(pendingApprovals ? `${pendingApprovals} pending` : "ready")}</span>
+    </div>
+    <div class="agent-guide-grid">
+      <div class="agent-guide-card">
+        <div>
+          <strong>Active Agent</strong>
+          <span>${h(agentModelStatus(agent))}</span>
+        </div>
+        <div class="meta">${h(agent ? `${agent.name} · ${agent.modelPreset}` : "Creating the default local agent.")}</div>
+        <div class="meta">${h(agentModelSummary(agent))}</div>
+      </div>
+      <div class="agent-guide-card">
+        <div>
+          <strong>Memory</strong>
+          <span>${h(memoryCount ? `${memoryCount} saved` : "empty")}</span>
+        </div>
+        <div class="meta">${h(memoryCount ? "Manual memories, task summaries, and compacted summaries are available for retrieval." : "Save durable facts or run a task to build the local memory set.")}</div>
+        <div class="meta">Memory stays in the local SQLite database and can be edited or deleted here.</div>
+      </div>
+      <div class="agent-guide-card">
+        <div>
+          <strong>Browser Control</strong>
+          <span>${h(browserStatus)}</span>
+        </div>
+        <div class="meta">${h(sessions.length ? `${openSessions} open · ${sessions.length - openSessions} ready/closed` : "Create a browser when an agent or user needs a page preview.")}</div>
+        <div class="meta">${h(pendingApprovals ? "Review pending browser actions before the agent continues." : "User actions run directly; agent-originated risky actions require approval.")}</div>
+      </div>
+      <div class="agent-guide-card">
+        <div>
+          <strong>Tools</strong>
+          <span>${h(webSearchStatus)}</span>
+        </div>
+        <div class="meta">Local search: ${h(localSearchStatus)} · Web search: ${h(webSearchStatus)}</div>
+        <div class="meta">${h(webConfigured ? searxngUrl : "Set a local SearXNG URL in Settings to let agents search the web locally.")}</div>
+      </div>
+    </div>`;
+}
+
 function renderBrowserCardActions(sessionId) {
   const actions = state.browserActions.filter((event) => event.browserSessionId === sessionId).slice(0, 3);
   if (!actions.length) return "";
@@ -1494,9 +1583,10 @@ async function loadAgents() {
     )
     .join("");
   const [browsers, actions] = await Promise.all([api("/api/browsers"), api("/api/browser-actions?limit=80")]);
+  state.browserSessions = browsers.sessions;
   state.browserActions = actions.events;
   $("#browserList").innerHTML =
-    browsers.sessions
+    state.browserSessions
       .map(
         (session) => `
           <div class="browser-card" data-browser-id="${h(session.id)}">
@@ -1535,6 +1625,7 @@ async function loadAgents() {
   renderBrowserActionList();
   if (state.activeAgentId) await loadMemories();
   await loadPermissions();
+  renderAgentSetupGuide();
 }
 
 async function loadPermissions() {
@@ -1556,17 +1647,21 @@ async function loadPermissions() {
           </div>`,
       )
       .join("") || `<div class="meta">No pending approvals.</div>`;
+  renderAgentSetupGuide();
 }
 
 async function loadBrowserActions() {
   const data = await api("/api/browser-actions?limit=80");
   state.browserActions = data.events;
   renderBrowserActionList();
+  renderAgentSetupGuide();
 }
 
 async function loadMemories(query = "") {
   if (!state.activeAgentId) {
+    state.memories = [];
     $("#memoryList").innerHTML = `<div class="meta">No agent yet.</div>`;
+    renderAgentSetupGuide();
     return;
   }
   const suffix = query ? `?q=${encodeURIComponent(query)}` : "";
@@ -1597,6 +1692,7 @@ async function loadMemories(query = "") {
           </div>`,
       )
       .join("") || `<div class="meta">No memories yet.</div>`;
+  renderAgentSetupGuide();
 }
 
 function renderSearchSetupGuide(documents = state.documents || []) {
@@ -1639,6 +1735,7 @@ async function loadDocuments() {
   const data = await api("/api/search/documents");
   state.documents = data.documents;
   renderSearchSetupGuide(state.documents);
+  renderAgentSetupGuide();
   $("#documentList").innerHTML =
     state.documents
       .map(
