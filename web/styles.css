@@ -536,6 +536,46 @@ h2 {
   line-height: 1.45;
 }
 
+.model-actions {
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.model-plan {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.model-plan code {
+  display: block;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  background: #fffefa;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.model-plan-error {
+  color: var(--danger);
+}
+
+.model-warning {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.model-next {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .stats {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));

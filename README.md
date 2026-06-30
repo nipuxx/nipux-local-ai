@@ -94,7 +94,7 @@ bun run model:install --dry-run
 bun run model:install
 ```
 
-Pass `fast`, `balanced`, or `smart` to plan or install a specific preset. `model:plan` and `model:install --dry-run` resolve the selected Qwen GGUF file, reported download size, target path, install command, and llama.cpp start command before downloading. The Models page exposes the same install action. Once a preset has a local GGUF path, runtime start commands prefer that local file over remote Hugging Face loading. Dev-mode Hugging Face downloads are registered as custom local models after the GGUF file is downloaded, so they can be selected from the same model controls.
+Pass `fast`, `balanced`, or `smart` to plan or install a specific preset. `model:plan` and `model:install --dry-run` resolve the selected Qwen GGUF file, reported download size, target path, install command, and llama.cpp start command before downloading. The Models page exposes the same preview before install and reuses the previewed GGUF file when the user starts the download. Once a preset has a local GGUF path, runtime start commands prefer that local file over remote Hugging Face loading. Dev-mode Hugging Face downloads are registered as custom local models after the GGUF file is downloaded, so they can be selected from the same model controls.
 
 The Models page can also start/stop/test the llama.cpp runtime through the local API. This requires `llama` to be installed and available on `PATH`.
 

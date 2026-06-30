@@ -1,6 +1,9 @@
 const state = {
   status: null,
   models: [],
+  modelInstallPlans: {},
+  modelInstallErrors: {},
+  modelInstallLoading: {},
   chats: [],
   agents: [],
   activeAgentId: null,
@@ -382,6 +385,51 @@ async function loadModels() {
   const data = await api("/api/models");
   state.models = data.models;
   renderModelSelectors();
+  renderModels();
+}
+
+function renderModelInstallPlan(model) {
+  const error = state.modelInstallErrors[model.id];
+  if (error) {
+    return `
+      <div class="model-plan model-plan-error">
+        <strong>Preview failed</strong>
+        <div class="meta">${h(error)}</div>
+      </div>`;
+  }
+  const plan = state.modelInstallPlans[model.id];
+  if (!plan) return "";
+  const warnings = Array.isArray(plan.warnings) ? plan.warnings : [];
+  const nextSteps = Array.isArray(plan.nextSteps) ? plan.nextSteps : [];
+  return `
+    <div class="model-plan">
+      <strong>Download preview</strong>
+      <div class="meta">File: ${h(plan.selectedFilename || "not selected")} · Size: ${h(plan.selectedSizeLabel || "unknown")}</div>
+      <div class="meta">Target: ${h(plan.targetPath || "unknown")}</div>
+      ${plan.installCommand ? `<code>${h(plan.installCommand)}</code>` : ""}
+      ${plan.startCommand ? `<code>${h(plan.startCommand)}</code>` : ""}
+      ${warnings.map((warning) => `<div class="model-warning">${h(warning)}</div>`).join("")}
+      ${nextSteps.length ? `<div class="model-next">${nextSteps.map((step) => `<span>${h(step)}</span>`).join("")}</div>` : ""}
+    </div>`;
+}
+
+function renderModelActions(model, currentDefault) {
+  if (model.state === "missing" || model.state === "error") {
+    const loading = Boolean(state.modelInstallLoading[model.id]);
+    const hasPlan = Boolean(state.modelInstallPlans[model.id]);
+    return `
+      <div class="button-row model-actions">
+        <button class="plan-model" data-model-id="${h(model.id)}" ${loading ? "disabled" : ""}>${loading ? "Previewing" : "Preview"}</button>
+        <button class="install-model" data-model-id="${h(model.id)}">${hasPlan ? "Install selected" : "Install"}</button>
+      </div>
+      ${renderModelInstallPlan(model)}`;
+  }
+  if (model.state === "downloading") return `<button disabled>Downloading</button>`;
+  if (model.id === currentDefault) return `<button disabled>Default</button>`;
+  return `<button class="set-default-model" data-model-id="${h(model.id)}">Use</button>`;
+}
+
+function renderModels() {
   const currentDefault = currentSettings().defaultModelPreset || "balanced";
   $("#modelList").innerHTML = state.models
     .map(
@@ -392,15 +440,7 @@ async function loadModels() {
         <div class="meta">${model.repo}</div>
         <div class="meta">State: ${model.state} · RAM: ${model.estimatedRamGb}GB</div>
         ${model.localPath ? `<div class="meta">${h(model.localPath)}</div>` : ""}
-        ${
-          model.state === "missing" || model.state === "error"
-            ? `<button class="install-model" data-model-id="${h(model.id)}">Install</button>`
-            : model.state === "downloading"
-              ? `<button disabled>Downloading</button>`
-              : model.id === currentDefault
-                ? `<button disabled>Default</button>`
-                : `<button class="set-default-model" data-model-id="${h(model.id)}">Use</button>`
-        }
+        ${renderModelActions(model, currentDefault)}
       </div>`,
     )
     .join("");
@@ -1366,16 +1406,41 @@ async function setDefaultModel(button) {
   await Promise.all([loadModels(), loadReadiness(), loadCapabilityProfile(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor()]);
 }
 
+async function previewModelInstall(button) {
+  const modelId = button.dataset.modelId;
+  if (!modelId) return;
+  state.modelInstallLoading[modelId] = true;
+  delete state.modelInstallErrors[modelId];
+  renderModels();
+  try {
+    state.modelInstallPlans[modelId] = await api(`/api/models/install-plan?modelPreset=${encodeURIComponent(modelId)}`);
+  } catch (error) {
+    delete state.modelInstallPlans[modelId];
+    state.modelInstallErrors[modelId] = error instanceof Error ? error.message : String(error);
+  } finally {
+    delete state.modelInstallLoading[modelId];
+    renderModels();
+  }
+}
+
 async function installModel(button) {
+  const modelId = button.dataset.modelId;
+  if (!modelId) return;
   const original = button.textContent;
   button.textContent = "Installing";
   button.disabled = true;
   try {
+    const plannedFilename = state.modelInstallPlans[modelId]?.selectedFilename;
     const data = await api("/api/models/install", {
       method: "POST",
-      body: JSON.stringify({ modelPreset: button.dataset.modelId }),
+      body: JSON.stringify({
+        modelPreset: modelId,
+        ...(plannedFilename ? { filename: plannedFilename } : {}),
+      }),
     });
     button.textContent = "Installed";
+    delete state.modelInstallPlans[modelId];
+    delete state.modelInstallErrors[modelId];
     console.log(data);
   } catch (error) {
     button.textContent = "Install failed";
@@ -1400,6 +1465,7 @@ document.addEventListener("click", async (event) => {
   if (target.matches(".chat-item")) await openChat(target.dataset.chatId);
   if (target.matches(".show-files")) await showHfFiles(target);
   if (target.matches(".download-file")) await downloadFile(target);
+  if (target.matches(".plan-model")) await previewModelInstall(target);
   if (target.matches(".install-model")) await installModel(target);
   if (target.matches(".set-default-model")) await setDefaultModel(target);
   if (target.matches(".select-image-backend")) {

@@ -65,6 +65,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Qwen3 Fast/Balanced/Smart model presets exist.
 - Built-in model preset install plus Hugging Face GGUF search/list/download hooks exist; arbitrary downloaded GGUF files are registered as selectable custom local models.
 - Model install planning and dry-run commands preview the selected GGUF file, reported size, target path, install command, and start command before downloading.
+- The Models page previews the same built-in preset install plan before download and reuses the previewed GGUF filename when installing.
 - Hermes status/config adapter exists.
 - Agent memory and run history exist.
 - Agent memory CRUD, scored retrieval, summaries, provenance, and compaction exist.
