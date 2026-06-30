@@ -37,6 +37,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - Built-in local text-to-speech through macOS `say`, Linux `espeak`, or Windows SAPI when available
 - Hugging Face GGUF search, file listing, and direct download hooks
 - llama.cpp runtime status, start, stop, and prompt test controls
+- Consumer-facing Local Model Setup guide for default mode, installed GGUF state, runtime status, and next install/start command
 - Usage dashboard with totals, per-lane activity, model usage, recent errors, diagnostics, and storage breakdown
 - Settings page for default mode, SearXNG URL, browser headless mode, managed server API keys, client API key, API exposure guidance, OpenAI-compatible client quickstarts, and dev controls
 - Setup page, `bun run ready`, and `bun run setup:actions` for a ranked next action, everyday local capability status, and copyable setup commands
@@ -94,7 +95,7 @@ bun run model:install --dry-run
 bun run model:install
 ```
 
-Pass `fast`, `balanced`, or `smart` to plan or install a specific preset. `model:plan` and `model:install --dry-run` resolve the selected Qwen GGUF file, reported download size, target path, install command, and llama.cpp start command before downloading. The Models page exposes the same preview before install and reuses the previewed GGUF file when the user starts the download. Once a preset has a local GGUF path, runtime start commands prefer that local file over remote Hugging Face loading. Dev-mode Hugging Face downloads are registered as custom local models after the GGUF file is downloaded, so they can be selected from the same model controls.
+Pass `fast`, `balanced`, or `smart` to plan or install a specific preset. `model:plan` and `model:install --dry-run` resolve the selected Qwen GGUF file, reported download size, target path, install command, and llama.cpp start command before downloading. The Models page shows a normal-user Local Model Setup guide before the model cards, including default mode status, installed model count, llama.cpp runtime state, and the next copyable install/start command. It also exposes the same preview before install and reuses the previewed GGUF file when the user starts the download. Once a preset has a local GGUF path, runtime start commands prefer that local file over remote Hugging Face loading. Dev-mode Hugging Face downloads are registered as custom local models after the GGUF file is downloaded, so they can be selected from the same model controls.
 
 The Models page can also start/stop/test the llama.cpp runtime through the local API. This requires `llama` to be installed and available on `PATH`.
 

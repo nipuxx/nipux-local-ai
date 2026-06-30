@@ -66,6 +66,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Built-in model preset install plus Hugging Face GGUF search/list/download hooks exist; arbitrary downloaded GGUF files are registered as selectable custom local models.
 - Model install planning and dry-run commands preview the selected GGUF file, reported size, target path, install command, and start command before downloading.
 - The Models page previews the same built-in preset install plan before download and reuses the previewed GGUF filename when installing.
+- The Models page surfaces a consumer-facing Local Model Setup guide with default mode status, llama.cpp runtime status, and the next install/start command.
 - Hermes status/config adapter exists.
 - Agent memory and run history exist.
 - Agent memory CRUD, scored retrieval, summaries, provenance, and compaction exist.

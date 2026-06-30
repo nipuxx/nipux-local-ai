@@ -237,6 +237,7 @@ function applySettingsToUi() {
     </div>`;
   $("#settingsStatus").textContent = JSON.stringify({ settings, env }, null, 2);
   renderSearchSetupGuide();
+  renderModelSetupGuide();
 }
 
 function addMessage(role, content = "") {
@@ -437,7 +438,116 @@ async function loadModels() {
   const data = await api("/api/models");
   state.models = data.models;
   renderModelSelectors();
+  renderModelSetupGuide();
   renderModels();
+}
+
+function modelStateLabel(model) {
+  if (!model) return "unknown";
+  if (model.state === "available") return "installed";
+  if (model.state === "downloading") return "downloading";
+  if (model.state === "error") return "needs repair";
+  return "missing";
+}
+
+function modelRuntimeLabel(runtime = state.runtime) {
+  if (!runtime) return "checking";
+  if (state.status?.fakeLlm) return "dev";
+  if (runtime.running) return "managed";
+  if (runtime.backend?.ok) return "external";
+  return "offline";
+}
+
+function modelRuntimeDetail(runtime = state.runtime) {
+  if (!runtime) return "Runtime status is loading.";
+  if (state.status?.fakeLlm) return "Dev fake LLM is enabled. Install a GGUF model before using real local inference.";
+  if (runtime.running) return `Managed llama.cpp is running on port ${runtime.port}.`;
+  if (runtime.backend?.ok) return "A llama.cpp-compatible backend is already reachable.";
+  return runtime.backend?.detail || "No llama.cpp backend is reachable yet.";
+}
+
+function modelSetupAction(model, runtime = state.runtime) {
+  if (!model) {
+    return {
+      label: "Load model registry",
+      detail: "Models are still loading.",
+      command: "bun run ready",
+    };
+  }
+  if (model.state === "missing" || model.state === "error") {
+    return {
+      label: "Install local model",
+      detail: `${model.label} needs a local GGUF download before the one-command launcher can start it.`,
+      command: `bun run model:install ${model.id}`,
+    };
+  }
+  if (model.state === "downloading") {
+    return {
+      label: "Wait for download",
+      detail: `${model.label} is currently downloading.`,
+      command: "bun run ready",
+    };
+  }
+  if (!state.status?.fakeLlm && (runtime?.running || runtime?.backend?.ok)) {
+    return {
+      label: "Local model ready",
+      detail: "Chat can use the current local llama.cpp backend.",
+      command: "bun run local --open",
+    };
+  }
+  return {
+    label: "Start local model",
+    detail: "Use the one-command launcher after the model is installed.",
+    command: "bun run local --open",
+  };
+}
+
+function renderModelSetupGuide() {
+  const target = $("#modelSetupGuide");
+  if (!target) return;
+  const currentId = currentSettings().defaultModelPreset || "balanced";
+  const model = state.models.find((item) => item.id === currentId) || state.models.find((item) => item.id === "balanced") || state.models[0];
+  const installedCount = state.models.filter((item) => item.state === "available").length;
+  const runtime = state.runtime;
+  const action = modelSetupAction(model, runtime);
+  const recommended = state.capabilityProfile?.recommendedPreset;
+  target.innerHTML = `
+    <div class="model-guide-head">
+      <div>
+        <h2>Local Model Setup</h2>
+        <div class="meta">Fast, Balanced, and Smart stay simple here. Hugging Face search remains in dev mode.</div>
+      </div>
+      <span>${h(installedCount ? `${installedCount} installed` : "no local model")}</span>
+    </div>
+    <div class="model-guide-grid">
+      <div class="model-guide-card">
+        <div>
+          <strong>Default Mode</strong>
+          <span>${h(modelStateLabel(model))}</span>
+        </div>
+        <div class="meta">${h(model ? `${model.label} · ${model.family} ${model.parametersB}B ${model.quant}` : "Model registry is loading.")}</div>
+        <div class="meta">${h(model ? `${model.estimatedRamGb}GB estimated RAM${recommended ? ` · hardware suggests ${recommended}` : ""}` : "Run bun run ready to check model setup.")}</div>
+      </div>
+      <div class="model-guide-card">
+        <div>
+          <strong>Runtime</strong>
+          <span>${h(modelRuntimeLabel(runtime))}</span>
+        </div>
+        <div class="meta">${h(modelRuntimeDetail(runtime))}</div>
+        <div class="meta">${h(runtime?.command || "Managed start uses llama.cpp when a local GGUF path is available.")}</div>
+      </div>
+      <div class="model-guide-card">
+        <div>
+          <strong>${h(action.label)}</strong>
+          <span>${h(action.command.includes("install") ? "setup" : "run")}</span>
+        </div>
+        <div class="meta">${h(action.detail)}</div>
+        <div class="command-row">
+          <code>${h(action.command)}</code>
+          <button class="copy-command" data-command="${h(action.command)}">Copy</button>
+        </div>
+      </div>
+    </div>`;
 }
 
 function renderModelInstallPlan(model) {
@@ -501,6 +611,7 @@ function renderModels() {
 async function loadRuntime() {
   const data = await api("/api/runtime/status");
   state.runtime = data;
+  renderModelSetupGuide();
   $("#runtimeStatus").innerHTML = [
     ["Process", data.running ? `running ${data.pid}` : "stopped"],
     ["Backend", data.backend.ok ? "available" : "offline"],
@@ -555,6 +666,7 @@ async function loadReadiness() {
 async function loadCapabilityProfile() {
   const profile = await api("/api/capability-profile");
   state.capabilityProfile = profile;
+  renderModelSetupGuide();
   const defaultLabels = profile.defaultLanes
     .map((id) => profile.lanes.find((lane) => lane.id === id)?.label)
     .filter(Boolean)
@@ -2257,7 +2369,9 @@ $("#indexPathButton").addEventListener("click", async () => {
   await Promise.all([loadDocuments(), loadUsage()]);
 });
 $("#hfSearch").addEventListener("click", searchHf);
-$("#refreshModels").addEventListener("click", loadModels);
+$("#refreshModels").addEventListener("click", async () => {
+  await Promise.all([loadModels(), loadRuntime(), loadCapabilityProfile()]);
+});
 $("#refreshMedia").addEventListener("click", loadMedia);
 $("#applyMediaDefaults").addEventListener("click", async () => {
   const data = await api("/api/media/runtimes/defaults", { method: "POST", body: JSON.stringify({}) });
