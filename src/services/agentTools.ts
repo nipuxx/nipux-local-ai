@@ -1,10 +1,17 @@
 import type { Agent, SearchResult } from "../types.ts";
 import { PermissionRequiredError } from "./browserAudit.ts";
 import { createBrowserSession, navigateBrowserSession, type BrowserSessionRecord } from "./browserBroker.ts";
-import { generateImage, generateVideo, MediaUnavailableError, type MediaJob } from "./media.ts";
+import { generateImage, generateSpeech, generateVideo, MediaUnavailableError, type MediaJob } from "./media.ts";
 import { localSearch, webSearch } from "./search.ts";
 
-export type AgentToolName = "local_search" | "web_search" | "browser_session" | "browser_navigation" | "image_generation" | "video_generation";
+export type AgentToolName =
+  | "local_search"
+  | "web_search"
+  | "browser_session"
+  | "browser_navigation"
+  | "image_generation"
+  | "speech_generation"
+  | "video_generation";
 export type AgentToolStatus = "ok" | "pending" | "error";
 
 export interface AgentToolEvent {
@@ -60,6 +67,15 @@ function shouldGenerateVideo(input: string) {
   );
 }
 
+function shouldGenerateSpeech(input: string) {
+  return (
+    /\b(text[-\s]?to[-\s]?speech|tts|say this|voiceover|narration|spoken audio)\b/i.test(input) ||
+    /\bread(?:\s+(?:this|it|that|the answer))?\s+aloud\b/i.test(input) ||
+    /\b(generate|create|make|render|produce)\b.{0,80}\b(speech|voiceover|voice clip|audio narration|spoken audio)\b/i.test(input) ||
+    /\b(speech|voiceover|voice clip|audio narration|spoken audio)\b.{0,80}\b(generate|create|make|render|produce)\b/i.test(input)
+  );
+}
+
 function mediaPromptFromInput(input: string, words: string[]) {
   const quoted = input.match(/["“](.+?)["”]/)?.[1]?.trim();
   if (quoted) return quoted;
@@ -77,6 +93,24 @@ function imagePromptFromInput(input: string) {
 
 function videoPromptFromInput(input: string) {
   return mediaPromptFromInput(input, ["video", "clip", "animation", "movie"]);
+}
+
+function speechPromptFromInput(input: string) {
+  const quoted = input.match(/["“](.+?)["”]/)?.[1]?.trim();
+  if (quoted) return quoted;
+  const prefixed = input.match(
+    /\b(?:read(?:\s+(?:this|it|that|the answer))?\s+aloud|say this|text[-\s]?to[-\s]?speech|tts|voiceover|narration)\s*[:,-]?\s*(.+)$/i,
+  )?.[1]?.trim();
+  if (prefixed) return prefixed.slice(0, 1800);
+  return input
+    .replace(
+      /\b(please|can you|could you|generate|create|make|render|produce|an?|text[-\s]?to[-\s]?speech|tts|read|say|aloud|speech|voiceover|voice clip|audio narration|spoken audio|narration)\b/gi,
+      " ",
+    )
+    .replace(/\s+/g, " ")
+    .replace(/^\s*[:,-]\s*/, "")
+    .trim()
+    .slice(0, 1800) || input.slice(0, 1800);
 }
 
 function extractRequestedUrl(input: string) {
@@ -204,6 +238,38 @@ export async function runAgentTools(input: string, agent: Agent): Promise<AgentT
           tool: "image_generation",
           status: "error",
           summary: "Local image generation failed.",
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  }
+
+  if (shouldGenerateSpeech(input)) {
+    const text = speechPromptFromInput(input);
+    try {
+      const result = await generateSpeech({ input: text, voice: "alloy", model: "local-speech", response_format: "mp3" });
+      mediaJobs.push(result.job);
+      events.push({
+        tool: "speech_generation",
+        status: "ok",
+        mediaJobId: result.job.id,
+        summary: `Created local speech job ${result.job.id}.`,
+      });
+    } catch (error) {
+      if (error instanceof MediaUnavailableError) {
+        mediaJobs.push(error.job);
+        events.push({
+          tool: "speech_generation",
+          status: "error",
+          mediaJobId: error.job.id,
+          summary: "Local speech generation is not ready.",
+          error: error.message,
+        });
+      } else {
+        events.push({
+          tool: "speech_generation",
+          status: "error",
+          summary: "Local speech generation failed.",
           error: error instanceof Error ? error.message : String(error),
         });
       }

@@ -156,6 +156,95 @@ test("agent image requests can create local image jobs through a loopback worker
   }
 });
 
+test("agent speech requests block external media APIs and record failed speech jobs", async () => {
+  await patchSettings({ speechWorkerUrl: "https://api.openai.com/v1" });
+  const createdAgent = await jsonRequest("/api/agents", { name: "Speech Safety Agent" });
+  const { agent } = await createdAgent.json();
+
+  try {
+    const run = await jsonRequest("/api/agents/run", {
+      agentId: agent.id,
+      input: "Read aloud \"Local voice must stay private.\"",
+    });
+    expect(run.status).toBe(200);
+    const data = await run.json();
+
+    const speechEvent = data.toolEvents.find((event: { tool: string }) => event.tool === "speech_generation");
+    expect(speechEvent.status).toBe("error");
+    expect(speechEvent.mediaJobId).toBeTruthy();
+    expect(speechEvent.error).toContain("External media APIs are intentionally blocked");
+    expect(data.mediaJobs.some((job: { id: string; kind: string; status: string }) => job.id === speechEvent.mediaJobId && job.kind === "speech" && job.status === "failed")).toBe(true);
+    expect(data.output).toContain("speech_generation error");
+
+    const runsRes = await route(new Request("http://localhost/api/agents"));
+    const runsData = await runsRes.json();
+    const persisted = runsData.runs.find((run: { id: string }) => run.id === data.runId);
+    expect(persisted.toolEvents.some((event: { tool: string; mediaJobId?: string }) => event.tool === "speech_generation" && event.mediaJobId === speechEvent.mediaJobId)).toBe(true);
+    expect(persisted.mediaJobs.some((job: { id: string; status: string }) => job.id === speechEvent.mediaJobId && job.status === "failed")).toBe(true);
+  } finally {
+    await patchSettings({ speechWorkerUrl: "" });
+  }
+});
+
+test("agent speech requests can create local audio jobs through a loopback worker", async () => {
+  let workerInput = "";
+  let workerVoice = "";
+  const speechBytes = Buffer.from("fake local speech");
+  const speechDataUrl = `data:audio/wav;base64,${speechBytes.toString("base64")}`;
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    async fetch(req) {
+      const url = new URL(req.url);
+      if (url.pathname === "/v1/audio/speech" && req.method === "POST") {
+        const body = await req.json() as { input?: string; voice?: string };
+        workerInput = body.input ?? "";
+        workerVoice = body.voice ?? "";
+        return new Response(speechBytes, { headers: { "content-type": "audio/wav" } });
+      }
+      return new Response("ok");
+    },
+  });
+
+  try {
+    await patchSettings({ speechWorkerUrl: `http://127.0.0.1:${server.port}` });
+    const createdAgent = await jsonRequest("/api/agents", { name: "Speech Worker Agent" });
+    const { agent } = await createdAgent.json();
+
+    const run = await jsonRequest("/api/agents/run", {
+      agentId: agent.id,
+      input: "Read this aloud: \"Local agents can speak through the same media system.\"",
+    });
+    expect(run.status).toBe(200);
+    const data = await run.json();
+
+    const speechEvent = data.toolEvents.find((event: { tool: string }) => event.tool === "speech_generation");
+    expect(speechEvent.status).toBe("ok");
+    expect(speechEvent.mediaJobId).toBeTruthy();
+    expect(workerInput).toBe("Local agents can speak through the same media system.");
+    expect(workerVoice).toBe("alloy");
+    expect(
+      data.mediaJobs.some(
+        (job: { id: string; kind: string; status: string; output: { dataUrl?: string } }) =>
+          job.id === speechEvent.mediaJobId &&
+          job.kind === "speech" &&
+          job.status === "completed" &&
+          job.output.dataUrl === speechDataUrl,
+      ),
+    ).toBe(true);
+    expect(data.output).toContain("speech_generation ok");
+
+    const runsRes = await route(new Request("http://localhost/api/agents"));
+    const runsData = await runsRes.json();
+    const persisted = runsData.runs.find((run: { id: string }) => run.id === data.runId);
+    expect(persisted.toolEvents.some((event: { tool: string; mediaJobId?: string }) => event.tool === "speech_generation" && event.mediaJobId === speechEvent.mediaJobId)).toBe(true);
+    expect(persisted.mediaJobs.some((job: { id: string; status: string }) => job.id === speechEvent.mediaJobId && job.status === "completed")).toBe(true);
+  } finally {
+    await patchSettings({ speechWorkerUrl: "" });
+    server.stop(true);
+  }
+});
+
 test("agent video requests stay honest when no local video worker is configured", async () => {
   await patchSettings({ videoWorkerUrl: "" });
   const createdAgent = await jsonRequest("/api/agents", { name: "Video Setup Agent" });
