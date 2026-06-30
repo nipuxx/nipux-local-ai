@@ -93,6 +93,8 @@ Default mode is headless with screenshot/control through the UI. Set `NIPUX_BROW
 - credential access
 - file writes/deletes
 
+Approvals are scoped to the exact browser session, agent, action, and action details. The Agents view can approve and run replayable actions such as navigation, clicks, and key presses. Typed text is not displayed in approval records; the backend stores a length and SHA-256 fingerprint so an approval cannot be reused for different text with the same visible length.
+
 ## Media Workers
 
 Image, speech, transcription, and video are local worker surfaces. They are configured with loopback URLs in Settings dev mode or environment variables:

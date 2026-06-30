@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -7,6 +8,7 @@ process.env.NIPUX_HOME = mkdtempSync(join(tmpdir(), "nipux-browsers-"));
 process.env.NIPUX_FAKE_LLM = "1";
 
 const { createBrowserSession, listBrowserSessions, normalizeBrowserUrl } = await import("../src/services/browserBroker.ts");
+const { assertBrowserActionAllowed, PermissionRequiredError, resolvePermissionRequest } = await import("../src/services/browserAudit.ts");
 const { route } = await import("../src/main.ts");
 
 test("browser sessions are persisted before Chromium is launched", () => {
@@ -76,4 +78,95 @@ test("agent browser navigation is blocked pending approval and logged", async ()
   const approved = await route(new Request(`http://localhost/api/permissions/${blockedJson.request.id}/approve`, { method: "POST" }));
   const approvedJson = await approved.json();
   expect(approvedJson.request.status).toBe("approved");
+});
+
+test("approved browser permissions only apply to exact action details", () => {
+  const session = createBrowserSession("agent-1", "Exact Approval Browser");
+  let requestId = "";
+  try {
+    assertBrowserActionAllowed({
+      browserSessionId: session.id,
+      agentId: "agent-1",
+      action: "navigate",
+      details: { url: "https://example.com" },
+      context: { actor: "agent", agentId: "agent-1", reason: "Open requested page." },
+    });
+  } catch (error) {
+    expect(error).toBeInstanceOf(PermissionRequiredError);
+    requestId = (error as { request: { id: string } }).request.id;
+  }
+  expect(requestId).toBeTruthy();
+  resolvePermissionRequest(requestId, "approved");
+
+  const allowed = assertBrowserActionAllowed({
+    browserSessionId: session.id,
+    agentId: "agent-1",
+    action: "navigate",
+    details: { url: "https://example.com" },
+    context: { actor: "agent", agentId: "agent-1", permissionRequestId: requestId },
+  });
+  expect(allowed.permissionRequestId).toBe(requestId);
+
+  try {
+    assertBrowserActionAllowed({
+      browserSessionId: session.id,
+      agentId: "agent-1",
+      action: "navigate",
+      details: { url: "https://example.org" },
+      context: { actor: "agent", agentId: "agent-1", permissionRequestId: requestId },
+    });
+  } catch (error) {
+    expect(error).toBeInstanceOf(PermissionRequiredError);
+    const request = (error as { request: { id: string; details: { url?: string } } }).request;
+    expect(request.id).not.toBe(requestId);
+    expect(request.details.url).toBe("https://example.org");
+    return;
+  }
+  throw new Error("Expected mismatched approval details to require a new permission.");
+});
+
+test("type permissions store a text fingerprint without exposing typed text", async () => {
+  const session = createBrowserSession("agent-2", "Type Approval Browser");
+  const blocked = await route(
+    new Request(`http://localhost/api/browsers/${session.id}/type`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        actor: "agent",
+        agentId: "agent-2",
+        text: "secret",
+        reason: "Fill a focused field.",
+      }),
+    }),
+  );
+  expect(blocked.status).toBe(202);
+  const blockedJson = await blocked.json();
+  const expectedHash = createHash("sha256").update("secret").digest("hex");
+  expect(blockedJson.request.details.textLength).toBe(6);
+  expect(blockedJson.request.details.textSha256).toBe(expectedHash);
+  expect(blockedJson.request.details.text).toBeUndefined();
+
+  resolvePermissionRequest(blockedJson.request.id, "approved");
+  const allowed = assertBrowserActionAllowed({
+    browserSessionId: session.id,
+    agentId: "agent-2",
+    action: "type",
+    details: { textLength: 6, textSha256: expectedHash },
+    context: { actor: "agent", agentId: "agent-2", permissionRequestId: blockedJson.request.id },
+  });
+  expect(allowed.permissionRequestId).toBe(blockedJson.request.id);
+
+  try {
+    assertBrowserActionAllowed({
+      browserSessionId: session.id,
+      agentId: "agent-2",
+      action: "type",
+      details: { textLength: 6, textSha256: createHash("sha256").update("public").digest("hex") },
+      context: { actor: "agent", agentId: "agent-2", permissionRequestId: blockedJson.request.id },
+    });
+  } catch (error) {
+    expect(error).toBeInstanceOf(PermissionRequiredError);
+    return;
+  }
+  throw new Error("Expected a different typed-text fingerprint to require a new permission.");
 });

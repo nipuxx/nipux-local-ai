@@ -27,7 +27,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - Agent tool activity for local search, SearXNG web search, and browser-session creation
 - Hermes detection/config adapter with internal-memory-agent fallback
 - Agent browser sessions with Playwright-backed open, navigate, screenshot, click, type, key, and close APIs
-- Browser action logs and approval gates for agent-originated risky actions
+- Browser action logs and exact approval gates for agent-originated risky actions
 - Manual document indexing, browser file/folder import, safe dev file-path indexing, and local search
 - SearXNG adapter for local web search
 - Media tab plus local-only image, speech, transcription, and video worker API surfaces
@@ -112,7 +112,7 @@ The Agents view can create browser sessions, open them, navigate, capture screen
 NIPUX_BROWSER_HEADLESS=0 bun run start
 ```
 
-Agent runs can also create assigned browser sessions from natural-language tasks. If a task asks the agent to visit a URL, the session is created and navigation is queued behind the same user approval gate as other agent-originated browser actions.
+Agent runs can also create assigned browser sessions from natural-language tasks. If a task asks the agent to visit a URL, the session is created and navigation is queued behind the same user approval gate as other agent-originated browser actions. The Agents view shows pending approval details, can approve and run replayable browser actions, and only reuses an approval when the session, agent, action, and action details match.
 
 ## Media Workers
 

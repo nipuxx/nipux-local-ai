@@ -50,6 +50,7 @@ input,
 textarea,
 select {
   width: 100%;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 10px 12px;
@@ -795,6 +796,12 @@ h2 {
   gap: 10px;
 }
 
+.permission-card,
+.browser-action-row {
+  display: grid;
+  gap: 7px;
+}
+
 .browser-head,
 .browser-controls {
   display: grid;
@@ -818,6 +825,15 @@ h2 {
   border-radius: 6px;
   background: #111;
   cursor: crosshair;
+}
+
+.browser-card-actions {
+  display: grid;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .browser-empty,

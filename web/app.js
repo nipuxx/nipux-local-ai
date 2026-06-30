@@ -794,6 +794,106 @@ async function loadMedia() {
       .join("") || `<div class="meta">No media jobs yet.</div>`;
 }
 
+function browserActionDetail(action, details = {}) {
+  if (action === "navigate") return details.url || "";
+  if (action === "click") return typeof details.x === "number" && typeof details.y === "number" ? `x ${details.x}, y ${details.y}` : "";
+  if (action === "key") return details.key ? `key ${details.key}` : "";
+  if (action === "type") return typeof details.textLength === "number" ? `${details.textLength} characters` : "typed text hidden";
+  return Object.keys(details).length ? JSON.stringify(details) : "";
+}
+
+function renderBrowserActionList() {
+  $("#browserActionList").innerHTML =
+    state.browserActions
+      .map((event) => {
+        const detail = browserActionDetail(event.action, event.details || {});
+        return `
+          <div class="browser-action-row">
+            <strong>${h(event.action)} · ${h(event.status)} · ${h(event.actor)}</strong>
+            <div class="meta">${h(event.risk)}${event.url ? ` · ${h(event.url)}` : ""}${detail ? ` · ${h(detail)}` : ""}</div>
+            <div class="meta">${h(event.createdAt)}</div>
+          </div>`;
+      })
+      .join("") || `<div class="meta">No browser actions yet.</div>`;
+}
+
+function renderBrowserCardActions(sessionId) {
+  const actions = state.browserActions.filter((event) => event.browserSessionId === sessionId).slice(0, 3);
+  if (!actions.length) return "";
+  return `
+    <div class="browser-card-actions">
+      ${actions
+        .map((event) => {
+          const detail = browserActionDetail(event.action, event.details || {});
+          return `<span>${h(event.action)} ${h(event.status)}${detail ? ` · ${h(detail)}` : ""}</span>`;
+        })
+        .join("")}
+    </div>`;
+}
+
+function permissionDetail(request) {
+  return browserActionDetail(request.action, request.details || {}) || "No target details recorded";
+}
+
+function permissionCanRun(request) {
+  return ["navigate", "click", "key", "open", "close", "screenshot"].includes(request.action);
+}
+
+async function runApprovedPermission(request) {
+  const sessionId = request.browserSessionId;
+  if (!sessionId) throw new Error("Permission request has no browser session.");
+  const body = {
+    actor: "agent",
+    agentId: request.agentId || undefined,
+    reason: request.reason || "Approved in the UI.",
+    permissionRequestId: request.id,
+  };
+  if (request.action === "navigate") {
+    const result = await api(`/api/browsers/${sessionId}/navigate`, {
+      method: "POST",
+      body: JSON.stringify({ ...body, url: request.details?.url }),
+    });
+    if (result.permissionRequired) throw new Error("The browser action still requires a fresh approval.");
+    return refreshBrowserScreenshot(sessionId);
+  }
+  if (request.action === "click") {
+    const result = await api(`/api/browsers/${sessionId}/click`, {
+      method: "POST",
+      body: JSON.stringify({ ...body, x: request.details?.x, y: request.details?.y }),
+    });
+    if (result.permissionRequired) throw new Error("The browser action still requires a fresh approval.");
+    return refreshBrowserScreenshot(sessionId);
+  }
+  if (request.action === "key") {
+    const result = await api(`/api/browsers/${sessionId}/key`, {
+      method: "POST",
+      body: JSON.stringify({ ...body, key: request.details?.key }),
+    });
+    if (result.permissionRequired) throw new Error("The browser action still requires a fresh approval.");
+    return refreshBrowserScreenshot(sessionId);
+  }
+  if (request.action === "open" || request.action === "close") {
+    const result = await api(`/api/browsers/${sessionId}/${request.action}`, { method: "POST", body: JSON.stringify(body) });
+    if (result.permissionRequired) throw new Error("The browser action still requires a fresh approval.");
+    if (request.action === "open") return refreshBrowserScreenshot(sessionId);
+    delete state.browserShots[sessionId];
+    return loadAgents();
+  }
+  if (request.action === "screenshot") {
+    const params = new URLSearchParams({
+      actor: "agent",
+      permissionRequestId: request.id,
+      ...(request.agentId ? { agentId: request.agentId } : {}),
+      ...(request.reason ? { reason: request.reason } : {}),
+    });
+    const data = await api(`/api/browsers/${sessionId}/screenshot?${params.toString()}`);
+    state.browserShots[sessionId] = data.dataUrl;
+    delete state.browserErrors[sessionId];
+    return loadAgents();
+  }
+  throw new Error(`${request.action} approvals cannot be replayed because the action input is not stored.`);
+}
+
 async function loadAgents() {
   const data = await api("/api/agents");
   state.agents = data.agents;
@@ -808,7 +908,8 @@ async function loadAgents() {
         </div>`,
     )
     .join("");
-  const browsers = await api("/api/browsers");
+  const [browsers, actions] = await Promise.all([api("/api/browsers"), api("/api/browser-actions?limit=80")]);
+  state.browserActions = actions.events;
   $("#browserList").innerHTML =
     browsers.sessions
       .map(
@@ -842,11 +943,13 @@ async function loadAgents() {
                 ? `<img class="browser-preview" data-id="${h(session.id)}" src="${state.browserShots[session.id]}" alt="Browser preview" />`
                 : `<div class="browser-empty">No screenshot yet</div>`
             }
+            ${renderBrowserCardActions(session.id)}
           </div>`,
       )
       .join("") || `<div class="meta">No browser sessions yet.</div>`;
+  renderBrowserActionList();
   if (state.activeAgentId) await loadMemories();
-  await Promise.all([loadPermissions(), loadBrowserActions()]);
+  await loadPermissions();
 }
 
 async function loadPermissions() {
@@ -856,10 +959,13 @@ async function loadPermissions() {
     data.requests
       .map(
         (request) => `
-          <div>
+          <div class="permission-card">
             <strong>${h(request.action)} · ${h(request.risk)}</strong>
+            <div class="meta">${h(permissionDetail(request))}</div>
             <div class="meta">${h(request.reason || "No reason provided")}</div>
-            <div class="meta">${h(request.browserSessionId || "")}</div>
+            <div class="meta">${h(request.browserSessionId || "")}${request.agentId ? ` · agent ${h(request.agentId)}` : ""}</div>
+            ${request.action === "type" ? `<div class="browser-error">Typed text is not stored, so approve this only if the agent should retry the step itself.</div>` : ""}
+            ${permissionCanRun(request) ? `<button class="permission-run" data-id="${h(request.id)}">Approve & Run</button>` : ""}
             <button class="permission-approve" data-id="${h(request.id)}">Approve</button>
             <button class="permission-deny" data-id="${h(request.id)}">Deny</button>
           </div>`,
@@ -870,17 +976,7 @@ async function loadPermissions() {
 async function loadBrowserActions() {
   const data = await api("/api/browser-actions?limit=80");
   state.browserActions = data.events;
-  $("#browserActionList").innerHTML =
-    data.events
-      .map(
-        (event) => `
-          <div>
-            <strong>${h(event.action)} · ${h(event.status)} · ${h(event.actor)}</strong>
-            <div class="meta">${h(event.risk)} · ${h(event.url || "")}</div>
-            <div class="meta">${h(event.createdAt)}</div>
-          </div>`,
-      )
-      .join("") || `<div class="meta">No browser actions yet.</div>`;
+  renderBrowserActionList();
 }
 
 async function loadMemories(query = "") {
@@ -1512,6 +1608,26 @@ document.addEventListener("click", async (event) => {
   if (target.matches(".permission-approve")) {
     await api(`/api/permissions/${target.dataset.id}/approve`, { method: "POST", body: "{}" });
     await Promise.all([loadPermissions(), loadBrowserActions()]);
+  }
+  if (target.matches(".permission-run")) {
+    const request = state.permissions.find((item) => item.id === target.dataset.id);
+    if (!request) return;
+    const original = target.textContent;
+    target.textContent = "Running";
+    target.disabled = true;
+    try {
+      await api(`/api/permissions/${request.id}/approve`, { method: "POST", body: "{}" });
+      await runApprovedPermission(request);
+    } catch (error) {
+      if (request.browserSessionId) state.browserErrors[request.browserSessionId] = error instanceof Error ? error.message : String(error);
+      target.textContent = "Run failed";
+    } finally {
+      await Promise.all([loadAgents(), loadUsage()]);
+      setTimeout(() => {
+        target.textContent = original;
+        target.disabled = false;
+      }, 1200);
+    }
   }
   if (target.matches(".permission-deny")) {
     await api(`/api/permissions/${target.dataset.id}/deny`, { method: "POST", body: "{}" });

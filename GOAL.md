@@ -73,6 +73,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Manual document indexing, browser file/folder import, dev file-path indexing, local search, and SearXNG adapter exist.
 - Playwright browser sessions can open, navigate, screenshot, click, type, press keys, and close.
 - Browser action logs and permission gates for agent-originated risky actions exist.
+- Agent browser approvals can show target details, approve and run replayable actions, and only reuse approvals for matching session/agent/action/details.
 - Usage view exposes a copyable local diagnostics report with readiness, runtime, supervisor, media, model, storage, and recent usage state.
 - Persisted app settings exist for default mode, SearXNG URL, browser headless mode, dev mode, and managed hashed server API keys.
 - API exposure planning exists for private localhost mode, protected LAN/public mode, key counts, warnings, LAN URLs, and copyable launch commands.

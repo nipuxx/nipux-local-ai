@@ -45,6 +45,21 @@ function parseDetails(detailsJson: string) {
   }
 }
 
+function stableValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([, entry]) => entry !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => [key, stableValue(entry)]),
+  );
+}
+
+function detailsMatch(left: Record<string, unknown> = {}, right: Record<string, unknown> = {}) {
+  return JSON.stringify(stableValue(left)) === JSON.stringify(stableValue(right));
+}
+
 function permissionRow(row: {
   id: string;
   kind: string;
@@ -223,10 +238,13 @@ export function assertBrowserActionAllowed(input: {
 
   if (input.context?.permissionRequestId) {
     const request = getPermissionRequest(input.context.permissionRequestId);
+    const agentId = input.context?.agentId ?? input.agentId ?? null;
     if (
       request.status === "approved" &&
       request.browserSessionId === input.browserSessionId &&
-      request.action === input.action
+      request.action === input.action &&
+      (request.agentId ?? null) === agentId &&
+      detailsMatch(request.details, input.details)
     ) {
       return { actor, risk, permissionRequestId: request.id };
     }

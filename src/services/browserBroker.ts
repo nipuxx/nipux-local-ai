@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { NIPUX_HOME } from "../config.ts";
 import { db } from "../db.ts";
@@ -136,6 +137,13 @@ async function ensureRuntimeSession(id: string): Promise<RuntimeSession> {
 
 function actionAgentId(session: BrowserSessionRecord, context?: BrowserActionContext) {
   return context?.agentId ?? session.agentId ?? null;
+}
+
+function typedTextDetails(text: string) {
+  return {
+    textLength: text.length,
+    textSha256: createHash("sha256").update(text).digest("hex"),
+  };
 }
 
 export async function openBrowserSession(id: string, context: BrowserActionContext = {}) {
@@ -324,11 +332,12 @@ export async function clickBrowserSession(id: string, x: number, y: number, cont
 export async function typeInBrowserSession(id: string, text: string, context: BrowserActionContext = {}) {
   const started = Date.now();
   const sessionRecord = getBrowserSession(id);
+  const details = typedTextDetails(text);
   const permission = assertBrowserActionAllowed({
     browserSessionId: id,
     agentId: actionAgentId(sessionRecord, context),
     action: "type",
-    details: { textLength: text.length },
+    details,
     context,
   });
   try {
@@ -343,7 +352,7 @@ export async function typeInBrowserSession(id: string, text: string, context: Br
       risk: permission.risk,
       status: "ok",
       url: session.url,
-      details: { textLength: text.length },
+      details,
       permissionRequestId: permission.permissionRequestId,
     });
     recordUsage({ kind: "browser", latencyMs: Date.now() - started, status: "ok", meta: { action: "type", id, length: text.length } });
@@ -357,7 +366,7 @@ export async function typeInBrowserSession(id: string, text: string, context: Br
       action: "type",
       risk: permission.risk,
       status: "error",
-      details: { textLength: text.length },
+      details,
       permissionRequestId: permission.permissionRequestId,
       error: message,
     });
