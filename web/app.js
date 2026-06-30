@@ -683,6 +683,47 @@ function formatBytes(bytes = 0) {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
 }
 
+function formatCount(value = 0) {
+  return new Intl.NumberFormat().format(Number(value || 0));
+}
+
+function formatPercent(value = 0) {
+  return `${Math.round(Number(value || 0) * 100)}%`;
+}
+
+function shortText(value = "", max = 110) {
+  const text = String(value ?? "");
+  return text.length > max ? `${text.slice(0, max - 1)}...` : text;
+}
+
+function usageMetaText(meta = {}) {
+  const priorityKeys = ["action", "type", "reason", "count", "code", "jobId", "error"];
+  return priorityKeys
+    .filter((key) => meta[key] !== undefined && meta[key] !== null && meta[key] !== "")
+    .slice(0, 3)
+    .map((key) => `${key}: ${shortText(meta[key], 70)}`)
+    .join(" · ");
+}
+
+function usageBreakdownMarkup(items = [], emptyText = "No usage recorded yet.") {
+  if (!items.length) return `<div class="meta usage-empty">${h(emptyText)}</div>`;
+  const maxRequests = Math.max(...items.map((item) => Number(item.requests || 0)), 1);
+  return items
+    .map(
+      (item) => `
+        <div class="usage-card">
+          <div>
+            <strong>${h(item.label)}</strong>
+            <span>${h(formatCount(item.requests))} req</span>
+          </div>
+          <div class="usage-meter" aria-hidden="true"><span style="width: ${h(Math.max(4, Math.round((Number(item.requests || 0) / maxRequests) * 100)))}%"></span></div>
+          <div class="meta">${h(Math.round(item.latencyMs || 0))}ms avg · ${h(formatCount(item.tokensIn))} in · ${h(formatCount(item.tokensOut))} out</div>
+          <div class="meta">${h(item.errors || 0)} errors · ${h(formatPercent(item.errorRate))} error rate${item.lastEventAt ? ` · ${h(item.lastEventAt)}` : ""}</div>
+        </div>`,
+    )
+    .join("");
+}
+
 async function loadSetupActions() {
   const data = await api("/api/setup/actions");
   state.setupActions = data;
@@ -778,29 +819,44 @@ async function loadUsage() {
   const data = await api("/api/usage/summary");
   const s = data.summary;
   $("#usageSummary").innerHTML = [
-    ["Requests", s.requests],
-    ["Input tokens", s.tokensIn],
-    ["Output tokens", s.tokensOut],
+    ["Requests", formatCount(s.requests)],
+    ["Input tokens", formatCount(s.tokensIn)],
+    ["Output tokens", formatCount(s.tokensOut)],
     ["Avg latency", `${Math.round(s.latencyMs)}ms`],
-    ["Errors", s.errors],
+    ["Errors", formatCount(s.errors)],
   ]
     .map(([label, value]) => `<div class="stat"><span>${label}</span><strong>${value}</strong></div>`)
     .join("");
+  $("#usageBreakdown").innerHTML = usageBreakdownMarkup(data.byKind, "No local activity has been recorded yet.");
+  $("#usageModels").innerHTML = usageBreakdownMarkup(data.byModel, "No model-specific usage has been recorded yet.");
+  $("#usageErrors").innerHTML =
+    data.errors
+      ?.map(
+        (event) => `
+          <div class="usage-error-row">
+            <strong>${h(event.kind)} error</strong>
+            <div class="meta">${h(event.model || "n/a")} · ${h(event.latencyMs)}ms · ${h(event.createdAt)}</div>
+            ${usageMetaText(event.meta) ? `<div class="meta">${h(usageMetaText(event.meta))}</div>` : ""}
+          </div>`,
+      )
+      .join("") || `<div class="meta">No recent errors.</div>`;
   $("#usageTimeline").innerHTML = data.timeline
     .map(
       (event) => `
-        <div>
+        <div class="usage-timeline-row">
           <strong>${event.kind} ${event.status}</strong>
           <div class="meta">${event.model || "n/a"} · ${event.latencyMs}ms · ${event.createdAt}</div>
+          ${usageMetaText(event.meta) ? `<div class="meta">${h(usageMetaText(event.meta))}</div>` : ""}
         </div>`,
     )
-    .join("");
+    .join("") || `<div class="meta">No usage events yet.</div>`;
 }
 
 async function loadDiagnostics() {
   const data = await api("/api/diagnostics");
   state.diagnostics = data;
-  const storageBytes = Object.values(data.storage || {}).reduce((total, item) => total + (item.bytes || 0), 0);
+  const storage = data.storage || {};
+  const storageBytes = storage.home?.bytes ?? Object.values(storage).reduce((total, item) => total + (item.bytes || 0), 0);
   $("#diagnosticsSummary").innerHTML = [
     ["Generated", data.generatedAt],
     ["Readiness", data.readiness?.usable ? "usable" : "needs setup"],
@@ -811,6 +867,21 @@ async function loadDiagnostics() {
   ]
     .map(([label, value]) => `<div><span>${h(label)}</span><strong>${h(value)}</strong></div>`)
     .join("");
+  $("#storageBreakdown").innerHTML =
+    Object.entries(storage)
+      .map(
+        ([label, item]) => `
+          <div class="storage-card">
+            <div>
+              <strong>${h(label)}</strong>
+              <span>${h(item.exists ? "present" : "missing")}</span>
+            </div>
+            <div>${h(formatBytes(item.bytes || 0))}</div>
+            <div class="meta">${h(formatCount(item.files))} files · ${h(formatCount(item.directories))} dirs${item.truncated ? " · truncated" : ""}</div>
+            <code>${h(item.path || "")}</code>
+          </div>`,
+      )
+      .join("") || `<div class="meta usage-empty">No storage data available.</div>`;
   $("#diagnosticsOutput").textContent = JSON.stringify(data, null, 2);
 }
 

@@ -106,6 +106,10 @@ Returns the everyday setup summary used by the Setup page and `bun run ready`. I
 
 Returns a read-only local diagnostics report for the Usage page. The report includes hardware, setup preflight, readiness, capability profile, runtime status, local supervisor dry-run plan, launch commands, media runtime plan, model states, recent usage, storage totals, and redacted auth state. API key values are never returned.
 
+### `GET /api/usage/summary`
+
+Returns the local Usage dashboard data from SQLite: aggregate totals, per-lane breakdowns, model breakdowns, recent errors, and the recent event timeline. The route does not export prompts, audio, images, or API keys; event metadata is the same small operational metadata recorded by local handlers.
+
 ### `GET /api/capability-profile`
 
 Returns the consumer-facing machine profile used by the Setup page and `bun run capabilities`. It classifies the machine as minimal CPU, CPU-standard, GPU-accelerated, or high-memory workstation; picks the recommended Fast/Balanced/Smart mode; and marks each lane as default, available, slow, optional, or blocked.

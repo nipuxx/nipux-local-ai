@@ -43,6 +43,32 @@ export interface UsageSummary {
   errors: number;
 }
 
+export interface UsageBreakdownItem extends UsageSummary {
+  key: string;
+  label: string;
+  errorRate: number;
+  lastEventAt?: string | null;
+}
+
+export interface UsageEvent {
+  kind: string;
+  model?: string | null;
+  tokensIn: number;
+  tokensOut: number;
+  latencyMs: number;
+  status: "ok" | "error" | string;
+  createdAt: string;
+  meta: Record<string, unknown>;
+}
+
+export interface UsageDashboard {
+  summary: UsageSummary;
+  byKind: UsageBreakdownItem[];
+  byModel: UsageBreakdownItem[];
+  errors: UsageEvent[];
+  timeline: UsageEvent[];
+}
+
 export interface Agent {
   id: string;
   name: string;

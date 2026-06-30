@@ -80,7 +80,7 @@ import { getSetupActions } from "./services/setupActions.ts";
 import { getReadinessReport } from "./services/readiness.ts";
 import { addLocalDocument, addLocalDocumentsBulk, localSearch, webSearch, type BulkDocumentInput } from "./services/search.ts";
 import { getAppSettings, getSettingsStatus, updateAppSettings, type AppSettings } from "./services/settings.ts";
-import { getUsageSummary, getUsageTimeline, recordUsage } from "./services/usage.ts";
+import { getUsageDashboard, recordUsage } from "./services/usage.ts";
 
 const corsHeaders = {
   "access-control-allow-origin": "*",
@@ -784,7 +784,7 @@ export async function route(req: Request): Promise<Response> {
     }
   }
 
-  if (url.pathname === "/api/usage/summary") return json({ summary: getUsageSummary(), timeline: getUsageTimeline() });
+  if (url.pathname === "/api/usage/summary") return json(getUsageDashboard());
 
   if (url.pathname === "/api/media/capabilities" && req.method === "GET") return json(await getMediaCapabilities());
   if (url.pathname === "/api/media/runtimes" && req.method === "GET") return json(await getMediaRuntimePlan());

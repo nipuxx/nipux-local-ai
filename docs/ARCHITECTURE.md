@@ -86,6 +86,8 @@ The Settings page owns API safety controls. It can create and revoke managed ser
 
 `bun run local --open` is the consumer launch command. It starts the app, opens the private local UI in the browser, starts llama.cpp when `llama` and a local GGUF model path are available, and starts any bundled image, transcription, or video workers whose required environment variables are configured. Plain `bun run local` keeps the same process supervision without opening a browser for server/headless use. `GET /api/launch/supervisor` and `bun run src/cli.ts local --dry-run` expose the same plan without starting processes.
 
+The Usage page is the normal observability surface. It reads local SQLite usage events through `/api/usage/summary`, then shows aggregate totals, per-lane activity, model usage, recent errors, and recent timeline events. The diagnostics report uses the same usage aggregation and adds setup/runtime/storage state for copyable support bundles without returning API key values.
+
 ## Agent Memory
 
 Each agent has:

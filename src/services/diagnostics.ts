@@ -12,7 +12,7 @@ import { getRuntimeStatus } from "./modelRuntime.ts";
 import { getReadinessReport } from "./readiness.ts";
 import { getSetupPreflight } from "./setupChecks.ts";
 import { getSettingsStatus } from "./settings.ts";
-import { getUsageSummary, getUsageTimeline } from "./usage.ts";
+import { getUsageDashboard } from "./usage.ts";
 
 interface StorageStats {
   path: string;
@@ -112,10 +112,7 @@ export async function getDiagnosticsReport() {
       localPath: model.localPath,
       estimatedRamGb: model.estimatedRamGb,
     })),
-    usage: {
-      summary: getUsageSummary(),
-      recent: getUsageTimeline(20),
-    },
+    usage: getUsageDashboard(20),
     storage: {
       home: storageStats(NIPUX_HOME),
       data: storageStats(DATA_DIR),

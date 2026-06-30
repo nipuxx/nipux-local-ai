@@ -740,6 +740,80 @@ h2 {
   margin-bottom: 18px;
 }
 
+.usage-breakdown,
+.usage-models,
+.storage-breakdown {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.usage-card,
+.storage-card {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.usage-card > div:first-child,
+.storage-card > div:first-child {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.usage-card span,
+.storage-card span {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.usage-meter {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #ece7dc;
+}
+
+.usage-meter span {
+  display: block;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: #6c8f83;
+}
+
+.usage-errors {
+  margin-bottom: 18px;
+}
+
+.usage-error-row,
+.usage-timeline-row {
+  display: grid;
+  gap: 5px;
+}
+
+.usage-empty {
+  margin-bottom: 18px;
+}
+
+.storage-card code {
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
 .setup-hero {
   border: 1px solid var(--line);
   background: var(--panel);
@@ -1038,6 +1112,9 @@ h2 {
   .readiness-grid,
   .split,
   .stats,
+  .usage-breakdown,
+  .usage-models,
+  .storage-breakdown,
   .diagnostics-summary,
   .settings-grid,
   .runtime-status {
@@ -1070,6 +1147,8 @@ h2 {
 
   .voice-guide-card > div:first-child,
   .search-guide-card > div:first-child,
+  .usage-card > div:first-child,
+  .storage-card > div:first-child,
   .video-guide-card > div:first-child {
     display: grid;
   }

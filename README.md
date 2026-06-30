@@ -37,7 +37,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - Built-in local text-to-speech through macOS `say`, Linux `espeak`, or Windows SAPI when available
 - Hugging Face GGUF search, file listing, and direct download hooks
 - llama.cpp runtime status, start, stop, and prompt test controls
-- Usage dashboard
+- Usage dashboard with totals, per-lane activity, model usage, recent errors, diagnostics, and storage breakdown
 - Settings page for default mode, SearXNG URL, browser headless mode, managed server API keys, client API key, API exposure guidance, OpenAI-compatible client quickstarts, and dev controls
 - Setup page, `bun run ready`, and `bun run setup:actions` for a ranked next action, everyday local capability status, and copyable setup commands
 - Launch profile generation with machine-specific env, run commands, local scripts, clickable launchers, and Setup-page launcher paths
