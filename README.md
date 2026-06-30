@@ -118,7 +118,7 @@ NIPUX_BROWSER_HEADLESS=0 bun run start
 
 Agent runs can also create assigned browser sessions from natural-language tasks. If a task asks the agent to visit a URL, the session is created and navigation is queued behind the same user approval gate as other agent-originated browser actions. The Agents view shows pending approval details, can approve and run replayable browser actions, and only reuses an approval when the session, agent, action, and action details match.
 
-Agent runs can also request image generation through the same local-only media path used by the Media page. If no loopback image worker is configured, the agent records a failed image job and reports setup guidance instead of pretending an image was created.
+Agent runs can also request image generation through the same local-only media path used by the Media page. If no loopback image worker is configured, the agent records a failed image job and reports setup guidance instead of pretending an image was created. Agent-created media jobs render inline under the live agent answer and in recent run history.
 
 ## Media Workers
 

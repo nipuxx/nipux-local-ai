@@ -1259,6 +1259,56 @@ function renderMediaResult(target, payload) {
   target.textContent = JSON.stringify(payload, null, 2);
 }
 
+function mediaJobBodyHtml(job) {
+  if (job.status === "failed") {
+    return `<div class="agent-artifact-error">${h(job.error || "Local media job failed.")}</div>`;
+  }
+  const result = job.output || {};
+  const data = result.data?.[0] || result;
+  if (data.b64_json) {
+    return `<img class="agent-artifact-media" src="data:image/png;base64,${h(data.b64_json)}" alt="AI-generated image from local worker" />`;
+  }
+  const url = data.dataUrl || result.dataUrl;
+  const mime = data.mime || result.mime || "";
+  if (url && mime.startsWith("audio/")) return `<audio class="agent-artifact-player" controls src="${h(url)}"></audio>`;
+  if (url && mime.startsWith("video/")) return `<video class="agent-artifact-player" controls src="${h(url)}"></video>`;
+  if (url) return `<a href="${h(url)}" target="_blank" rel="noreferrer">Open generated media</a>`;
+  if (result.text) return `<div class="agent-artifact-text">${h(result.text)}</div>`;
+  if (job.status === "completed") return `<code>${h(JSON.stringify(result, null, 2))}</code>`;
+  return `<div class="meta">Job is ${h(job.status)}.</div>`;
+}
+
+function renderAgentMediaJobs(jobs = []) {
+  const mediaJobs = jobs.filter((job) => job && job.kind);
+  if (!mediaJobs.length) return "";
+  return `
+    <div class="agent-artifacts" aria-label="Agent media artifacts">
+      ${mediaJobs
+        .map((job) => {
+          const failed = job.status === "failed";
+          const label = job.kind === "image" ? "AI-generated image" : `${job.kind} artifact`;
+          return `
+            <div class="agent-artifact ${failed ? "agent-artifact-failed" : ""}">
+              <div class="agent-artifact-head">
+                <div>
+                  <strong>${h(label)}</strong>
+                  <div class="meta">Local media job ${h(job.id)}</div>
+                </div>
+                <span>${h(job.status)}</span>
+              </div>
+              ${mediaJobBodyHtml(job)}
+            </div>`;
+        })
+        .join("")}
+    </div>`;
+}
+
+function renderAgentOutputHtml(output = "", mediaJobs = []) {
+  return `
+    <div class="agent-output-text">${h(output || "")}</div>
+    ${renderAgentMediaJobs(mediaJobs)}`;
+}
+
 function mediaRuntimeSetting(runtime) {
   if (runtime.source === "builtin") return "Built-in system speech";
   return `${runtime.envVar}=${runtime.workerUrl || runtime.defaultUrl}`;
@@ -1814,9 +1864,9 @@ async function loadAgents() {
     .map(
       (run) => `
         <div>
-          <strong>${run.agentName} · ${run.status}</strong>
-          <div class="meta">${run.input}</div>
-          <div>${run.output || ""}</div>
+          <strong>${h(run.agentName)} · ${h(run.status)}</strong>
+          <div class="meta">${h(run.input)}</div>
+          <div class="agent-run-output">${renderAgentOutputHtml(run.output || "", run.mediaJobs || [])}</div>
         </div>`,
     )
     .join("");
@@ -2280,9 +2330,11 @@ async function runAgentForm(event) {
     method: "POST",
     body: JSON.stringify({ input, agentId: state.activeAgentId, modelPreset: $("#presetSelect").value }),
   });
-  $("#agentOutput").textContent = data.output;
+  $("#agentOutput").innerHTML = renderAgentOutputHtml(data.output, data.mediaJobs || []);
   $("#agentInput").value = "";
-  await Promise.all([loadAgents(), loadUsage()]);
+  const refreshes = [loadAgents(), loadUsage()];
+  if (data.mediaJobs?.length) refreshes.push(loadMedia());
+  await Promise.all(refreshes);
 }
 
 async function saveMemory(event) {

@@ -1,6 +1,7 @@
 import { db, getDefaultAgent } from "../db.ts";
 import { chatText, estimateMessageTokens } from "../providers/llamaCpp.ts";
 import { formatAgentToolEvents, runAgentTools } from "./agentTools.ts";
+import { getMediaJob } from "./media.ts";
 import { createAgentMemory, maybeCompactAgentMemories, searchAgentMemoriesScored } from "./memory.ts";
 import { getModel } from "./modelRegistry.ts";
 import { recordUsage } from "./usage.ts";
@@ -53,6 +54,28 @@ function createAgentToolInstructions() {
   ].map((line) => `- ${line}`).join("\n");
 }
 
+function safeJsonArray<T>(value: string | null | undefined): T[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed as T[] : [];
+  } catch {
+    return [];
+  }
+}
+
+function mediaJobsForRun(value: string | null | undefined) {
+  return safeJsonArray<string>(value)
+    .map((id) => {
+      try {
+        return getMediaJob(id);
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+}
+
 export async function runAgent(input: string, agentId?: string, forcedPreset?: string) {
   const agent = readAgent(agentId);
   const runId = crypto.randomUUID();
@@ -91,7 +114,16 @@ ${createAgentToolInstructions()}`,
     const output = await chatText(messages, model.id);
     const activity = formatAgentToolEvents(toolRun.events);
     const finalOutput = activity ? `${output}\n\n${activity}` : output;
-    db.prepare("UPDATE agent_runs SET output = ?, status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = ?").run(finalOutput, runId);
+    db.prepare(
+      `UPDATE agent_runs
+       SET output = ?, status = 'completed', tool_events_json = ?, media_job_ids_json = ?, completed_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+    ).run(
+      finalOutput,
+      JSON.stringify(toolRun.events),
+      JSON.stringify(toolRun.mediaJobs.map((job) => job.id)),
+      runId,
+    );
     createAgentMemory({
       agentId: agent.id,
       kind: "task",
@@ -137,14 +169,31 @@ ${createAgentToolInstructions()}`,
 }
 
 export function listAgentRuns(limit = 40) {
-  return db
+  const rows = db
     .prepare(
       `SELECT r.id, r.agent_id AS agentId, a.name AS agentName, r.input, r.output,
-        r.status, r.created_at AS createdAt, r.completed_at AS completedAt
+        r.status, r.tool_events_json AS toolEventsJson, r.media_job_ids_json AS mediaJobIdsJson,
+        r.created_at AS createdAt, r.completed_at AS completedAt
        FROM agent_runs r
        JOIN agents a ON a.id = r.agent_id
        ORDER BY r.created_at DESC
        LIMIT ?`,
     )
-    .all(limit);
+    .all(limit) as Array<{
+      id: string;
+      agentId: string;
+      agentName: string;
+      input: string;
+      output?: string | null;
+      status: string;
+      toolEventsJson?: string | null;
+      mediaJobIdsJson?: string | null;
+      createdAt: string;
+      completedAt?: string | null;
+    }>;
+  return rows.map(({ toolEventsJson, mediaJobIdsJson, ...row }) => ({
+    ...row,
+    toolEvents: safeJsonArray(toolEventsJson),
+    mediaJobs: mediaJobsForRun(mediaJobIdsJson),
+  }));
 }

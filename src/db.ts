@@ -91,6 +91,8 @@ export function migrate() {
       input TEXT NOT NULL,
       output TEXT,
       status TEXT NOT NULL,
+      tool_events_json TEXT NOT NULL DEFAULT '[]',
+      media_job_ids_json TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       completed_at TEXT
     );
@@ -181,6 +183,8 @@ export function migrate() {
   ensureColumn("agent_memories", "token_count", "INTEGER NOT NULL DEFAULT 0");
   ensureColumn("agent_memories", "archived_at", "TEXT");
   ensureColumn("agent_memories", "updated_at", "TEXT NOT NULL DEFAULT ''");
+  ensureColumn("agent_runs", "tool_events_json", "TEXT NOT NULL DEFAULT '[]'");
+  ensureColumn("agent_runs", "media_job_ids_json", "TEXT NOT NULL DEFAULT '[]'");
   db.exec("UPDATE agent_memories SET summary = substr(content, 1, 180) WHERE summary = '';");
   db.exec("UPDATE agent_memories SET token_count = CAST((length(content) + 3) / 4 AS INTEGER) WHERE token_count = 0;");
   db.exec("UPDATE agent_memories SET updated_at = created_at WHERE updated_at = '';");

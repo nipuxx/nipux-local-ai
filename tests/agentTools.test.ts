@@ -99,6 +99,12 @@ test("agent image requests stay honest when no local image worker is configured"
   expect(imageEvent.error).toContain("local OpenAI-compatible image worker");
   expect(data.mediaJobs.some((job: { id: string; kind: string; status: string }) => job.id === imageEvent.mediaJobId && job.kind === "image" && job.status === "failed")).toBe(true);
   expect(data.output).toContain("image_generation error");
+
+  const runsRes = await route(new Request("http://localhost/api/agents"));
+  const runsData = await runsRes.json();
+  const persisted = runsData.runs.find((run: { id: string }) => run.id === data.runId);
+  expect(persisted.toolEvents.some((event: { tool: string; mediaJobId?: string }) => event.tool === "image_generation" && event.mediaJobId === imageEvent.mediaJobId)).toBe(true);
+  expect(persisted.mediaJobs.some((job: { id: string; status: string }) => job.id === imageEvent.mediaJobId && job.status === "failed")).toBe(true);
 });
 
 test("agent image requests can create local image jobs through a loopback worker", async () => {
@@ -138,6 +144,12 @@ test("agent image requests can create local image jobs through a loopback worker
     expect(workerPrompt).toBe("a compact local model dashboard");
     expect(data.mediaJobs.some((job: { id: string; kind: string; status: string }) => job.id === imageEvent.mediaJobId && job.kind === "image" && job.status === "completed")).toBe(true);
     expect(data.output).toContain("image_generation ok");
+
+    const runsRes = await route(new Request("http://localhost/api/agents"));
+    const runsData = await runsRes.json();
+    const persisted = runsData.runs.find((run: { id: string }) => run.id === data.runId);
+    expect(persisted.toolEvents.some((event: { tool: string; mediaJobId?: string }) => event.tool === "image_generation" && event.mediaJobId === imageEvent.mediaJobId)).toBe(true);
+    expect(persisted.mediaJobs.some((job: { id: string; status: string }) => job.id === imageEvent.mediaJobId && job.status === "completed")).toBe(true);
   } finally {
     await patchSettings({ imageWorkerUrl: "" });
     server.stop(true);

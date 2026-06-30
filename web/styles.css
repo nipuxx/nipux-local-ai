@@ -438,6 +438,73 @@ h2 {
   gap: 10px;
 }
 
+.agent-output-text {
+  white-space: pre-wrap;
+}
+
+.agent-artifacts {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.agent-artifact {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding-left: 10px;
+  border-left: 3px solid #9dc9bb;
+}
+
+.agent-artifact-failed {
+  border-left-color: #f1b8b8;
+}
+
+.agent-artifact-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.agent-artifact-head strong {
+  margin-bottom: 3px;
+}
+
+.agent-artifact-head span {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 9px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.agent-artifact-media,
+.agent-artifact-player {
+  width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #111;
+}
+
+.agent-artifact-error {
+  border: 1px dashed #f1b8b8;
+  border-radius: 6px;
+  padding: 10px;
+  color: var(--danger);
+  background: #fff7f7;
+  font-size: 13px;
+}
+
+.agent-artifact-text {
+  white-space: pre-wrap;
+}
+
 .list {
   display: grid;
   gap: 10px;
