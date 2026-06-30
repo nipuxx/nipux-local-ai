@@ -491,7 +491,7 @@ Runs the app-native chat flow: persists the user message, searches indexed local
 
 Omit `useWebSearch` to let chat automatically use SearXNG for prompts that ask for web, current, latest, recent, or news context.
 
-Omit `useBrowserTools` to let chat automatically create a local browser session for prompts that ask to open, browse, visit, or navigate. Browser navigation is treated as an agent-originated risky action, so it creates a pending approval instead of navigating immediately.
+Omit `useBrowserTools` to let chat automatically create a local browser session for prompts that ask to open, browse, visit, or navigate. Browser navigation is treated as an agent-originated risky action, so it creates a pending approval instead of navigating immediately. Reloaded chat messages resolve each permission's current `permissionStatus` so clients can show pending, approved, or denied browser actions accurately.
 
 Set `stream` to `false` for a JSON response with `output`, `citations`, `toolEvents`, `mediaJobs`, and `browserSessions`.
 

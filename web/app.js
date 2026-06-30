@@ -330,6 +330,16 @@ function renderMessages(options = {}) {
   if (scroll) lastMessage?.scrollIntoView({ block: "end" });
 }
 
+function messageFromApi(message) {
+  return {
+    role: message.role,
+    content: message.content,
+    mediaJobs: message.mediaJobs || [],
+    browserSessions: message.browserSessions || [],
+    toolEvents: message.toolEvents || [],
+  };
+}
+
 function renderChatList() {
   $("#chatList").innerHTML =
     state.chats
@@ -349,15 +359,17 @@ async function loadChats() {
 async function openChat(id) {
   const data = await api(`/api/chats/${id}`);
   state.activeChatId = data.chat.id;
-  state.messages = data.messages.map((message) => ({
-    role: message.role,
-    content: message.content,
-    mediaJobs: message.mediaJobs || [],
-    browserSessions: message.browserSessions || [],
-    toolEvents: message.toolEvents || [],
-  }));
+  state.messages = data.messages.map(messageFromApi);
   $("#presetSelect").value = data.chat.modelPreset || $("#presetSelect").value;
   renderMessages({ scroll: Boolean(state.messages.length) });
+  await loadChats();
+}
+
+async function refreshActiveChat(options = {}) {
+  if (!state.activeChatId) return;
+  const data = await api(`/api/chats/${state.activeChatId}`);
+  state.messages = data.messages.map(messageFromApi);
+  renderMessages({ scroll: options.scroll ?? false });
   await loadChats();
 }
 
@@ -1353,6 +1365,7 @@ function renderChatBrowserSessions(sessions = [], toolEvents = []) {
           const events = toolEvents.filter((event) => event.browserSessionId === session.id);
           const pending = events.find((event) => event.status === "pending" && event.permissionRequestId);
           const latestNavigation = [...events].reverse().find((event) => event.tool === "browser_navigation");
+          const permissionStatus = pending?.permissionStatus || "pending";
           return `
             <div class="chat-browser-session">
               <div class="chat-browser-head">
@@ -1363,8 +1376,16 @@ function renderChatBrowserSessions(sessions = [], toolEvents = []) {
                 <button class="open-agents" type="button">Agents</button>
               </div>
               ${
-                pending
-                  ? `<div class="browser-error">Waiting for approval${pending.url ? ` to navigate to ${h(pending.url)}` : ""}.</div>`
+                pending && permissionStatus === "pending"
+                  ? `<div class="browser-error">Waiting for approval${pending.url ? ` to navigate to ${h(pending.url)}` : ""}.</div>
+                    <div class="chat-browser-actions">
+                      <button class="chat-permission-run" type="button" data-id="${h(pending.permissionRequestId)}">Approve & Run</button>
+                      <button class="chat-permission-deny" type="button" data-id="${h(pending.permissionRequestId)}">Deny</button>
+                    </div>`
+                  : pending && permissionStatus === "approved"
+                    ? `<div class="meta">Browser action approved. ${session.url && session.url !== "about:blank" ? `Current page: ${h(session.url)}.` : "Use the session controls if it has not run yet."}</div>`
+                  : pending && permissionStatus === "denied"
+                    ? `<div class="browser-error">Browser navigation was denied.</div>`
                   : latestNavigation
                     ? `<div class="meta">${h(latestNavigation.summary || "Browser navigation recorded.")}</div>`
                     : `<div class="meta">Browser session is ready for local control.</div>`
@@ -1928,6 +1949,15 @@ async function runApprovedPermission(request) {
   throw new Error(`${request.action} approvals cannot be replayed because the action input is not stored.`);
 }
 
+async function findPermissionRequest(id) {
+  const cached = state.permissions.find((request) => request.id === id);
+  if (cached) return cached;
+  const data = await api("/api/permissions");
+  const request = data.requests.find((item) => item.id === id);
+  if (!request) throw new Error(`Permission request ${id} was not found.`);
+  return request;
+}
+
 async function loadAgents() {
   const data = await api("/api/agents");
   state.agents = data.agents;
@@ -2391,13 +2421,7 @@ async function sendChat(event) {
   }
   state.messages.push({ role: "assistant", content: full });
   const refreshed = await api(`/api/chats/${chatId}`);
-  state.messages = refreshed.messages.map((message) => ({
-    role: message.role,
-    content: message.content,
-    mediaJobs: message.mediaJobs || [],
-    browserSessions: message.browserSessions || [],
-    toolEvents: message.toolEvents || [],
-  }));
+  state.messages = refreshed.messages.map(messageFromApi);
   renderMessages({ scroll: true });
   const hasMedia = state.messages.some((message) => message.mediaJobs?.length);
   const hasBrowsers = state.messages.some((message) => message.browserSessions?.length);
@@ -2707,6 +2731,44 @@ document.addEventListener("click", async (event) => {
     document.querySelector('.nav[data-view="agents"]')?.classList.add("active");
     $("#agents").classList.add("active");
     await loadAgents();
+  }
+  if (target.matches(".chat-permission-run")) {
+    const original = target.textContent;
+    target.textContent = "Running";
+    target.disabled = true;
+    try {
+      const request = await findPermissionRequest(target.dataset.id);
+      await api(`/api/permissions/${request.id}/approve`, { method: "POST", body: "{}" });
+      await runApprovedPermission(request);
+      target.textContent = "Ran";
+    } catch (error) {
+      target.textContent = "Run failed";
+      alert(error instanceof Error ? error.message : String(error));
+    } finally {
+      await Promise.all([loadAgents(), loadUsage(), refreshActiveChat()]);
+      setTimeout(() => {
+        target.textContent = original;
+        target.disabled = false;
+      }, 1200);
+    }
+  }
+  if (target.matches(".chat-permission-deny")) {
+    const original = target.textContent;
+    target.textContent = "Denying";
+    target.disabled = true;
+    try {
+      await api(`/api/permissions/${target.dataset.id}/deny`, { method: "POST", body: "{}" });
+      target.textContent = "Denied";
+    } catch (error) {
+      target.textContent = "Deny failed";
+      alert(error instanceof Error ? error.message : String(error));
+    } finally {
+      await Promise.all([loadAgents(), refreshActiveChat()]);
+      setTimeout(() => {
+        target.textContent = original;
+        target.disabled = false;
+      }, 1200);
+    }
   }
   if (target.matches(".chat-item")) await openChat(target.dataset.chatId);
   if (target.matches(".show-files")) await showHfFiles(target);

@@ -1265,6 +1265,12 @@ h2 {
   align-items: start;
 }
 
+.chat-browser-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .permission-card,
 .browser-action-row {
   display: grid;

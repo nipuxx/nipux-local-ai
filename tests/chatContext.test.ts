@@ -203,7 +203,26 @@ test("native chat browser requests create visible sessions and pending approvals
   const loadedJson = await loaded.json();
   const assistant = loadedJson.messages[1];
   expect(assistant.browserSessions.some((session: { id: string }) => session.id === sessionEvent.browserSessionId)).toBe(true);
-  expect(assistant.toolEvents.some((event: { tool: string; permissionRequestId?: string }) => event.tool === "browser_navigation" && event.permissionRequestId === navigationEvent.permissionRequestId)).toBe(true);
+  expect(
+    assistant.toolEvents.some(
+      (event: { tool: string; permissionRequestId?: string; permissionStatus?: string }) =>
+        event.tool === "browser_navigation" &&
+        event.permissionRequestId === navigationEvent.permissionRequestId &&
+        event.permissionStatus === "pending",
+    ),
+  ).toBe(true);
+
+  await route(new Request(`http://localhost/api/permissions/${navigationEvent.permissionRequestId}/deny`, { method: "POST" }));
+  const deniedReload = await route(new Request(`http://localhost/api/chats/${chat.id}`));
+  const deniedJson = await deniedReload.json();
+  expect(
+    deniedJson.messages[1].toolEvents.some(
+      (event: { tool: string; permissionRequestId?: string; permissionStatus?: string }) =>
+        event.tool === "browser_navigation" &&
+        event.permissionRequestId === navigationEvent.permissionRequestId &&
+        event.permissionStatus === "denied",
+    ),
+  ).toBe(true);
 });
 
 test("native streamed chat browser requests persist browser sessions", async () => {

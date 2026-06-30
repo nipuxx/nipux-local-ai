@@ -1,4 +1,5 @@
 import { db } from "../db.ts";
+import { getPermissionRequest, type PermissionStatus } from "./browserAudit.ts";
 import { getBrowserSession, type BrowserSessionRecord } from "./browserBroker.ts";
 import { getMediaJob, type MediaJob } from "./media.ts";
 import type { ChatMessage, ChatRole } from "../types.ts";
@@ -11,6 +12,7 @@ export interface ChatMessageToolEvent {
   browserSessionId?: string;
   mediaJobId?: string;
   permissionRequestId?: string;
+  permissionStatus?: PermissionStatus;
   url?: string;
   error?: string;
 }
@@ -72,6 +74,18 @@ function browserSessionsForMessage(value: string | null | undefined) {
     .filter((session): session is BrowserSessionRecord => Boolean(session));
 }
 
+function toolEventsForMessage(value: string | null | undefined) {
+  return safeJsonArray<ChatMessageToolEvent>(value).map((event) => {
+    if (!event.permissionRequestId) return event;
+    try {
+      const request = getPermissionRequest(event.permissionRequestId);
+      return { ...event, permissionStatus: request.status };
+    } catch {
+      return event;
+    }
+  });
+}
+
 export function createChat(modelPreset = "balanced", title = "New chat"): ChatRecord {
   const id = crypto.randomUUID();
   db.prepare("INSERT INTO chats (id, title, model_preset) VALUES (?, ?, ?)").run(id, title, modelPreset);
@@ -122,7 +136,7 @@ export function listChatMessages(chatId: string): ChatMessageRecord[] {
     ...row,
     mediaJobs: mediaJobsForMessage(mediaJobIdsJson),
     browserSessions: browserSessionsForMessage(browserSessionIdsJson),
-    toolEvents: safeJsonArray<ChatMessageToolEvent>(toolEventsJson),
+    toolEvents: toolEventsForMessage(toolEventsJson),
   }));
 }
 
@@ -175,7 +189,7 @@ export function addChatMessage(
     ...message,
     mediaJobs: mediaJobsForMessage(mediaJobIdsJson),
     browserSessions: browserSessionsForMessage(browserSessionIdsJson),
-    toolEvents: safeJsonArray<ChatMessageToolEvent>(toolEventsJson),
+    toolEvents: toolEventsForMessage(toolEventsJson),
   };
 }
 
