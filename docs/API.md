@@ -599,7 +599,7 @@ Lists GGUF files for a Hugging Face model repo.
 
 ### `GET /api/models/install-plan?modelPreset=balanced`
 
-Returns the selected built-in model, chosen GGUF filename, reported download size when available, target path, install command, and llama.cpp start command. Use this before triggering a large model download.
+Returns the selected built-in model, chosen GGUF filename, reported download size when available, target path, install command, llama.cpp start command, and resumable partial-download metadata. Use this before triggering a large model download.
 
 ### `POST /api/models/download`
 
@@ -610,7 +610,7 @@ Returns the selected built-in model, chosen GGUF filename, reported download siz
 }
 ```
 
-Uses `HF_TOKEN` when present. When the repo is not one of the built-in presets, the downloaded GGUF is registered as a custom local model and returned in the `model` field.
+Uses `HF_TOKEN` when present. Downloads write to `<target>.partial` and successful downloads are renamed into place, so an interrupted install can resume on the next attempt. When the repo is not one of the built-in presets, the downloaded GGUF is registered as a custom local model and returned in the `model` field.
 
 ### `POST /api/models/install`
 

@@ -75,6 +75,8 @@ test("model install dry run returns a download plan", async () => {
   expect(json.modelPreset).toBe("balanced");
   expect(json.selectedFilename).toBe("Qwen3-8B-Q4_K_M.gguf");
   expect(json.installCommand).toContain("bun run model:install balanced");
+  expect(typeof json.resumable).toBe("boolean");
+  expect(json.partialPath).toContain("Qwen3-8B-Q4_K_M.gguf.partial");
 });
 
 test("chat API persists conversations and messages", async () => {

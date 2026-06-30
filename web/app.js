@@ -860,6 +860,7 @@ function renderModelInstallPlan(model) {
       <strong>Download preview</strong>
       <div class="meta">File: ${h(plan.selectedFilename || "not selected")} · Size: ${h(plan.selectedSizeLabel || "unknown")}</div>
       <div class="meta">Target: ${h(plan.targetPath || "unknown")}</div>
+      ${plan.resumable ? `<div class="meta">Partial: ${h(plan.partialSizeLabel || "saved")} · install will resume</div>` : ""}
       ${plan.installCommand ? `<code>${h(plan.installCommand)}</code>` : ""}
       ${plan.startCommand ? `<code>${h(plan.startCommand)}</code>` : ""}
       ${warnings.map((warning) => `<div class="model-warning">${h(warning)}</div>`).join("")}

@@ -1,12 +1,13 @@
 import { expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 
 process.env.NIPUX_HOME = mkdtempSync(join(tmpdir(), "nipux-models-"));
 const { db } = await import("../src/db.ts");
 const {
   DEFAULT_PRESETS,
+  downloadHuggingFaceFile,
   formatModelInstallPlan,
   getModel,
   getModelInstallPlan,
@@ -75,6 +76,36 @@ test("model install plan previews selected Qwen download", async () => {
   expect(plan.installCommand).toContain("bun run model:install balanced");
   expect(plan.startCommand).toContain("Qwen3-8B-Q4_K_M.gguf");
   expect(formatModelInstallPlan(plan)).toContain("Download size: 8.0 GB");
+});
+
+test("model install plan reports resumable partial downloads", async () => {
+  db.prepare("UPDATE models SET state = 'missing', local_path = NULL, file_name = NULL WHERE id = 'balanced'").run();
+  const filename = "Qwen3-8B-Q4_K_M.gguf";
+  const initial = await getModelInstallPlan("balanced", { filename, skipRemote: true });
+  mkdirSync(dirname(initial.targetPath!), { recursive: true });
+  writeFileSync(`${initial.targetPath}.partial`, "partial gguf bytes");
+
+  const plan = await getModelInstallPlan("balanced", { filename, skipRemote: true });
+  expect(plan.resumable).toBe(true);
+  expect(plan.partialPath).toBe(`${initial.targetPath}.partial`);
+  expect(plan.partialSizeBytes).toBeGreaterThan(0);
+  expect(plan.nextSteps[0]).toContain("Resume");
+  expect(formatModelInstallPlan(plan)).toContain("Partial:");
+});
+
+test("model installer adopts an existing completed target without network", async () => {
+  db.prepare("UPDATE models SET state = 'missing', local_path = NULL, file_name = NULL WHERE id = 'balanced'").run();
+  const filename = "Qwen3-8B-Q4_K_M.gguf";
+  const plan = await getModelInstallPlan("balanced", { filename, skipRemote: true });
+  expect(plan.targetPath).toBeString();
+  mkdirSync(dirname(plan.targetPath!), { recursive: true });
+  writeFileSync(plan.targetPath!, "complete local gguf");
+
+  const result = await downloadHuggingFaceFile("Qwen/Qwen3-8B-GGUF", filename);
+  expect(result.alreadyPresent).toBe(true);
+  expect(result.targetPath).toBe(plan.targetPath!);
+  expect(getModel("balanced").state).toBe("available");
+  expect(getModel("balanced").localPath).toBe(plan.targetPath);
 });
 
 test("preset reseed clears stale local paths when repo changes", () => {

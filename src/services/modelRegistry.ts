@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { db } from "../db.ts";
 import { MODEL_DIR } from "../config.ts";
@@ -20,6 +20,10 @@ export interface ModelInstallPlan {
   selectedSizeBytes?: number;
   selectedSizeLabel?: string;
   targetPath?: string;
+  partialPath?: string;
+  partialSizeBytes?: number;
+  partialSizeLabel?: string;
+  resumable: boolean;
   warnings: string[];
   nextSteps: string[];
 }
@@ -195,6 +199,10 @@ function modelTargetPath(repo: string, filename: string) {
   return join(targetDir, filename.split("/").pop() ?? filename);
 }
 
+function partialModelPath(targetPath: string) {
+  return `${targetPath}.partial`;
+}
+
 function formatBytes(bytes?: number) {
   if (!bytes || bytes <= 0) return undefined;
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
@@ -256,6 +264,10 @@ export async function getModelInstallPlan(
 
   const installed = model.state === "available" && Boolean(model.localPath) && Boolean(model.localPath && existsSync(model.localPath));
   const targetPath = installed ? model.localPath ?? undefined : selectedFilename ? modelTargetPath(model.repo, selectedFilename) : undefined;
+  const partialPath = targetPath && !installed ? partialModelPath(targetPath) : undefined;
+  const partialSizeBytes = partialPath && existsSync(partialPath) ? statSync(partialPath).size : undefined;
+  const partialSizeLabel = formatBytes(partialSizeBytes);
+  if (partialSizeBytes) warnings.push(`A partial download exists at ${partialPath}. The install command will resume it.`);
   const installCommand = selectedFilename ? modelInstallCommand(model.id, selectedFilename) : modelInstallCommand(model.id);
   const startCommand = llamaServeCommand(model.id);
   return {
@@ -269,11 +281,18 @@ export async function getModelInstallPlan(
     selectedSizeBytes,
     selectedSizeLabel: formatBytes(selectedSizeBytes),
     targetPath,
+    partialPath,
+    partialSizeBytes,
+    partialSizeLabel,
+    resumable: Boolean(partialSizeBytes),
     warnings,
     nextSteps: installed
       ? [`Start local chat with: ${startCommand}`, "Run bun run local to start the app and any configured local workers."]
       : selectedFilename
-        ? [`Review the download size, then run: ${installCommand}`, `After install, start local chat with: ${startCommand}`]
+        ? [
+            partialSizeBytes ? `Resume the partial download with: ${installCommand}` : `Review the download size, then run: ${installCommand}`,
+            `After install, start local chat with: ${startCommand}`,
+          ]
         : [`Run bun run model:plan ${model.id} after checking Hugging Face access, or pass a filename to bun run model:install ${model.id} <file>.`],
   };
 }
@@ -287,6 +306,7 @@ export function formatModelInstallPlan(plan: ModelInstallPlan) {
     `Selected file: ${plan.selectedFilename ?? "not selected"}`,
     `Download size: ${plan.selectedSizeLabel ?? "unknown"}`,
     `Target path: ${plan.targetPath ?? "unknown"}`,
+    ...(plan.partialSizeLabel ? [`Partial: ${plan.partialSizeLabel} at ${plan.partialPath}`] : []),
     `Install: ${plan.installCommand}`,
     `Start: ${plan.startCommand}`,
   ];
@@ -347,12 +367,22 @@ export async function downloadHuggingFaceFile(repo: string, filename: string) {
   const targetDir = join(MODEL_DIR, repo.replaceAll("/", "__"));
   mkdirSync(targetDir, { recursive: true });
   const targetPath = modelTargetPath(repo, filename);
+  const partialPath = partialModelPath(targetPath);
   const headers: string[] = [];
   if (process.env.HF_TOKEN) headers.push("-H", `Authorization: Bearer ${process.env.HF_TOKEN}`);
   const url = `https://huggingface.co/${repo}/resolve/main/${filename}?download=true`;
 
+  if (existsSync(targetPath) && statSync(targetPath).size > 0) {
+    db.prepare(
+      "UPDATE models SET state = 'available', local_path = ?, file_name = ?, updated_at = CURRENT_TIMESTAMP WHERE repo = ?",
+    ).run(targetPath, filename, repo);
+    const model = registerDownloadedModel(repo, filename, targetPath);
+    return { targetPath, partialPath, resumed: false, alreadyPresent: true, stdout: "", stderr: "", model };
+  }
+
+  const resumed = existsSync(partialPath) && statSync(partialPath).size > 0;
   db.prepare("UPDATE models SET state = 'downloading', updated_at = CURRENT_TIMESTAMP WHERE repo = ?").run(repo);
-  const proc = Bun.spawn(["curl", "-L", ...headers, "-o", targetPath, url], {
+  const proc = Bun.spawn(["curl", "-L", "--fail", "--continue-at", "-", ...headers, "-o", partialPath, url], {
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -365,11 +395,12 @@ export async function downloadHuggingFaceFile(repo: string, filename: string) {
     db.prepare("UPDATE models SET state = 'error', updated_at = CURRENT_TIMESTAMP WHERE repo = ?").run(repo);
     throw new Error(`Download failed: ${stderr || stdout}`);
   }
+  renameSync(partialPath, targetPath);
   db.prepare(
     "UPDATE models SET state = 'available', local_path = ?, file_name = ?, updated_at = CURRENT_TIMESTAMP WHERE repo = ?",
   ).run(targetPath, filename, repo);
   const model = registerDownloadedModel(repo, filename, targetPath);
-  return { targetPath, stdout, stderr, model };
+  return { targetPath, partialPath, resumed, alreadyPresent: false, stdout, stderr, model };
 }
 
 export async function installModelPreset(modelId = "balanced", filename?: string) {
