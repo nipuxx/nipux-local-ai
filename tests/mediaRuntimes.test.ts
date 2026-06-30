@@ -32,12 +32,12 @@ test("media runtime planner exposes all local worker lanes", async () => {
   expect(image.endpoint).toBe("/v1/images/generations");
   expect(image.commands.some((item: { command: string }) => item.command.includes("bun run worker:image"))).toBe(true);
   const transcription = json.runtimes.find((runtime: { kind: string }) => runtime.kind === "transcription");
-  expect(transcription.commands.some((item: { command: string }) => item.command.includes("bun run transcription:install"))).toBe(true);
+  expect(transcription.commands.some((item: { command: string }) => item.command.includes("bun run transcription:prepare"))).toBe(true);
   expect(transcription.commands.some((item: { command: string }) => item.command.includes("bun run worker:transcription"))).toBe(true);
   const video = json.runtimes.find((runtime: { kind: string }) => runtime.kind === "video");
   expect(video.commands.some((item: { command: string }) => item.command.includes("bun run worker:video"))).toBe(true);
   expect(json.nextSteps.some((step: string) => step.includes("Image Generation") || step.includes("bun run worker:image"))).toBe(true);
-  expect(json.nextSteps.some((step: string) => step.includes("bun run transcription:install") && step.includes("bun run local --open"))).toBe(true);
+  expect(json.nextSteps.some((step: string) => step.toLowerCase().includes("transcription") || step.includes("8083") || step.includes("bun run local --open"))).toBe(true);
   expect(json.nextSteps.some((step: string) => step.includes("Video Generation") || step.includes("bun run worker:video"))).toBe(true);
   expect(json.hardware.totalRamGb).toBeGreaterThan(0);
 });

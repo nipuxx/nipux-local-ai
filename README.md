@@ -182,13 +182,13 @@ Configured speech worker URLs still take priority, so Kokoro/Piper-style workers
 Voice input in chat records microphone audio in the browser and sends it to `/v1/audio/transcriptions`. That route accepts OpenAI-style multipart uploads and translates them to the configured loopback transcription worker. The repo includes a whisper.cpp-compatible local worker wrapper:
 
 ```bash
-bun run transcription:install base.en
+bun run transcription:prepare base.en --install
 bun run local --open
 ```
 
-`bun run transcription:install` downloads the default local Whisper model, saves its path in local settings, and prints both the normal local launch command and the standalone worker command for this machine. `bun run local --open` can then start the bundled transcription worker automatically when the saved model exists. `NIPUX_WHISPER_COMMAND` defaults to `whisper-cli`, so the wrapper still expects a whisper.cpp-compatible binary on `PATH`. If no local transcription worker is configured or reachable, the UI shows the setup error.
+`bun run transcription:prepare` saves the local transcription worker URL; add `--install` to download the default local Whisper model and save its path in local settings. `bun run local --open` can then start the bundled transcription worker automatically when the saved model exists. `NIPUX_WHISPER_COMMAND` defaults to `whisper-cli`, so the wrapper still expects a whisper.cpp-compatible binary on `PATH`; worker health reports offline if that command is missing. If no local transcription worker is configured or reachable, the UI shows the setup error.
 
-The Media page also shows a normal-user Local Voice Setup panel. It reports whether basic voice output can use the built-in local OS speech path, whether microphone transcription is ready, and the copyable local Whisper install/start/settings commands when voice input still needs setup.
+The Media page also shows a normal-user Local Voice Setup panel. It reports whether basic voice output can use the built-in local OS speech path, whether the Whisper model and command are present, and includes one-click local transcription preparation without using hosted speech APIs.
 
 Inspect the hardware-aware local media runtime plan:
 

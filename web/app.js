@@ -20,6 +20,7 @@ const state = {
   mediaCapabilities: null,
   mediaRuntimePlan: null,
   imageBackendPlan: null,
+  transcriptionSetupPlan: null,
   mediaJobs: [],
   documents: [],
   speechPlayback: null,
@@ -36,6 +37,7 @@ const state = {
   apiClientPackage: null,
   apiClientPackageError: "",
   imageBackendMessage: "",
+  transcriptionSetupMessage: "",
   chatRuntimeActionMessage: "",
   chatRuntimeBusy: false,
 };
@@ -1596,6 +1598,7 @@ function renderImageBackendGuide(plan) {
 function renderVoiceSetupGuide(plan) {
   const speech = mediaRuntimeByKind(plan, "speech");
   const transcription = mediaRuntimeByKind(plan, "transcription");
+  const setup = state.transcriptionSetupPlan;
   const installTranscription = mediaRuntimeCommand(transcription, "install");
   const startTranscription = mediaRuntimeCommand(transcription, "start");
   const persistTranscription = mediaRuntimeCommand(transcription, "persist");
@@ -1605,7 +1608,13 @@ function renderVoiceSetupGuide(plan) {
     : "Use a supported system speech engine or run a local Kokoro/Piper-compatible speech worker.";
   const transcriptionHelp = transcription?.status === "ready"
     ? "Microphone input can transcribe through the configured local worker."
-    : "Install a small local Whisper model, start the bundled worker, then save the loopback URL.";
+    : "Prepare local Whisper setup, then run the local app. The worker stays offline until its local command is available.";
+  const modelText = setup?.modelInstalled
+    ? `Model saved at ${setup.configuredModelPath}`
+    : "Local Whisper model is not installed yet.";
+  const commandText = setup?.command?.installed
+    ? `${setup.command.command} is available.`
+    : setup?.command?.detail || "Whisper command status is unknown.";
 
   if (!speech && !transcription) {
     $("#voiceSetupGuide").innerHTML = `
@@ -1642,8 +1651,16 @@ function renderVoiceSetupGuide(plan) {
         <div class="meta">${h(voiceRuntimeDetail(transcription, "Local transcription needs the bundled Whisper worker."))}</div>
         <div class="meta">${h(transcription?.hardwareFit || "")}</div>
         <div class="meta">${h(transcriptionHelp)}</div>
+        ${setup ? `<div class="meta">${h(modelText)}</div>` : ""}
+        ${setup ? `<div class="meta">${h(commandText)}</div>` : ""}
+        ${setup ? `
+          <div class="button-row">
+            <button class="prepare-transcription" data-install="0">Use Voice Input</button>
+            <button class="prepare-transcription" data-install="1">${setup.modelInstalled ? "Reinstall Model" : "Install Model & Use"}</button>
+          </div>` : ""}
       </div>
     </div>
+    ${state.transcriptionSetupMessage ? `<div class="meta">${h(state.transcriptionSetupMessage)}</div>` : ""}
     ${speechPersist && speech?.source !== "builtin" ? `
       <div class="command-row">
         <div>
@@ -1739,15 +1756,17 @@ function renderVideoSetupGuide(plan) {
 }
 
 async function loadMedia() {
-  const [capabilities, runtimePlan, imageBackendPlan, jobs] = await Promise.all([
+  const [capabilities, runtimePlan, imageBackendPlan, transcriptionSetupPlan, jobs] = await Promise.all([
     api("/api/media/capabilities"),
     api("/api/media/runtimes"),
     api("/api/media/images/backends"),
+    api("/api/media/transcription/setup"),
     api("/api/media/jobs"),
   ]);
   state.mediaCapabilities = capabilities.capabilities;
   state.mediaRuntimePlan = runtimePlan;
   state.imageBackendPlan = imageBackendPlan;
+  state.transcriptionSetupPlan = transcriptionSetupPlan;
   state.mediaJobs = jobs.jobs;
   renderChatSetupGuide();
   renderImageBackendGuide(state.imageBackendPlan);
@@ -2969,6 +2988,30 @@ document.addEventListener("click", async (event) => {
     if (state.status) state.status.settings = data.settings;
     applySettingsToUi();
     await Promise.all([loadMedia(), loadCapabilityProfile(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor()]);
+  }
+  if (target.matches(".prepare-transcription")) {
+    const original = target.textContent;
+    target.textContent = target.dataset.install === "1" ? "Installing" : "Preparing";
+    target.disabled = true;
+    try {
+      const data = await api("/api/media/transcription/prepare", {
+        method: "POST",
+        body: JSON.stringify({ install: target.dataset.install === "1" }),
+      });
+      state.transcriptionSetupMessage = data.nextSteps?.[0] || "Local transcription setup saved.";
+      state.settingsStatus = { settings: data.settings, env: state.settingsStatus?.env || null };
+      if (state.status) state.status.settings = data.settings;
+      applySettingsToUi();
+      await Promise.all([loadMedia(), loadReadiness(), loadCapabilityProfile(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor()]);
+    } catch (error) {
+      state.transcriptionSetupMessage = error instanceof Error ? error.message : String(error);
+      renderVoiceSetupGuide(state.mediaRuntimePlan || { runtimes: [] });
+    } finally {
+      setTimeout(() => {
+        target.textContent = original;
+        target.disabled = false;
+      }, 1200);
+    }
   }
   if (target.matches(".revoke-api-key")) {
     const revoked = state.apiKeys.find((key) => key.id === target.dataset.id);

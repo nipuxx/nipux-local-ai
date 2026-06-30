@@ -131,7 +131,7 @@ export function buildCapabilityProfile(hardware: HardwareProfile): CapabilityPro
       defaultEnabled: ram >= 8,
       summary: ram >= 8 ? "Small Whisper models are a reasonable local setup target." : "Voice transcription needs a very small model or should stay off.",
       limits: ram >= 8 ? ["Long recordings should stay queued and chunked."] : ["Use short clips only; skip this on very low-memory machines."],
-      commands: ["bun run transcription:install base.en", "bun run local --open"],
+      commands: ["bun run transcription:prepare base.en --install", "bun run local --open"],
     }),
     lane({
       id: "image",

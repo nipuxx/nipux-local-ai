@@ -29,7 +29,15 @@ import {
   selectImageBackendPreset,
 } from "./services/imageSetup.ts";
 import { formatLocalSupervisorPlan, getLocalSupervisorPlan, runLocalSupervisor } from "./services/localSupervisor.ts";
-import { installWhisperModel, WHISPER_MODEL_PRESETS, whisperInstallCommand, whisperStartCommand } from "./services/transcriptionSetup.ts";
+import {
+  formatTranscriptionSetupPlan,
+  getTranscriptionSetupPlan,
+  installWhisperModel,
+  prepareTranscriptionSetup,
+  WHISPER_MODEL_PRESETS,
+  whisperInstallCommand,
+  whisperStartCommand,
+} from "./services/transcriptionSetup.ts";
 import { videoStartCommand } from "./services/videoSetup.ts";
 import { formatCapabilityProfile, getCapabilityProfile } from "./services/capabilityProfile.ts";
 
@@ -59,6 +67,8 @@ Commands:
   bun run media:defaults          Persist recommended local media worker URLs
   bun run worker:image            Start bundled local image command worker
   bun run transcription:install   Download the default local Whisper transcription model
+  bun run transcription:prepare   Save local transcription worker setup, optionally install model
+  bun run transcription:setup     Show local transcription setup status
   bun run src/cli.ts transcription-presets
   bun run worker:transcription    Start bundled whisper.cpp-compatible transcription worker
   bun run worker:video            Start bundled local video command worker
@@ -438,6 +448,35 @@ async function main() {
     console.log(`  Launch:     ${result.localCommand}`);
     console.log(`  Standalone: ${result.startCommand}`);
     console.log(`  Settings:   ${result.defaultsCommand}`);
+    return;
+  }
+
+  if (command === "transcription-setup" || command === "transcription:setup") {
+    const plan = getTranscriptionSetupPlan();
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(plan, null, 2));
+      return;
+    }
+    console.log(formatTranscriptionSetupPlan(plan));
+    return;
+  }
+
+  if (command === "transcription-prepare" || command === "transcription:prepare") {
+    const presetId = process.argv[3] && !process.argv[3].startsWith("--") ? process.argv[3] : undefined;
+    const result = await prepareTranscriptionSetup({
+      presetId,
+      install: process.argv.includes("--install"),
+    });
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+    console.log(`\nNipux Local AI transcription prepared`);
+    console.log(`  Model:     ${result.installed ? "installed" : "not installed"}`);
+    console.log(`  Worker:    ${result.settings.transcriptionWorkerUrl}`);
+    console.log(`  Command:   ${result.plan.command.command} (${result.plan.command.installed ? "available" : "missing"})`);
+    console.log("\nNext steps:");
+    for (const step of result.nextSteps) console.log(`  ${step}`);
     return;
   }
 

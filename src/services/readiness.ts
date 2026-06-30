@@ -76,7 +76,7 @@ function mediaFix(runtime: { status: string; setup: string; commands?: Array<{ c
   if (videoStartCommand) return `Run ${videoStartCommand}, then run bun run media:defaults --include-optional.`;
 
   const startCommand = runtime.commands?.find((item) => item.command.includes("worker:transcription"))?.command;
-  const installCommand = runtime.commands?.find((item) => item.command.includes("transcription:install"))?.command;
+  const installCommand = runtime.commands?.find((item) => item.command.includes("transcription:prepare"))?.command;
   if (startCommand?.includes("worker:transcription")) {
     return installCommand
       ? `Run ${installCommand}, then run bun run local --open.`

@@ -21,6 +21,20 @@ process.env.NIPUX_WHISPER_MODEL = join(workerDir, "ggml-base.en.bin");
 
 const { route } = await import("../src/workers/transcriptionWorker.ts");
 
+test("bundled transcription worker health requires the whisper command", async () => {
+  const previous = process.env.NIPUX_WHISPER_COMMAND;
+  process.env.NIPUX_WHISPER_COMMAND = join(workerDir, "missing-whisper-command");
+  try {
+    const res = await route(new Request("http://127.0.0.1:8083"));
+    expect(res.status).toBe(503);
+    const json = await res.json();
+    expect(json.ok).toBe(false);
+    expect(json.missing).toContain(process.env.NIPUX_WHISPER_COMMAND);
+  } finally {
+    process.env.NIPUX_WHISPER_COMMAND = previous;
+  }
+});
+
 test("bundled transcription worker runs a whisper.cpp-compatible command", async () => {
   const res = await route(
     new Request("http://127.0.0.1:8083/v1/audio/transcriptions", {

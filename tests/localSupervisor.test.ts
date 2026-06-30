@@ -63,7 +63,7 @@ test("local supervisor plan starts app and skips unconfigured workers", async ()
   expect(plan.skipped.map((item) => item.kind)).toEqual(["llm", "image", "transcription", "video"]);
   expect(plan.nextSteps.some((step) => step.includes("llama.cpp") || step.includes("model:install"))).toBe(true);
   expect(plan.nextSteps.some((step) => step.includes("NIPUX_IMAGE_COMMAND"))).toBe(true);
-  expect(plan.nextSteps.some((step) => step.includes("transcription:install"))).toBe(true);
+  expect(plan.nextSteps.some((step) => step.includes("transcription:prepare"))).toBe(true);
   expect(plan.nextSteps.some((step) => step.includes("NIPUX_VIDEO_COMMAND"))).toBe(false);
   expect(formatLocalSupervisorPlan(plan)).toContain("use bun run local --open");
 });

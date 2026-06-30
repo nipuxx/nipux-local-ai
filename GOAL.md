@@ -102,8 +102,8 @@ The product should be usable by everyday people first. Advanced controls belong 
 - The Media page surfaces a consumer-facing local video setup guide that keeps video local-only, opt-in, and backend-command dependent.
 - Built-in local speech generation exists when the host OS has a supported system speech engine.
 - Assistant chat messages can be played through the local speech route.
-- Chat microphone input records audio and can transcribe through the configured local transcription worker, including the bundled whisper.cpp-compatible worker wrapper and a local Whisper model install path that persists into `bun run local --open`.
-- The Media page surfaces a consumer-facing local voice setup guide for built-in speech output and bundled Whisper transcription setup.
+- Chat microphone input records audio and can transcribe through the configured local transcription worker, including the bundled whisper.cpp-compatible worker wrapper, local Whisper model setup, command-health checks, and a model path that persists into `bun run local --open`.
+- The Media page surfaces a consumer-facing local voice setup guide for built-in speech output and bundled Whisper transcription setup, including a prepare/install action for the local transcription worker path.
 - Setup page, `bun run ready`, `bun run capabilities`, `bun run setup:actions`, and `bun run src/cli.ts local --dry-run` summarize readiness, hardware capability, and copyable setup/launch commands, including the local supervisor start/skip plan.
 - The Setup page surfaces a ranked next setup action before the detailed readiness and capability sections.
 - `bun run setup:prepare`, `POST /api/setup/prepare`, and the Setup page Prepare Local App action run safe first-run preparation: local folders, first-run model default alignment, recommended managed image backend selection, launcher writing, and refreshed readiness/supervisor state without heavyweight downloads by default.

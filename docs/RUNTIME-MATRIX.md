@@ -159,11 +159,11 @@ The default video command receives `{input} {output}`. The input is a JSON file 
 Start the bundled transcription worker:
 
 ```bash
-bun run transcription:install base.en
+bun run transcription:prepare base.en --install
 bun run local --open
 ```
 
-The installer saves the downloaded Whisper model path in local settings. `bun run local --open` uses that saved path to start the bundled transcription worker; the CLI still prints a standalone `NIPUX_WHISPER_MODEL=... bun run worker:transcription` command for manual worker launches.
+The prepare command saves the local transcription worker URL. With `--install`, it downloads the Whisper model and saves the model path in local settings. `bun run local --open` uses that saved path to start the bundled transcription worker; the CLI still prints a standalone `NIPUX_WHISPER_MODEL=... bun run worker:transcription` command for manual worker launches. Worker health requires both a model path and a local `whisper-cli` compatible command.
 
 Speech also has a built-in local fallback when the OS provides a supported speech command:
 

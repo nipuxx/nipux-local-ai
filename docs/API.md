@@ -397,6 +397,23 @@ Persists a selected image backend preset and sets the image worker URL to the lo
 
 Clears the selected image backend preset and clears the persisted image worker URL.
 
+### `GET /api/media/transcription/setup`
+
+Returns the local transcription setup plan used by the Media page. It reports the local worker URL, Whisper model presets, saved model path, command availability for `whisper-cli` or `NIPUX_WHISPER_COMMAND`, copyable setup commands, and next steps.
+
+### `POST /api/media/transcription/prepare`
+
+Stores the local transcription worker URL and optionally installs a small local Whisper model.
+
+```json
+{
+  "presetId": "base.en",
+  "install": true
+}
+```
+
+The prepare route stays local-only. It does not install hosted speech services and does not mark the worker ready unless a loopback worker later responds to health checks. The bundled worker still requires `whisper-cli` on `PATH` or `NIPUX_WHISPER_COMMAND` pointing at a compatible local binary.
+
 The video runtime can use the bundled local command worker:
 
 ```bash
@@ -408,11 +425,11 @@ The video worker exposes `POST /v1/video/generations` on `http://127.0.0.1:8084`
 The transcription runtime can use the bundled worker wrapper:
 
 ```bash
-bun run transcription:install base.en
+bun run transcription:prepare base.en --install
 bun run local --open
 ```
 
-The install command downloads the local Whisper model, saves its path for the local supervisor, and prints both the normal local launch command and the standalone worker start command. The worker exposes `POST /v1/audio/transcriptions` on `http://127.0.0.1:8083` and invokes a local `whisper-cli` compatible command.
+The prepare command saves the local transcription worker URL and, with `--install`, downloads the local Whisper model and saves its path for the local supervisor. The worker exposes `POST /v1/audio/transcriptions` on `http://127.0.0.1:8083` and invokes a local `whisper-cli` compatible command. Worker health reports missing command state instead of claiming readiness.
 
 Runtime status values:
 

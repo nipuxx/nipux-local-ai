@@ -194,8 +194,8 @@ function configuredWorkerPlans(): ManagedProcessPlan[] {
       reason: transcriptionReady
         ? undefined
         : storedWhisperModel
-          ? `Saved Whisper model is missing: ${storedWhisperModel}. Run bun run transcription:install base.en.`
-          : "Run bun run transcription:install base.en, then rerun bun run local --open.",
+          ? `Saved Whisper model is missing: ${storedWhisperModel}. Run bun run transcription:prepare base.en --install.`
+          : "Run bun run transcription:prepare base.en --install, then rerun bun run local --open.",
     },
     {
       kind: "video",

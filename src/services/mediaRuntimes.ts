@@ -3,7 +3,7 @@ import { detectHardware } from "./hardware.ts";
 import { getMediaCapabilities, type MediaKind } from "./media.ts";
 import { getAppSettings, updateAppSettings, type AppSettings } from "./settings.ts";
 import { imageStartCommand, imageWorkerContract } from "./imageSetup.ts";
-import { whisperInstallCommand, whisperStartCommand } from "./transcriptionSetup.ts";
+import { transcriptionPrepareCommand, whisperStartCommand } from "./transcriptionSetup.ts";
 import { videoStartCommand, videoWorkerContract } from "./videoSetup.ts";
 
 type RuntimeStatus = "ready" | "unconfigured" | "invalid" | "offline";
@@ -193,7 +193,7 @@ function commandsFor(kind: MediaKind, config: (typeof MEDIA_RUNTIME_CONFIG)[Medi
     },
   ];
   if (kind === "transcription") {
-    commands.splice(0, 0, { label: "Install local model", command: whisperInstallCommand() });
+    commands.splice(0, 0, { label: "Prepare local model", command: transcriptionPrepareCommand("base.en", true) });
   }
   return commands;
 }
@@ -248,7 +248,7 @@ export async function getMediaRuntimePlan(): Promise<MediaRuntimePlannerResult> 
         return [`Run ${startCommandFor(runtime)}, then run bun run media:defaults.`];
       }
       if (runtime.kind === "transcription") {
-        return [`Run ${whisperInstallCommand()}, then run bun run local --open.`];
+        return [`Run ${transcriptionPrepareCommand("base.en", true)}, then run bun run local --open.`];
       }
       if (runtime.kind === "video") {
         return [`Run ${startCommandFor(runtime)}, then run bun run media:defaults --include-optional.`];

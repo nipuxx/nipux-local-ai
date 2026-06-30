@@ -99,14 +99,14 @@ function statusForRuntime(runtime: MediaRuntimePlan): SetupActionStatus {
 
 function mediaAction(runtime: MediaRuntimePlan): SetupAction {
   const status = statusForRuntime(runtime);
-  const installCommand = runtime.commands.find((item) => item.label.toLowerCase().includes("install"))?.command;
+  const installCommand = runtime.commands.find((item) => /install|prepare/.test(item.label.toLowerCase()))?.command;
   const startCommand = runtime.commands.find((item) => item.label.toLowerCase().includes("start"))?.command;
   const isTranscription = runtime.kind === "transcription";
   const commands =
     status === "ready"
       ? []
       : [
-          ...(installCommand ? [command("Install model", installCommand)] : []),
+          ...(installCommand ? [command(isTranscription ? "Prepare model" : "Install model", installCommand)] : []),
           ...(isTranscription ? [command("Launch local app", "bun run local --open")] : []),
           ...(isTranscription ? [] : [command("Persist default URL", runtime.recommended ? "bun run media:defaults" : "bun run media:defaults --include-optional")]),
           command(

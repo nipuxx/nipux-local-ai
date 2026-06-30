@@ -16,7 +16,7 @@ test("readiness report summarizes everyday local capabilities", async () => {
   expect(report.items.some((item) => item.id === "voice-output")).toBe(true);
   expect(report.items.some((item) => item.id === "api" && item.status === "ready")).toBe(true);
   expect(report.nextSteps.some((step) => step.includes("bun run worker:image"))).toBe(true);
-  expect(report.nextSteps.some((step) => step.includes("bun run transcription:install") && step.includes("bun run local --open"))).toBe(true);
+  expect(report.nextSteps.some((step) => step.includes("bun run transcription:prepare") && step.includes("bun run local --open"))).toBe(true);
   expect(report.nextSteps.some((step) => step.includes("bun run worker:video"))).toBe(true);
   expect(report.nextSteps.length).toBeGreaterThan(0);
 });

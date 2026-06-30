@@ -242,6 +242,35 @@ test("image backend route returns local-only setup presets", async () => {
   expect(json.nextSteps.length).toBeGreaterThan(0);
 });
 
+test("transcription setup route prepares the local worker URL", async () => {
+  const planRes = await route(new Request("http://localhost/api/media/transcription/setup"));
+  expect(planRes.status).toBe(200);
+  const plan = await planRes.json();
+  expect(plan.localOnly).toBe(true);
+  expect(plan.workerUrl).toBe("http://127.0.0.1:8083");
+  expect(plan.commands.prepareInstall).toContain("transcription:prepare base.en --install");
+
+  const prepared = await route(
+    new Request("http://localhost/api/media/transcription/prepare", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ presetId: "base.en" }),
+    }),
+  );
+  expect(prepared.status).toBe(200);
+  const preparedJson = await prepared.json();
+  expect(preparedJson.settings.transcriptionWorkerUrl).toBe("http://127.0.0.1:8083");
+  expect(preparedJson.commands.local).toBe("bun run local --open");
+
+  await route(
+    new Request("http://localhost/api/settings", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ transcriptionWorkerUrl: "" }),
+    }),
+  );
+});
+
 test("image backend install route can return a dry-run plan", async () => {
   const res = await route(
     new Request("http://localhost/api/media/images/backends/install", {

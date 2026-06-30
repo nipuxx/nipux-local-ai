@@ -1,6 +1,8 @@
+import { existsSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { platform, tmpdir } from "node:os";
 
 const DEFAULT_PORT = Number(process.env.NIPUX_TRANSCRIPTION_WORKER_PORT ?? 8083);
 const DEFAULT_HOST = process.env.NIPUX_TRANSCRIPTION_WORKER_HOST ?? "127.0.0.1";
@@ -32,6 +34,19 @@ function splitArgs(input: string) {
 
 function renderArgs(template: string, values: Record<string, string>) {
   return splitArgs(template).map((part) => part.replace(/\{(\w+)\}/g, (_, key: string) => values[key] ?? ""));
+}
+
+function shellArg(value: string) {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+function commandExists(command: string) {
+  if (!command.trim()) return false;
+  if (command.includes("/") || command.includes("\\")) return existsSync(command);
+  const result = platform() === "win32"
+    ? spawnSync("where", [command], { stdio: "ignore" })
+    : spawnSync("sh", ["-c", `command -v ${shellArg(command)}`], { stdio: "ignore" });
+  return result.status === 0;
 }
 
 async function readInput(req: Request): Promise<TranscriptionInput> {
@@ -112,14 +127,19 @@ export async function route(req: Request): Promise<Response> {
   const url = new URL(req.url);
   if (req.method === "OPTIONS") return new Response(null, { headers: { "access-control-allow-origin": "*" } });
   if (req.method === "HEAD" || req.method === "GET") {
-    const ready = Boolean(process.env.NIPUX_WHISPER_MODEL);
+    const command = process.env.NIPUX_WHISPER_COMMAND || "whisper-cli";
+    const hasModel = Boolean(process.env.NIPUX_WHISPER_MODEL);
+    const hasCommand = commandExists(command);
+    const ready = hasModel && hasCommand;
     if (req.method === "HEAD") {
       return new Response(null, { status: ready ? 200 : 503, headers: { "access-control-allow-origin": "*" } });
     }
     return json({
       ok: ready,
       worker: "nipux-whisper-transcription",
+      command,
       requires: ["NIPUX_WHISPER_MODEL", "whisper-cli or NIPUX_WHISPER_COMMAND"],
+      missing: [hasModel ? "" : "NIPUX_WHISPER_MODEL", hasCommand ? "" : command].filter(Boolean),
     }, ready ? 200 : 503);
   }
   if (url.pathname === "/v1/audio/transcriptions" && req.method === "POST") {

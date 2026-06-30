@@ -89,6 +89,7 @@ import { prepareFirstRunSetup } from "./services/setupPrepare.ts";
 import { getReadinessReport } from "./services/readiness.ts";
 import { addLocalDocument, addLocalDocumentsBulk, localSearch, webSearch, type BulkDocumentInput } from "./services/search.ts";
 import { getAppSettings, getSettingsStatus, updateAppSettings, type AppSettings } from "./services/settings.ts";
+import { getTranscriptionSetupPlan, prepareTranscriptionSetup } from "./services/transcriptionSetup.ts";
 import { getUsageDashboard, recordUsage } from "./services/usage.ts";
 
 const corsHeaders = {
@@ -951,6 +952,15 @@ export async function route(req: Request): Promise<Response> {
 
   if (url.pathname === "/api/media/capabilities" && req.method === "GET") return json(await getMediaCapabilities());
   if (url.pathname === "/api/media/runtimes" && req.method === "GET") return json(await getMediaRuntimePlan());
+  if (url.pathname === "/api/media/transcription/setup" && req.method === "GET") return json(getTranscriptionSetupPlan());
+  if (url.pathname === "/api/media/transcription/prepare" && req.method === "POST") {
+    const body = await readJson<{ presetId?: string; install?: boolean }>(req);
+    try {
+      return json(await prepareTranscriptionSetup(body));
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  }
   if (url.pathname === "/api/media/images/backends" && req.method === "GET") return json(await getImageBackendPlan());
   if (url.pathname === "/api/media/images/backends/install" && req.method === "POST") {
     const body = await readJson<{ presetId?: string; dryRun?: boolean }>(req);
