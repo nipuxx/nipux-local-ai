@@ -32,6 +32,8 @@ const state = {
   diagnostics: null,
   apiKeys: [],
   apiExposure: null,
+  chatRuntimeActionMessage: "",
+  chatRuntimeBusy: false,
 };
 
 const IMPORT_MAX_FILES = 80;
@@ -184,6 +186,16 @@ async function parseErrorResponse(res) {
     return json.error?.message || json.error || text || res.statusText;
   } catch {
     return text || res.statusText;
+  }
+}
+
+function displayErrorMessage(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  try {
+    const json = JSON.parse(message);
+    return json.error?.message || json.error || message;
+  } catch {
+    return message;
   }
 }
 
@@ -530,6 +542,14 @@ function modelSetupAction(model, runtime = state.runtime) {
   };
 }
 
+function canStartChatRuntime(model = selectedModel(), runtime = state.runtime) {
+  return Boolean(model && model.state === "available" && !state.status?.fakeLlm && !runtime?.running && !runtime?.backend?.ok);
+}
+
+function canStopChatRuntime(runtime = state.runtime) {
+  return Boolean(runtime?.running && !state.status?.fakeLlm);
+}
+
 function renderModelSetupGuide() {
   const target = $("#modelSetupGuide");
   if (!target) return;
@@ -629,6 +649,8 @@ function renderChatSetupGuide() {
   const voice = chatVoiceSummary();
   const apiSummary = chatApiSummary();
   const guideStatus = chatModelStatus(model, runtime);
+  const showStart = canStartChatRuntime(model, runtime);
+  const showStop = canStopChatRuntime(runtime);
   target.innerHTML = `
     <div class="chat-guide-head">
       <div>
@@ -676,8 +698,13 @@ function renderChatSetupGuide() {
         <span>${h(action.label)}</span>
         <code>${h(action.command)}</code>
       </div>
-      <button class="copy-command" data-command="${h(action.command)}">Copy</button>
-    </div>`;
+      <div class="button-row">
+        ${showStart ? `<button class="start-chat-runtime" type="button" ${state.chatRuntimeBusy ? "disabled" : ""}>${state.chatRuntimeBusy ? "Starting" : "Start Model"}</button>` : ""}
+        ${showStop ? `<button class="stop-chat-runtime" type="button" ${state.chatRuntimeBusy ? "disabled" : ""}>${state.chatRuntimeBusy ? "Stopping" : "Stop Model"}</button>` : ""}
+        <button class="copy-command" data-command="${h(action.command)}">Copy</button>
+      </div>
+    </div>
+    ${state.chatRuntimeActionMessage ? `<div class="${state.chatRuntimeActionMessage.startsWith("Could not") || state.chatRuntimeActionMessage.startsWith("Start failed") ? "browser-error" : "meta"}">${h(state.chatRuntimeActionMessage)}</div>` : ""}`;
 }
 
 function renderModelInstallPlan(model) {
@@ -2339,6 +2366,53 @@ async function downloadFile(button) {
   await Promise.all([loadModels(), loadCapabilityProfile(), loadSetupActions(), loadRuntime(), loadLocalSupervisor()]);
 }
 
+async function startChatRuntime(button) {
+  const original = button.textContent;
+  state.chatRuntimeBusy = true;
+  button.disabled = true;
+  button.textContent = "Starting";
+  state.chatRuntimeActionMessage = "Starting local chat model...";
+  renderChatSetupGuide();
+  try {
+    const data = await api("/api/runtime/start", {
+      method: "POST",
+      body: JSON.stringify({ modelPreset: selectedModelPreset() }),
+    });
+    state.runtime = data;
+    state.chatRuntimeActionMessage = data.running || data.backend?.ok ? "Local chat model is starting." : "Start requested. Waiting for the local backend to respond.";
+  } catch (error) {
+    state.chatRuntimeActionMessage = `Could not start local model. ${displayErrorMessage(error)}`;
+  } finally {
+    await Promise.all([loadRuntime(), loadUsage(), loadReadiness(), loadCapabilityProfile(), loadSetupActions(), loadLocalSupervisor()]);
+    state.chatRuntimeBusy = false;
+    renderChatSetupGuide();
+    button.disabled = false;
+    button.textContent = original;
+  }
+}
+
+async function stopChatRuntime(button) {
+  const original = button.textContent;
+  state.chatRuntimeBusy = true;
+  button.disabled = true;
+  button.textContent = "Stopping";
+  state.chatRuntimeActionMessage = "Stopping managed local chat model...";
+  renderChatSetupGuide();
+  try {
+    const data = await api("/api/runtime/stop", { method: "POST", body: "{}" });
+    state.runtime = data;
+    state.chatRuntimeActionMessage = "Managed local chat model stopped.";
+  } catch (error) {
+    state.chatRuntimeActionMessage = `Could not stop local model. ${displayErrorMessage(error)}`;
+  } finally {
+    await Promise.all([loadRuntime(), loadUsage(), loadReadiness(), loadCapabilityProfile(), loadSetupActions(), loadLocalSupervisor()]);
+    state.chatRuntimeBusy = false;
+    renderChatSetupGuide();
+    button.disabled = false;
+    button.textContent = original;
+  }
+}
+
 async function setDefaultModel(button) {
   const modelId = button.dataset.modelId;
   if (!modelId) return;
@@ -2505,6 +2579,8 @@ document.addEventListener("click", async (event) => {
     await api(`/api/search/documents/${target.dataset.id}`, { method: "DELETE" });
     await loadDocuments();
   }
+  if (target.matches(".start-chat-runtime")) await startChatRuntime(target);
+  if (target.matches(".stop-chat-runtime")) await stopChatRuntime(target);
   if (target.matches(".chat-speak")) await playChatSpeech(target);
   if (target.matches("#voiceInput")) await toggleVoiceInput(target);
   if (target.matches(".browser-open")) {
@@ -2563,6 +2639,7 @@ document.addEventListener("click", async (event) => {
 
 $("#chatForm").addEventListener("submit", sendChat);
 $("#presetSelect").addEventListener("change", () => {
+  state.chatRuntimeActionMessage = "";
   renderChatSetupGuide();
   renderModelSetupGuide();
   renderAgentSetupGuide();

@@ -63,6 +63,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Dev fake LLM streaming exists.
 - Main chat can use indexed local search context and persist cited assistant responses.
 - The Chat page surfaces a consumer-facing Local Chat Status guide with model/runtime, local/web search context, local voice, API mode, and the next run/install command before users type.
+- The Chat page can start an installed local chat model and stop the managed runtime without enabling dev mode.
 - Qwen3 Fast/Balanced/Smart model presets exist.
 - Built-in model preset install plus Hugging Face GGUF search/list/download hooks exist; arbitrary downloaded GGUF files are registered as selectable custom local models.
 - Model install planning and dry-run commands preview the selected GGUF file, reported size, target path, install command, and start command before downloading.
