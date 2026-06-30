@@ -155,3 +155,91 @@ test("agent image requests can create local image jobs through a loopback worker
     server.stop(true);
   }
 });
+
+test("agent video requests stay honest when no local video worker is configured", async () => {
+  await patchSettings({ videoWorkerUrl: "" });
+  const createdAgent = await jsonRequest("/api/agents", { name: "Video Setup Agent" });
+  const { agent } = await createdAgent.json();
+
+  const run = await jsonRequest("/api/agents/run", {
+    agentId: agent.id,
+    input: "Generate a video of \"a quiet local AI workspace loading screen\".",
+  });
+  expect(run.status).toBe(200);
+  const data = await run.json();
+
+  const videoEvent = data.toolEvents.find((event: { tool: string }) => event.tool === "video_generation");
+  expect(videoEvent.status).toBe("error");
+  expect(videoEvent.mediaJobId).toBeTruthy();
+  expect(videoEvent.error).toContain("local video worker");
+  expect(data.mediaJobs.some((job: { id: string; kind: string; status: string }) => job.id === videoEvent.mediaJobId && job.kind === "video" && job.status === "failed")).toBe(true);
+  expect(data.output).toContain("video_generation error");
+
+  const runsRes = await route(new Request("http://localhost/api/agents"));
+  const runsData = await runsRes.json();
+  const persisted = runsData.runs.find((run: { id: string }) => run.id === data.runId);
+  expect(persisted.toolEvents.some((event: { tool: string; mediaJobId?: string }) => event.tool === "video_generation" && event.mediaJobId === videoEvent.mediaJobId)).toBe(true);
+  expect(persisted.mediaJobs.some((job: { id: string; status: string }) => job.id === videoEvent.mediaJobId && job.status === "failed")).toBe(true);
+});
+
+test("agent video requests can create local video jobs through a loopback worker", async () => {
+  let workerPrompt = "";
+  let workerSeconds = 0;
+  const videoDataUrl = `data:video/mp4;base64,${Buffer.from("fake local video").toString("base64")}`;
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    async fetch(req) {
+      const url = new URL(req.url);
+      if (url.pathname === "/v1/video/generations" && req.method === "POST") {
+        const body = await req.json() as { prompt?: string; seconds?: number };
+        workerPrompt = body.prompt ?? "";
+        workerSeconds = body.seconds ?? 0;
+        return Response.json({
+          created: Math.floor(Date.now() / 1000),
+          data: [{ mime: "video/mp4", dataUrl: videoDataUrl }],
+          model: "local-video",
+        });
+      }
+      return new Response("ok");
+    },
+  });
+
+  try {
+    await patchSettings({ videoWorkerUrl: `http://127.0.0.1:${server.port}` });
+    const createdAgent = await jsonRequest("/api/agents", { name: "Video Worker Agent" });
+    const { agent } = await createdAgent.json();
+
+    const run = await jsonRequest("/api/agents/run", {
+      agentId: agent.id,
+      input: "Generate a video of \"a compact local model dashboard animation\".",
+    });
+    expect(run.status).toBe(200);
+    const data = await run.json();
+
+    const videoEvent = data.toolEvents.find((event: { tool: string }) => event.tool === "video_generation");
+    expect(videoEvent.status).toBe("ok");
+    expect(videoEvent.mediaJobId).toBeTruthy();
+    expect(workerPrompt).toBe("a compact local model dashboard animation");
+    expect(workerSeconds).toBe(4);
+    expect(
+      data.mediaJobs.some(
+        (job: { id: string; kind: string; status: string; output: { data?: Array<{ dataUrl?: string }> } }) =>
+          job.id === videoEvent.mediaJobId &&
+          job.kind === "video" &&
+          job.status === "completed" &&
+          job.output.data?.[0]?.dataUrl === videoDataUrl,
+      ),
+    ).toBe(true);
+    expect(data.output).toContain("video_generation ok");
+
+    const runsRes = await route(new Request("http://localhost/api/agents"));
+    const runsData = await runsRes.json();
+    const persisted = runsData.runs.find((run: { id: string }) => run.id === data.runId);
+    expect(persisted.toolEvents.some((event: { tool: string; mediaJobId?: string }) => event.tool === "video_generation" && event.mediaJobId === videoEvent.mediaJobId)).toBe(true);
+    expect(persisted.mediaJobs.some((job: { id: string; status: string }) => job.id === videoEvent.mediaJobId && job.status === "completed")).toBe(true);
+  } finally {
+    await patchSettings({ videoWorkerUrl: "" });
+    server.stop(true);
+  }
+});

@@ -50,7 +50,7 @@ function createAgentToolInstructions() {
     "Treat web search as unavailable if the tool activity or result says SearXNG is not configured.",
     "Store only durable, reusable facts in memory.",
     "Do not claim browser actions were executed unless a browser session event exists.",
-    "Do not claim an image was generated unless image_generation is ok and a completed media job exists.",
+    "Do not claim image or video media was generated unless the matching image_generation or video_generation tool event is ok and a completed media job exists.",
   ].map((line) => `- ${line}`).join("\n");
 }
 

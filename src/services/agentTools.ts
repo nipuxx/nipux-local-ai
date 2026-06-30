@@ -1,10 +1,10 @@
 import type { Agent, SearchResult } from "../types.ts";
 import { PermissionRequiredError } from "./browserAudit.ts";
 import { createBrowserSession, navigateBrowserSession, type BrowserSessionRecord } from "./browserBroker.ts";
-import { generateImage, MediaUnavailableError, type MediaJob } from "./media.ts";
+import { generateImage, generateVideo, MediaUnavailableError, type MediaJob } from "./media.ts";
 import { localSearch, webSearch } from "./search.ts";
 
-export type AgentToolName = "local_search" | "web_search" | "browser_session" | "browser_navigation" | "image_generation";
+export type AgentToolName = "local_search" | "web_search" | "browser_session" | "browser_navigation" | "image_generation" | "video_generation";
 export type AgentToolStatus = "ok" | "pending" | "error";
 
 export interface AgentToolEvent {
@@ -53,13 +53,30 @@ function shouldGenerateImage(input: string) {
   );
 }
 
-function imagePromptFromInput(input: string) {
+function shouldGenerateVideo(input: string) {
+  return (
+    /\b(generate|create|make|render|produce)\b.{0,80}\b(video|clip|animation|movie)\b/i.test(input) ||
+    /\b(video|clip|animation|movie)\b.{0,80}\b(generate|create|make|render|produce)\b/i.test(input)
+  );
+}
+
+function mediaPromptFromInput(input: string, words: string[]) {
   const quoted = input.match(/["“](.+?)["”]/)?.[1]?.trim();
   if (quoted) return quoted;
-  return input.replace(/\b(please|can you|could you|generate|create|make|draw|render|produce|an?|image|picture|photo|illustration|art|poster|logo|visual)\b/gi, " ")
+  const mediaWords = words.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const cleanup = new RegExp(`\\b(please|can you|could you|generate|create|make|draw|render|produce|an?|${mediaWords})\\b`, "gi");
+  return input.replace(cleanup, " ")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 900) || input.slice(0, 900);
+}
+
+function imagePromptFromInput(input: string) {
+  return mediaPromptFromInput(input, ["image", "picture", "photo", "illustration", "art", "poster", "logo", "visual"]);
+}
+
+function videoPromptFromInput(input: string) {
+  return mediaPromptFromInput(input, ["video", "clip", "animation", "movie"]);
 }
 
 function extractRequestedUrl(input: string) {
@@ -187,6 +204,38 @@ export async function runAgentTools(input: string, agent: Agent): Promise<AgentT
           tool: "image_generation",
           status: "error",
           summary: "Local image generation failed.",
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  }
+
+  if (shouldGenerateVideo(input)) {
+    const prompt = videoPromptFromInput(input);
+    try {
+      const result = await generateVideo({ prompt, seconds: 4, width: 1024, height: 576, model: "local-video" });
+      mediaJobs.push(result.job);
+      events.push({
+        tool: "video_generation",
+        status: "ok",
+        mediaJobId: result.job.id,
+        summary: `Created local video job ${result.job.id}.`,
+      });
+    } catch (error) {
+      if (error instanceof MediaUnavailableError) {
+        mediaJobs.push(error.job);
+        events.push({
+          tool: "video_generation",
+          status: "error",
+          mediaJobId: error.job.id,
+          summary: "Local video generation is not ready.",
+          error: error.message,
+        });
+      } else {
+        events.push({
+          tool: "video_generation",
+          status: "error",
+          summary: "Local video generation failed.",
           error: error instanceof Error ? error.message : String(error),
         });
       }

@@ -577,7 +577,7 @@ Set `"dryRun": true` to return the same install plan without downloading:
 }
 ```
 
-Runs the local agent with memory and local tool context. The response includes `toolEvents`, `localResults`, `webResults`, any created `browserSessions`, and any created `mediaJobs`. Recent runs returned by `GET /api/agents` include persisted `toolEvents` and resolved `mediaJobs` so clients can render agent-created artifacts after refresh. Natural-language requests for local search, web search, browser use, or image generation are executed through the agent tool layer. Agent browser navigation creates a pending approval instead of navigating immediately. Agent image generation uses only the configured local image worker; without one, the agent records a failed media job and reports setup guidance.
+Runs the local agent with memory and local tool context. The response includes `toolEvents`, `localResults`, `webResults`, any created `browserSessions`, and any created `mediaJobs`. Recent runs returned by `GET /api/agents` include persisted `toolEvents` and resolved `mediaJobs` so clients can render agent-created artifacts after refresh. Natural-language requests for local search, web search, browser use, image generation, or video generation are executed through the agent tool layer. Agent browser navigation creates a pending approval instead of navigating immediately. Agent media generation uses only the configured matching local media worker; without one, the agent records a failed media job and reports setup guidance.
 
 ### `GET /api/agents/:id/memories`
 

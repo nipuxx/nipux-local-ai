@@ -1281,12 +1281,19 @@ function mediaJobBodyHtml(job) {
 function renderAgentMediaJobs(jobs = []) {
   const mediaJobs = jobs.filter((job) => job && job.kind);
   if (!mediaJobs.length) return "";
+  const labelFor = (kind) => {
+    if (kind === "image") return "AI-generated image";
+    if (kind === "video") return "AI-generated video";
+    if (kind === "speech") return "AI-generated audio";
+    if (kind === "transcription") return "Transcript";
+    return `${kind} artifact`;
+  };
   return `
     <div class="agent-artifacts" aria-label="Agent media artifacts">
       ${mediaJobs
         .map((job) => {
           const failed = job.status === "failed";
-          const label = job.kind === "image" ? "AI-generated image" : `${job.kind} artifact`;
+          const label = labelFor(job.kind);
           return `
             <div class="agent-artifact ${failed ? "agent-artifact-failed" : ""}">
               <div class="agent-artifact-head">

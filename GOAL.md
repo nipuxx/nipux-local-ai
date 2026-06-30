@@ -72,7 +72,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Hermes status/config adapter exists.
 - Agent memory and run history exist.
 - Agent memory CRUD, scored retrieval, summaries, provenance, and compaction exist.
-- Agent runs can execute a conservative local tool layer for local search, SearXNG web search, browser-session creation, and local-only image generation jobs.
+- Agent runs can execute a conservative local tool layer for local search, SearXNG web search, browser-session creation, and local-only image/video generation jobs.
 - The Agents page surfaces a consumer-facing Agent Setup guide with active agent, memory, browser approval/session, and search tool status before the operational controls, and renders agent-created local media job artifacts inline.
 - Manual document indexing, browser file/folder import, Search-page local/web readiness guidance, dev file-path indexing, local search, and SearXNG adapter exist.
 - Playwright browser sessions can open, navigate, screenshot, click, type, press keys, and close.
