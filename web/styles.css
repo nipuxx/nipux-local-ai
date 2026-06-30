@@ -1278,6 +1278,13 @@ h2 {
   gap: 8px;
 }
 
+.chat-browser-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
 .permission-card,
 .browser-action-row {
   display: grid;

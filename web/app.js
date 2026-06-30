@@ -1396,6 +1396,19 @@ function renderChatBrowserSessions(sessions = [], toolEvents = []) {
                     ? `<div class="meta">${h(latestNavigation.summary || "Browser navigation recorded.")}</div>`
                     : `<div class="meta">Browser session is ready for local control.</div>`
               }
+              ${
+                !hasActionPending && permissionStatus !== "denied"
+                  ? `<div class="chat-browser-controls">
+                      <input class="chat-browser-url" value="${h(session.url || "about:blank")}" aria-label="Browser URL" />
+                      <button class="chat-browser-go" type="button" data-id="${h(session.id)}">Go</button>
+                    </div>
+                    <div class="chat-browser-controls">
+                      <input class="chat-browser-text" placeholder="Type into focused page element" aria-label="Browser text input" />
+                      <button class="chat-browser-type" type="button" data-id="${h(session.id)}">Type</button>
+                      <button class="chat-browser-enter" type="button" data-id="${h(session.id)}">Enter</button>
+                    </div>`
+                  : ""
+              }
               ${error ? `<div class="browser-error">${h(error)}</div>` : ""}
               ${
                 shot
@@ -2798,6 +2811,77 @@ document.addEventListener("click", async (event) => {
     } catch (error) {
       target.textContent = "Shot failed";
       alert(error instanceof Error ? error.message : String(error));
+    } finally {
+      setTimeout(() => {
+        target.textContent = original;
+        target.disabled = false;
+      }, 1200);
+    }
+  }
+  if (target.matches(".chat-browser-go")) {
+    const id = target.dataset.id;
+    const card = target.closest(".chat-browser-session");
+    const url = card?.querySelector(".chat-browser-url")?.value?.trim();
+    if (!url) return;
+    const original = target.textContent;
+    target.textContent = "Going";
+    target.disabled = true;
+    try {
+      await api(`/api/browsers/${id}/navigate`, { method: "POST", body: JSON.stringify({ url }) });
+      delete state.browserErrors[id];
+      await refreshBrowserScreenshot(id, { chat: true });
+      target.textContent = "Done";
+    } catch (error) {
+      state.browserErrors[id] = error instanceof Error ? error.message : String(error);
+      await refreshActiveChat();
+      target.textContent = "Go failed";
+    } finally {
+      setTimeout(() => {
+        target.textContent = original;
+        target.disabled = false;
+      }, 1200);
+    }
+  }
+  if (target.matches(".chat-browser-type")) {
+    const id = target.dataset.id;
+    const card = target.closest(".chat-browser-session");
+    const input = card?.querySelector(".chat-browser-text");
+    const text = input?.value ?? "";
+    if (!text) return;
+    const original = target.textContent;
+    target.textContent = "Typing";
+    target.disabled = true;
+    try {
+      await api(`/api/browsers/${id}/type`, { method: "POST", body: JSON.stringify({ text }) });
+      if (input) input.value = "";
+      delete state.browserErrors[id];
+      await refreshBrowserScreenshot(id, { chat: true });
+      target.textContent = "Typed";
+    } catch (error) {
+      state.browserErrors[id] = error instanceof Error ? error.message : String(error);
+      await refreshActiveChat();
+      target.textContent = "Type failed";
+    } finally {
+      setTimeout(() => {
+        target.textContent = original;
+        target.disabled = false;
+      }, 1200);
+    }
+  }
+  if (target.matches(".chat-browser-enter")) {
+    const id = target.dataset.id;
+    const original = target.textContent;
+    target.textContent = "Pressing";
+    target.disabled = true;
+    try {
+      await api(`/api/browsers/${id}/key`, { method: "POST", body: JSON.stringify({ key: "Enter" }) });
+      delete state.browserErrors[id];
+      await refreshBrowserScreenshot(id, { chat: true });
+      target.textContent = "Pressed";
+    } catch (error) {
+      state.browserErrors[id] = error instanceof Error ? error.message : String(error);
+      await refreshActiveChat();
+      target.textContent = "Key failed";
     } finally {
       setTimeout(() => {
         target.textContent = original;

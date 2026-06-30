@@ -708,7 +708,7 @@ Closes the running browser context and keeps the session record.
 
 Agent-originated `navigate`, `click`, `type`, and `key` actions are gated. Pass `"actor": "agent"` in the request body to create a pending permission request instead of executing immediately. Re-run the action with `permissionRequestId` after approval.
 
-Chat-created browser cards reuse these same browser routes. Once a browser action is approved and run from Chat, the UI calls `GET /api/browsers/:id/screenshot` to show an inline page preview; clicking that preview sends user-originated browser clicks through `POST /api/browsers/:id/click`.
+Chat-created browser cards reuse these same browser routes. Once a browser action is approved and run from Chat, the UI calls `GET /api/browsers/:id/screenshot` to show an inline page preview. The chat card can also send user-originated `navigate`, `type`, `key`, and screenshot-click actions through the same `/api/browsers/:id/*` routes.
 
 ### `GET /api/browser-actions`
 
