@@ -475,7 +475,7 @@ Returns a chat and its messages.
 
 ### `POST /api/chats/:id/respond`
 
-Runs the app-native chat flow: persists the user message, searches indexed local documents, executes clear local image/speech/video media requests, injects relevant local context and media tool activity into the model prompt, streams or returns the assistant response, appends deterministic source/tool lines, and persists the assistant message with any media job ids.
+Runs the app-native chat flow: persists the user message, searches indexed local documents, uses local SearXNG web search for current/web requests, executes clear local image/speech/video media requests, injects relevant local/web context and media tool activity into the model prompt, streams or returns the assistant response, appends deterministic source/tool lines, and persists the assistant message with any media job ids.
 
 ```json
 {
@@ -483,9 +483,12 @@ Runs the app-native chat flow: persists the user message, searches indexed local
   "modelPreset": "balanced",
   "stream": true,
   "useLocalSearch": true,
+  "useWebSearch": true,
   "useMediaTools": true
 }
 ```
+
+Omit `useWebSearch` to let chat automatically use SearXNG for prompts that ask for web, current, latest, recent, or news context.
 
 Set `stream` to `false` for a JSON response with `output` and `citations`.
 

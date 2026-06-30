@@ -363,7 +363,14 @@ function streamNativeChat(input: {
 
 async function handleNativeChatRespond(chatId: string, req: Request) {
   const started = Date.now();
-  const body = await readJson<{ content?: string; modelPreset?: string; stream?: boolean; useLocalSearch?: boolean; useMediaTools?: boolean }>(req);
+  const body = await readJson<{
+    content?: string;
+    modelPreset?: string;
+    stream?: boolean;
+    useLocalSearch?: boolean;
+    useWebSearch?: boolean;
+    useMediaTools?: boolean;
+  }>(req);
   const content = body.content?.trim();
   if (!content) return json({ error: "content is required" }, 400);
 
@@ -375,9 +382,10 @@ async function handleNativeChatRespond(chatId: string, req: Request) {
     : await runMediaGenerationTools(content);
   const mediaActivity = formatMediaGenerationToolEvents(mediaRun.events);
   const storedMessages = listChatMessages(chatId).map((message) => ({ role: message.role, content: message.content }));
-  const context = body.useLocalSearch === false
-    ? { citations: [] as ChatCitation[], messages: storedMessages, sourceAppendix: "" }
-    : buildChatContext(content, storedMessages);
+  const context = await buildChatContext(content, storedMessages, {
+    useLocalSearch: body.useLocalSearch,
+    useWebSearch: body.useWebSearch,
+  });
   const mediaContext = mediaActivity
     ? `Local media tool context:
 ${mediaRun.contextBlock}

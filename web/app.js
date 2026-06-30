@@ -762,7 +762,13 @@ function renderChatSetupGuide() {
           <span>${h(contextLabel)}</span>
         </div>
         <div class="meta">${h(contextDetail)}</div>
-        <div class="meta">${h(documentCount ? "Chat can cite indexed local context when relevant." : "Index files on Search to make chat use local context.")}</div>
+        <div class="meta">${h(
+          documentCount
+            ? "Chat can cite indexed local context and use SearXNG for current web requests."
+            : webConfigured
+              ? "Chat can use SearXNG for current web requests; index files on Search for local context."
+              : "Index files on Search for local context, or set SearXNG in Settings for web search.",
+        )}</div>
       </div>
       <div class="chat-guide-card">
         <div>

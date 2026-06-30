@@ -65,7 +65,7 @@ Dev mode sets `NIPUX_FAKE_LLM=1`, so chat streams immediately without a real mod
 
 ## Chat
 
-The main Chat page stays the everyday entry point. It streams normal assistant responses, cites indexed local context when relevant, supports local voice input/output, and can create image, speech, or video media jobs from clear natural-language requests. Chat-created media uses the same local-only worker system as the Media and Agents pages, records setup failures honestly, and persists generated artifacts with the assistant message so reopening the chat shows the same media cards.
+The main Chat page stays the everyday entry point. It streams normal assistant responses, cites indexed local context when relevant, uses local SearXNG web search for current/web requests, supports local voice input/output, and can create image, speech, or video media jobs from clear natural-language requests. Chat-created media uses the same local-only worker system as the Media and Agents pages, records setup failures honestly, and persists generated artifacts with the assistant message so reopening the chat shows the same media cards.
 
 ## Run With llama.cpp
 

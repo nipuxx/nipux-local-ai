@@ -80,6 +80,75 @@ test("native chat responder streams cited output through the app endpoint", asyn
   expect(loadedJson.messages[1].content).toContain("Chat Stream Fixture Beta");
 });
 
+test("native chat responder injects local SearXNG web results for current web requests", async () => {
+  let searchedFor = "";
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    fetch(req) {
+      const url = new URL(req.url);
+      expect(url.pathname).toBe("/search");
+      expect(url.searchParams.get("format")).toBe("json");
+      searchedFor = url.searchParams.get("q") ?? "";
+      return Response.json({
+        results: [
+          {
+            title: "Current Local AI Release Notes",
+            url: "https://example.test/local-ai-release",
+            content: "Current local AI release notes say web search should cite SearXNG results.",
+          },
+        ],
+      });
+    },
+  });
+
+  try {
+    await patchSettings({ searxngUrl: `http://127.0.0.1:${server.port}` });
+    const chat = await createChat();
+
+    const res = await jsonRequest(`/api/chats/${chat.id}/respond`, {
+      content: "Search web for current local AI release notes.",
+      modelPreset: "balanced",
+      stream: false,
+      useLocalSearch: false,
+      useWebSearch: true,
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+
+    expect(searchedFor).toBe("Search web for current local AI release notes.");
+    expect(json.citations.some((citation: { id: string; title: string }) => citation.id === "W1" && citation.title === "Current Local AI Release Notes")).toBe(true);
+    expect(json.output).toContain("Sources:");
+    expect(json.output).toContain("[W1] Current Local AI Release Notes");
+
+    const loaded = await route(new Request(`http://localhost/api/chats/${chat.id}`));
+    const loadedJson = await loaded.json();
+    expect(loadedJson.messages[1].content).toContain("[W1] Current Local AI Release Notes");
+  } finally {
+    await patchSettings({ searxngUrl: "" });
+    server.stop(true);
+  }
+});
+
+test("native chat responder reports web search setup when SearXNG is missing", async () => {
+  await patchSettings({ searxngUrl: "" });
+  const chat = await createChat();
+
+  const res = await jsonRequest(`/api/chats/${chat.id}/respond`, {
+    content: "Search web for current setup status.",
+    modelPreset: "balanced",
+    stream: false,
+    useLocalSearch: false,
+    useWebSearch: true,
+  });
+  expect(res.status).toBe(200);
+  const json = await res.json();
+
+  expect(json.citations.some((citation: { id: string; title: string }) => citation.id === "W1" && citation.title === "SearXNG is not configured")).toBe(true);
+  expect(json.output).toContain("SearXNG is not configured");
+  expect(json.output).toContain("Set a local SearXNG URL");
+});
+
 test("native chat media requests record honest setup failures", async () => {
   await patchSettings({ imageWorkerUrl: "" });
   const chat = await createChat();
