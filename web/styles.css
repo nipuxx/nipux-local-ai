@@ -1243,6 +1243,28 @@ h2 {
   gap: 10px;
 }
 
+.chat-browser-sessions {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.chat-browser-session {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffefa;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.chat-browser-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
 .permission-card,
 .browser-action-row {
   display: grid;

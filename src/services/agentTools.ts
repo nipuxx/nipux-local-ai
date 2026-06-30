@@ -1,6 +1,6 @@
 import type { Agent, SearchResult } from "../types.ts";
-import { PermissionRequiredError } from "./browserAudit.ts";
-import { createBrowserSession, navigateBrowserSession, type BrowserSessionRecord } from "./browserBroker.ts";
+import { type BrowserSessionRecord } from "./browserBroker.ts";
+import { runBrowserSessionTools } from "./browserSessionTools.ts";
 import { type MediaJob } from "./media.ts";
 import { runMediaGenerationTools, type MediaGenerationToolName } from "./mediaGenerationTools.ts";
 import { localSearch, webSearch } from "./search.ts";
@@ -42,25 +42,6 @@ function shouldUseLocalSearch(input: string) {
 
 function shouldUseWebSearch(input: string) {
   return /\b(web|internet|online|latest|current|today|news|recent|search web|google|site:)\b/i.test(input);
-}
-
-function shouldUseBrowser(input: string) {
-  return (
-    /\b(open|create|launch|start)\b.{0,40}\bbrowser\b/i.test(input) ||
-    /\b(browser session|browse|visit|navigate|go to)\b/i.test(input) ||
-    /\bopen\s+(https?:\/\/|www\.|[a-z0-9-]+\.[a-z]{2,})/i.test(input)
-  );
-}
-
-function extractRequestedUrl(input: string) {
-  const explicit = input.match(/\bhttps?:\/\/[^\s<>"')]+/i)?.[0];
-  if (explicit) return explicit.replace(/[.,;:!?]+$/, "");
-
-  const phrase = input.match(
-    /\b(?:visit|open|go to|navigate to|browse to)\s+((?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/[^\s<>"')]+)?)/i,
-  )?.[1];
-  if (!phrase || /\bbrowser\b/i.test(phrase)) return undefined;
-  return phrase.replace(/[.,;:!?]+$/, "");
 }
 
 function formatResults(title: string, results: SearchResult[]) {
@@ -155,63 +136,13 @@ export async function runAgentTools(input: string, agent: Agent): Promise<AgentT
   mediaJobs.push(...mediaRun.mediaJobs);
   events.push(...mediaRun.events);
 
-  if (shouldUseBrowser(input)) {
-    try {
-      const session = createBrowserSession(agent.id, `${agent.name} Browser`);
-      browserSessions.push(session);
-      events.push({
-        tool: "browser_session",
-        status: "ok",
-        browserSessionId: session.id,
-        summary: `Created browser session "${session.label}" for ${agent.name}.`,
-      });
-
-      const requestedUrl = extractRequestedUrl(input);
-      if (requestedUrl) {
-        try {
-          const navigated = await navigateBrowserSession(session.id, requestedUrl, {
-            actor: "agent",
-            agentId: agent.id,
-            reason: "Agent task requested browser navigation.",
-          });
-          events.push({
-            tool: "browser_navigation",
-            status: "ok",
-            browserSessionId: session.id,
-            url: navigated.url ?? requestedUrl,
-            summary: `Navigated browser to ${navigated.url ?? requestedUrl}.`,
-          });
-        } catch (error) {
-          if (error instanceof PermissionRequiredError) {
-            events.push({
-              tool: "browser_navigation",
-              status: "pending",
-              browserSessionId: session.id,
-              permissionRequestId: error.request.id,
-              url: requestedUrl,
-              summary: `Navigation to ${requestedUrl} is waiting for user approval.`,
-            });
-          } else {
-            events.push({
-              tool: "browser_navigation",
-              status: "error",
-              browserSessionId: session.id,
-              url: requestedUrl,
-              summary: `Navigation to ${requestedUrl} failed.`,
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
-        }
-      }
-    } catch (error) {
-      events.push({
-        tool: "browser_session",
-        status: "error",
-        summary: "Browser session creation failed.",
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
+  const browserRun = await runBrowserSessionTools(input, {
+    agentId: agent.id,
+    agentName: agent.name,
+    reason: "Agent task requested browser navigation.",
+  });
+  browserSessions.push(...browserRun.browserSessions);
+  events.push(...browserRun.events);
 
   const contextParts = [
     formatAgentToolEvents(events) || "Tool activity: none requested",

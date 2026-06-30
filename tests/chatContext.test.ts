@@ -173,6 +173,65 @@ test("native chat media requests record honest setup failures", async () => {
   expect(loadedJson.messages[1].mediaJobs.some((job: { id: string; status: string }) => job.id === imageEvent.mediaJobId && job.status === "failed")).toBe(true);
 });
 
+test("native chat browser requests create visible sessions and pending approvals", async () => {
+  const chat = await createChat();
+
+  const res = await jsonRequest(`/api/chats/${chat.id}/respond`, {
+    content: "Open a browser and visit example.com.",
+    modelPreset: "balanced",
+    stream: false,
+    useLocalSearch: false,
+    useWebSearch: false,
+    useMediaTools: false,
+  });
+  expect(res.status).toBe(200);
+  const json = await res.json();
+
+  const sessionEvent = json.toolEvents.find((event: { tool: string }) => event.tool === "browser_session");
+  const navigationEvent = json.toolEvents.find((event: { tool: string }) => event.tool === "browser_navigation");
+  expect(sessionEvent.status).toBe("ok");
+  expect(navigationEvent.status).toBe("pending");
+  expect(navigationEvent.permissionRequestId).toBeTruthy();
+  expect(json.output).toContain("browser_navigation pending");
+  expect(json.browserSessions.some((session: { id: string; label: string }) => session.id === sessionEvent.browserSessionId && session.label === "Chat Browser")).toBe(true);
+
+  const permissions = await route(new Request("http://localhost/api/permissions?status=pending"));
+  const permissionsJson = await permissions.json();
+  expect(permissionsJson.requests.some((request: { id: string; action: string }) => request.id === navigationEvent.permissionRequestId && request.action === "navigate")).toBe(true);
+
+  const loaded = await route(new Request(`http://localhost/api/chats/${chat.id}`));
+  const loadedJson = await loaded.json();
+  const assistant = loadedJson.messages[1];
+  expect(assistant.browserSessions.some((session: { id: string }) => session.id === sessionEvent.browserSessionId)).toBe(true);
+  expect(assistant.toolEvents.some((event: { tool: string; permissionRequestId?: string }) => event.tool === "browser_navigation" && event.permissionRequestId === navigationEvent.permissionRequestId)).toBe(true);
+});
+
+test("native streamed chat browser requests persist browser sessions", async () => {
+  const chat = await createChat();
+
+  const res = await jsonRequest(`/api/chats/${chat.id}/respond`, {
+    content: "Create a browser session and navigate to https://example.com.",
+    modelPreset: "balanced",
+    stream: true,
+    useLocalSearch: false,
+    useWebSearch: false,
+    useMediaTools: false,
+  });
+  expect(res.status).toBe(200);
+  expect(res.headers.get("content-type")).toContain("text/event-stream");
+
+  const text = await res.text();
+  expect(text).toContain("data: [DONE]");
+  expect(text).toContain("browser_navigation pending");
+
+  const loaded = await route(new Request(`http://localhost/api/chats/${chat.id}`));
+  const loadedJson = await loaded.json();
+  const assistant = loadedJson.messages[1];
+  const navigationEvent = assistant.toolEvents.find((event: { tool: string }) => event.tool === "browser_navigation");
+  expect(navigationEvent.status).toBe("pending");
+  expect(assistant.browserSessions.some((session: { id: string }) => session.id === navigationEvent.browserSessionId)).toBe(true);
+});
+
 test("native streamed chat media requests persist generated artifacts", async () => {
   let workerPrompt = "";
   const server = Bun.serve({

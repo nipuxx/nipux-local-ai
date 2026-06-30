@@ -1,6 +1,19 @@
 import { db } from "../db.ts";
+import { getBrowserSession, type BrowserSessionRecord } from "./browserBroker.ts";
 import { getMediaJob, type MediaJob } from "./media.ts";
 import type { ChatMessage, ChatRole } from "../types.ts";
+
+export interface ChatMessageToolEvent {
+  tool: string;
+  status: string;
+  summary: string;
+  resultCount?: number;
+  browserSessionId?: string;
+  mediaJobId?: string;
+  permissionRequestId?: string;
+  url?: string;
+  error?: string;
+}
 
 export interface ChatRecord {
   id: string;
@@ -14,6 +27,8 @@ export interface ChatMessageRecord extends ChatMessage {
   id: string;
   chatId: string;
   mediaJobs: MediaJob[];
+  browserSessions: BrowserSessionRecord[];
+  toolEvents: ChatMessageToolEvent[];
   createdAt: string;
 }
 
@@ -43,6 +58,18 @@ function mediaJobsForMessage(value: string | null | undefined) {
       }
     })
     .filter((job): job is MediaJob => Boolean(job));
+}
+
+function browserSessionsForMessage(value: string | null | undefined) {
+  return safeJsonArray<string>(value)
+    .map((id) => {
+      try {
+        return getBrowserSession(id);
+      } catch {
+        return null;
+      }
+    })
+    .filter((session): session is BrowserSessionRecord => Boolean(session));
 }
 
 export function createChat(modelPreset = "balanced", title = "New chat"): ChatRecord {
@@ -79,23 +106,48 @@ export function listChatMessages(chatId: string): ChatMessageRecord[] {
   const rows = db
     .prepare(
       `SELECT id, chat_id AS chatId, role, content, media_job_ids_json AS mediaJobIdsJson, created_at AS createdAt
+       , tool_events_json AS toolEventsJson, browser_session_ids_json AS browserSessionIdsJson
        FROM messages
        WHERE chat_id = ?
        ORDER BY created_at, rowid`,
     )
-    .all(chatId) as Array<Omit<ChatMessageRecord, "mediaJobs"> & { mediaJobIdsJson?: string | null }>;
-  return rows.map(({ mediaJobIdsJson, ...row }) => ({ ...row, mediaJobs: mediaJobsForMessage(mediaJobIdsJson) }));
+    .all(chatId) as Array<
+      Omit<ChatMessageRecord, "mediaJobs" | "browserSessions" | "toolEvents"> & {
+        mediaJobIdsJson?: string | null;
+        toolEventsJson?: string | null;
+        browserSessionIdsJson?: string | null;
+      }
+    >;
+  return rows.map(({ mediaJobIdsJson, toolEventsJson, browserSessionIdsJson, ...row }) => ({
+    ...row,
+    mediaJobs: mediaJobsForMessage(mediaJobIdsJson),
+    browserSessions: browserSessionsForMessage(browserSessionIdsJson),
+    toolEvents: safeJsonArray<ChatMessageToolEvent>(toolEventsJson),
+  }));
 }
 
-export function addChatMessage(chatId: string, role: ChatRole, content: string, mediaJobIds: string[] = []): ChatMessageRecord {
+export function addChatMessage(
+  chatId: string,
+  role: ChatRole,
+  content: string,
+  mediaJobIds: string[] = [],
+  toolEvents: ChatMessageToolEvent[] = [],
+  browserSessionIds: string[] = [],
+): ChatMessageRecord {
   const chat = getChat(chatId);
   const id = crypto.randomUUID();
-  db.prepare("INSERT INTO messages (id, chat_id, role, content, media_job_ids_json) VALUES (?, ?, ?, ?, ?)").run(
+  db.prepare(
+    `INSERT INTO messages
+      (id, chat_id, role, content, media_job_ids_json, tool_events_json, browser_session_ids_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
     id,
     chatId,
     role,
     content,
     JSON.stringify(mediaJobIds),
+    JSON.stringify(toolEvents),
+    JSON.stringify(browserSessionIds),
   );
   if (chat.title === "New chat" && role === "user") {
     db.prepare("UPDATE chats SET title = ?, model_preset = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(
@@ -109,12 +161,22 @@ export function addChatMessage(chatId: string, role: ChatRole, content: string, 
   const row = db
     .prepare(
       `SELECT id, chat_id AS chatId, role, content, media_job_ids_json AS mediaJobIdsJson, created_at AS createdAt
+       , tool_events_json AS toolEventsJson, browser_session_ids_json AS browserSessionIdsJson
        FROM messages
        WHERE id = ?`,
     )
-    .get(id) as Omit<ChatMessageRecord, "mediaJobs"> & { mediaJobIdsJson?: string | null };
-  const { mediaJobIdsJson, ...message } = row;
-  return { ...message, mediaJobs: mediaJobsForMessage(mediaJobIdsJson) };
+    .get(id) as Omit<ChatMessageRecord, "mediaJobs" | "browserSessions" | "toolEvents"> & {
+      mediaJobIdsJson?: string | null;
+      toolEventsJson?: string | null;
+      browserSessionIdsJson?: string | null;
+    };
+  const { mediaJobIdsJson, toolEventsJson, browserSessionIdsJson, ...message } = row;
+  return {
+    ...message,
+    mediaJobs: mediaJobsForMessage(mediaJobIdsJson),
+    browserSessions: browserSessionsForMessage(browserSessionIdsJson),
+    toolEvents: safeJsonArray<ChatMessageToolEvent>(toolEventsJson),
+  };
 }
 
 export function updateChatModel(chatId: string, modelPreset: string) {

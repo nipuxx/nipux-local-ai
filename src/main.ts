@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { deleteDocument, listLocalDocuments } from "./db.ts";
+import { deleteDocument, getDefaultAgent, listLocalDocuments } from "./db.ts";
 import {
   API_KEYS,
   APP_NAME,
@@ -37,8 +37,9 @@ import {
   type BrowserActor,
   type PermissionStatus,
 } from "./services/browserAudit.ts";
-import { addChatMessage, createChat, deleteChat, getChat, listChatMessages, listChats, updateChatModel } from "./services/chats.ts";
+import { addChatMessage, createChat, deleteChat, getChat, listChatMessages, listChats, updateChatModel, type ChatMessageToolEvent } from "./services/chats.ts";
 import { buildChatContext, type ChatCitation } from "./services/chatContext.ts";
+import { runBrowserSessionTools, type BrowserSessionToolEvent } from "./services/browserSessionTools.ts";
 import { indexPath } from "./services/fileIndexer.ts";
 import { getHermesStatus } from "./services/hermes.ts";
 import { detectHardware } from "./services/hardware.ts";
@@ -57,7 +58,7 @@ import {
   type MediaKind,
   type MediaJob,
 } from "./services/media.ts";
-import { formatMediaGenerationToolEvents, runMediaGenerationTools, type MediaGenerationToolEvent } from "./services/mediaGenerationTools.ts";
+import { runMediaGenerationTools, type MediaGenerationToolEvent } from "./services/mediaGenerationTools.ts";
 import { applyRecommendedMediaRuntimeDefaults, getMediaRuntimePlan } from "./services/mediaRuntimes.ts";
 import {
   createAgentMemory,
@@ -267,15 +268,32 @@ function doneChunk(model: string) {
   };
 }
 
+function formatChatToolEvents(events: ChatMessageToolEvent[]) {
+  if (!events.length) return "";
+  return `Tool activity:\n${events
+    .map((event) => {
+      const details = [
+        event.browserSessionId ? `session=${event.browserSessionId}` : "",
+        event.mediaJobId ? `job=${event.mediaJobId}` : "",
+        event.permissionRequestId ? `permission=${event.permissionRequestId}` : "",
+        event.error ? `error=${event.error}` : "",
+      ].filter(Boolean);
+      const suffix = details.length ? ` ${details.join(" ")}` : "";
+      return `- ${event.tool} ${event.status}: ${event.summary}${suffix}`;
+    })
+    .join("\n")}`;
+}
+
 function streamNativeChat(input: {
   chatId: string;
   model: string;
   upstream: Response;
   sourceAppendix: string;
   citations: ChatCitation[];
-  mediaActivity: string;
-  mediaEvents: MediaGenerationToolEvent[];
+  toolActivity: string;
+  toolEvents: ChatMessageToolEvent[];
   mediaJobs: MediaJob[];
+  browserSessions: Awaited<ReturnType<typeof runBrowserSessionTools>>["browserSessions"];
   started: number;
   tokensIn: number;
 }) {
@@ -310,7 +328,7 @@ function streamNativeChat(input: {
             }
           }
 
-          const appendices = [input.sourceAppendix, input.mediaActivity].filter(Boolean).join("\n\n");
+          const appendices = [input.sourceAppendix, input.toolActivity].filter(Boolean).join("\n\n");
           if (appendices) {
             const appendix = `\n\n${appendices}`;
             output += appendix;
@@ -318,8 +336,15 @@ function streamNativeChat(input: {
           }
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(doneChunk(input.model))}\n\n`));
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          if (output.trim() || input.mediaJobs.length) {
-            addChatMessage(input.chatId, "assistant", output, input.mediaJobs.map((job) => job.id));
+          if (output.trim() || input.mediaJobs.length || input.browserSessions.length) {
+            addChatMessage(
+              input.chatId,
+              "assistant",
+              output,
+              input.mediaJobs.map((job) => job.id),
+              input.toolEvents,
+              input.browserSessions.map((session) => session.id),
+            );
           }
           recordUsage({
             kind: "chat",
@@ -333,7 +358,8 @@ function streamNativeChat(input: {
               stream: true,
               citations: input.citations.length,
               mediaJobs: input.mediaJobs.length,
-              mediaTools: input.mediaEvents.map((event) => ({ tool: event.tool, status: event.status })),
+              toolEvents: input.toolEvents.map((event) => ({ tool: event.tool, status: event.status })),
+              browserSessions: input.browserSessions.length,
             },
           });
           controller.close();
@@ -370,6 +396,7 @@ async function handleNativeChatRespond(chatId: string, req: Request) {
     useLocalSearch?: boolean;
     useWebSearch?: boolean;
     useMediaTools?: boolean;
+    useBrowserTools?: boolean;
   }>(req);
   const content = body.content?.trim();
   if (!content) return json({ error: "content is required" }, 400);
@@ -380,21 +407,33 @@ async function handleNativeChatRespond(chatId: string, req: Request) {
   const mediaRun = body.useMediaTools === false
     ? { mediaJobs: [] as MediaJob[], events: [] as MediaGenerationToolEvent[], contextBlock: "" }
     : await runMediaGenerationTools(content);
-  const mediaActivity = formatMediaGenerationToolEvents(mediaRun.events);
+  const defaultAgent = body.useBrowserTools === false ? null : getDefaultAgent();
+  const browserRun = body.useBrowserTools === false || !defaultAgent
+    ? { browserSessions: [], events: [] as BrowserSessionToolEvent[], contextBlock: "" }
+    : await runBrowserSessionTools(content, {
+      agentId: defaultAgent.id,
+      agentName: defaultAgent.name,
+      label: "Chat Browser",
+      reason: "Chat request asked for browser navigation.",
+    });
+  const toolEvents: ChatMessageToolEvent[] = [...browserRun.events, ...mediaRun.events];
+  const toolActivity = formatChatToolEvents(toolEvents);
   const storedMessages = listChatMessages(chatId).map((message) => ({ role: message.role, content: message.content }));
   const context = await buildChatContext(content, storedMessages, {
     useLocalSearch: body.useLocalSearch,
     useWebSearch: body.useWebSearch,
   });
-  const mediaContext = mediaActivity
-    ? `Local media tool context:
-${mediaRun.contextBlock}
+  const toolContext = toolActivity
+    ? `Local tool context:
+${[browserRun.contextBlock, mediaRun.contextBlock].filter(Boolean).join("\n\n")}
 
 Rules:
-- Treat this media tool context as the authoritative record of what actually happened.
+- Treat this tool context as the authoritative record of what actually happened.
+- Do not claim browser navigation completed unless the browser_navigation event is ok.
+- If a browser_navigation event is pending, say it is waiting for user approval.
 - Do not claim image, speech, or video media was generated unless the matching tool event is ok and a completed media job exists.`
     : "";
-  const messages = mediaContext ? [{ role: "system" as const, content: mediaContext }, ...context.messages] : context.messages;
+  const messages = toolContext ? [{ role: "system" as const, content: toolContext }, ...context.messages] : context.messages;
   const tokensIn = estimateMessageTokens(messages);
 
   try {
@@ -407,9 +446,10 @@ Rules:
         upstream,
         sourceAppendix: context.sourceAppendix,
         citations: context.citations,
-        mediaActivity,
-        mediaEvents: mediaRun.events,
+        toolActivity,
+        toolEvents,
         mediaJobs: mediaRun.mediaJobs,
+        browserSessions: browserRun.browserSessions,
         started,
         tokensIn,
       });
@@ -417,10 +457,17 @@ Rules:
 
     const payload = (await upstream.json()) as { choices?: Array<{ message?: { content?: string } }> };
     const modelOutput = payload.choices?.[0]?.message?.content ?? "";
-    const appendices = [context.sourceAppendix, mediaActivity].filter(Boolean).join("\n\n");
+    const appendices = [context.sourceAppendix, toolActivity].filter(Boolean).join("\n\n");
     const output = appendices ? `${modelOutput}\n\n${appendices}` : modelOutput;
-    const message = output.trim() || mediaRun.mediaJobs.length
-      ? addChatMessage(chatId, "assistant", output, mediaRun.mediaJobs.map((job) => job.id))
+    const message = output.trim() || mediaRun.mediaJobs.length || browserRun.browserSessions.length
+      ? addChatMessage(
+        chatId,
+        "assistant",
+        output,
+        mediaRun.mediaJobs.map((job) => job.id),
+        toolEvents,
+        browserRun.browserSessions.map((session) => session.id),
+      )
       : null;
     recordUsage({
       kind: "chat",
@@ -434,7 +481,8 @@ Rules:
         stream: false,
         citations: context.citations.length,
         mediaJobs: mediaRun.mediaJobs.length,
-        mediaTools: mediaRun.events.map((event) => ({ tool: event.tool, status: event.status })),
+        browserSessions: browserRun.browserSessions.length,
+        toolEvents: toolEvents.map((event) => ({ tool: event.tool, status: event.status })),
       },
     });
     return json({
@@ -443,7 +491,8 @@ Rules:
       output,
       citations: context.citations,
       mediaJobs: mediaRun.mediaJobs.map(publicMediaJob),
-      toolEvents: mediaRun.events,
+      browserSessions: browserRun.browserSessions,
+      toolEvents,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -457,7 +506,8 @@ Rules:
         native: true,
         error: message,
         mediaJobs: mediaRun.mediaJobs.length,
-        mediaTools: mediaRun.events.map((event) => ({ tool: event.tool, status: event.status })),
+        browserSessions: browserRun.browserSessions.length,
+        toolEvents: toolEvents.map((event) => ({ tool: event.tool, status: event.status })),
       },
     });
     return json({ error: message }, 503);

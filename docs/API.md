@@ -454,7 +454,7 @@ Lists persisted chats.
 
 ### `GET /api/chats/:id`
 
-Returns a chat and its messages.
+Returns a chat and its messages. Assistant messages include resolved `mediaJobs`, `browserSessions`, and persisted `toolEvents` when the native chat flow created local artifacts or agent-owned browser sessions.
 
 ### `PATCH /api/chats/:id`
 
@@ -475,7 +475,7 @@ Returns a chat and its messages.
 
 ### `POST /api/chats/:id/respond`
 
-Runs the app-native chat flow: persists the user message, searches indexed local documents, uses local SearXNG web search for current/web requests, executes clear local image/speech/video media requests, injects relevant local/web context and media tool activity into the model prompt, streams or returns the assistant response, appends deterministic source/tool lines, and persists the assistant message with any media job ids.
+Runs the app-native chat flow: persists the user message, searches indexed local documents, uses local SearXNG web search for current/web requests, creates agent-owned browser sessions for clear browser/navigation requests, executes clear local image/speech/video media requests, injects relevant local/web context and tool activity into the model prompt, streams or returns the assistant response, appends deterministic source/tool lines, and persists the assistant message with any media job ids, browser session ids, and tool events.
 
 ```json
 {
@@ -484,13 +484,16 @@ Runs the app-native chat flow: persists the user message, searches indexed local
   "stream": true,
   "useLocalSearch": true,
   "useWebSearch": true,
-  "useMediaTools": true
+  "useMediaTools": true,
+  "useBrowserTools": true
 }
 ```
 
 Omit `useWebSearch` to let chat automatically use SearXNG for prompts that ask for web, current, latest, recent, or news context.
 
-Set `stream` to `false` for a JSON response with `output` and `citations`.
+Omit `useBrowserTools` to let chat automatically create a local browser session for prompts that ask to open, browse, visit, or navigate. Browser navigation is treated as an agent-originated risky action, so it creates a pending approval instead of navigating immediately.
+
+Set `stream` to `false` for a JSON response with `output`, `citations`, `toolEvents`, `mediaJobs`, and `browserSessions`.
 
 ### `DELETE /api/chats/:id`
 

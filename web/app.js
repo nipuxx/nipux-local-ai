@@ -281,7 +281,7 @@ function applySettingsToUi() {
 }
 
 function addMessage(role, content = "", options = {}) {
-  const { scroll = true, mediaJobs = [] } = options;
+  const { scroll = true, mediaJobs = [], browserSessions = [], toolEvents = [] } = options;
   const el = document.createElement("div");
   el.className = `message ${role}`;
   const body = document.createElement("div");
@@ -292,6 +292,11 @@ function addMessage(role, content = "", options = {}) {
     const artifacts = document.createElement("div");
     artifacts.innerHTML = renderMediaJobs(mediaJobs, "Chat media artifacts");
     el.appendChild(artifacts);
+  }
+  if (browserSessions.length) {
+    const browsers = document.createElement("div");
+    browsers.innerHTML = renderChatBrowserSessions(browserSessions, toolEvents);
+    el.appendChild(browsers);
   }
   if (role === "assistant") {
     const tools = document.createElement("div");
@@ -315,7 +320,12 @@ function renderMessages(options = {}) {
   }
   let lastMessage = null;
   for (const message of state.messages) {
-    lastMessage = addMessage(message.role, message.content, { scroll: false, mediaJobs: message.mediaJobs || [] });
+    lastMessage = addMessage(message.role, message.content, {
+      scroll: false,
+      mediaJobs: message.mediaJobs || [],
+      browserSessions: message.browserSessions || [],
+      toolEvents: message.toolEvents || [],
+    });
   }
   if (scroll) lastMessage?.scrollIntoView({ block: "end" });
 }
@@ -339,7 +349,13 @@ async function loadChats() {
 async function openChat(id) {
   const data = await api(`/api/chats/${id}`);
   state.activeChatId = data.chat.id;
-  state.messages = data.messages.map((message) => ({ role: message.role, content: message.content, mediaJobs: message.mediaJobs || [] }));
+  state.messages = data.messages.map((message) => ({
+    role: message.role,
+    content: message.content,
+    mediaJobs: message.mediaJobs || [],
+    browserSessions: message.browserSessions || [],
+    toolEvents: message.toolEvents || [],
+  }));
   $("#presetSelect").value = data.chat.modelPreset || $("#presetSelect").value;
   renderMessages({ scroll: Boolean(state.messages.length) });
   await loadChats();
@@ -1325,6 +1341,38 @@ function renderMediaJobs(jobs = [], ariaLabel = "Local media artifacts") {
 
 function renderAgentMediaJobs(jobs = []) {
   return renderMediaJobs(jobs, "Agent media artifacts");
+}
+
+function renderChatBrowserSessions(sessions = [], toolEvents = []) {
+  const browserSessions = sessions.filter((session) => session && session.id);
+  if (!browserSessions.length) return "";
+  return `
+    <div class="chat-browser-sessions" aria-label="Chat browser sessions">
+      ${browserSessions
+        .map((session) => {
+          const events = toolEvents.filter((event) => event.browserSessionId === session.id);
+          const pending = events.find((event) => event.status === "pending" && event.permissionRequestId);
+          const latestNavigation = [...events].reverse().find((event) => event.tool === "browser_navigation");
+          return `
+            <div class="chat-browser-session">
+              <div class="chat-browser-head">
+                <div>
+                  <strong>${h(session.label || "Chat Browser")}</strong>
+                  <div class="meta">${h(session.status || "ready")} · ${h(session.url || "about:blank")}</div>
+                </div>
+                <button class="open-agents" type="button">Agents</button>
+              </div>
+              ${
+                pending
+                  ? `<div class="browser-error">Waiting for approval${pending.url ? ` to navigate to ${h(pending.url)}` : ""}.</div>`
+                  : latestNavigation
+                    ? `<div class="meta">${h(latestNavigation.summary || "Browser navigation recorded.")}</div>`
+                    : `<div class="meta">Browser session is ready for local control.</div>`
+              }
+            </div>`;
+        })
+        .join("")}
+    </div>`;
 }
 
 function renderAgentOutputHtml(output = "", mediaJobs = []) {
@@ -2343,11 +2391,19 @@ async function sendChat(event) {
   }
   state.messages.push({ role: "assistant", content: full });
   const refreshed = await api(`/api/chats/${chatId}`);
-  state.messages = refreshed.messages.map((message) => ({ role: message.role, content: message.content, mediaJobs: message.mediaJobs || [] }));
+  state.messages = refreshed.messages.map((message) => ({
+    role: message.role,
+    content: message.content,
+    mediaJobs: message.mediaJobs || [],
+    browserSessions: message.browserSessions || [],
+    toolEvents: message.toolEvents || [],
+  }));
   renderMessages({ scroll: true });
   const hasMedia = state.messages.some((message) => message.mediaJobs?.length);
+  const hasBrowsers = state.messages.some((message) => message.browserSessions?.length);
   const refreshes = [loadUsage(), loadChats()];
   if (hasMedia) refreshes.push(loadMedia());
+  if (hasBrowsers) refreshes.push(loadAgents());
   await Promise.all(refreshes);
 }
 
@@ -2645,6 +2701,12 @@ document.addEventListener("click", async (event) => {
     document.querySelectorAll(".nav,.view").forEach((el) => el.classList.remove("active"));
     target.classList.add("active");
     $(`#${target.dataset.view}`).classList.add("active");
+  }
+  if (target.matches(".open-agents")) {
+    document.querySelectorAll(".nav,.view").forEach((el) => el.classList.remove("active"));
+    document.querySelector('.nav[data-view="agents"]')?.classList.add("active");
+    $("#agents").classList.add("active");
+    await loadAgents();
   }
   if (target.matches(".chat-item")) await openChat(target.dataset.chatId);
   if (target.matches(".show-files")) await showHfFiles(target);

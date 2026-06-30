@@ -15,6 +15,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
   - `POST /v1/audio/transcriptions`
 - Persisted chat conversations through native `/api/chats` routes
 - Main chat can retrieve indexed local documents and append source citations
+- Main chat can create agent-owned browser sessions for browser/navigation prompts and surface pending approval state inline
 - Consumer-facing Local Chat Status guide for model/runtime, indexed context, local voice, API exposure, and the next run/install command
 - One-click Chat-page start/stop controls for the managed local model runtime when a GGUF model is installed
 - Local speech playback for assistant chat messages
@@ -65,7 +66,7 @@ Dev mode sets `NIPUX_FAKE_LLM=1`, so chat streams immediately without a real mod
 
 ## Chat
 
-The main Chat page stays the everyday entry point. It streams normal assistant responses, cites indexed local context when relevant, uses local SearXNG web search for current/web requests, supports local voice input/output, and can create image, speech, or video media jobs from clear natural-language requests. Chat-created media uses the same local-only worker system as the Media and Agents pages, records setup failures honestly, and persists generated artifacts with the assistant message so reopening the chat shows the same media cards.
+The main Chat page stays the everyday entry point. It streams normal assistant responses, cites indexed local context when relevant, uses local SearXNG web search for current/web requests, supports local voice input/output, can create agent-owned browser sessions for clear browser/navigation requests, and can create image, speech, or video media jobs from clear natural-language requests. Chat-created browser sessions use the same local browser broker and approval gates as Agents, so navigation waits for approval and reopening the chat shows the related session card. Chat-created media uses the same local-only worker system as the Media and Agents pages, records setup failures honestly, and persists generated artifacts with the assistant message so reopening the chat shows the same media cards.
 
 ## Run With llama.cpp
 
