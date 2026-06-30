@@ -310,7 +310,7 @@ OPENAI_BASE_URL=http://127.0.0.1:3434/v1
 OPENAI_API_KEY=not-required-for-private-local-mode
 ```
 
-When protected LAN/public mode is enabled, the snippets use `<api-key>` placeholders and `x-api-key: <api-key>` headers instead of exposing managed server keys. `GET /api/exposure` returns non-secret discovery metadata, copyable launch commands, LAN URLs, client snippets, warnings, and next steps. If public mode is started without any configured key, protected routes stay locked until a managed server key or env key exists.
+When protected LAN/public mode is enabled, the discovery snippets use `<api-key>` placeholders and `x-api-key: <api-key>` headers instead of exposing managed server keys. `GET /api/exposure` returns non-secret discovery metadata, copyable launch commands, LAN URLs, client snippets, warnings, and next steps. The Settings page can also copy authenticated client snippets from `GET /api/exposure/client`; that protected route only includes the API key supplied by the current browser request, and the UI keeps that key redacted on screen. If public mode is started without any configured key, protected routes stay locked until a managed server key or env key exists.
 
 ## Development
 

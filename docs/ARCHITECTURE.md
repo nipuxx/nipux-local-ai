@@ -139,7 +139,7 @@ This keeps external API behavior predictable while giving the UI normal chat-app
 
 The server binds to `127.0.0.1` by default. `NIPUX_PUBLIC_API=1` switches the default bind host to `0.0.0.0`, but protected routes are locked unless a managed server key, `NIPUX_API_KEY`, or `NIPUX_API_KEYS` is configured. Managed keys are created in private/local mode first, stored only as hashes, and accepted by the same auth layer as env keys.
 
-`GET /api/status` and `GET /api/exposure` are unauthenticated discovery routes. `/api/exposure` returns no raw keys; it exists so the UI and clients can explain whether the server is private, protected, exposed, or locked and which launch command should be used next.
+`GET /api/status` and `GET /api/exposure` are unauthenticated discovery routes. `/api/exposure` returns no raw keys; it exists so the UI and clients can explain whether the server is private, protected, exposed, or locked and which launch command should be used next. `GET /api/exposure/client` is the authenticated companion route for copyable OpenAI-compatible client setup. It can include only the key supplied on that request, so the Settings page can copy usable env and curl snippets without making discovery metadata secret-bearing.
 
 Protected routes accept `Authorization: Bearer <key>` or `x-api-key: <key>`.
 

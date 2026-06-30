@@ -14,7 +14,7 @@ import {
 } from "./config.ts";
 import { chatCompletion, estimateMessageTokens, testLlamaBackend } from "./providers/llamaCpp.ts";
 import { activeStoredApiKeyCount, createApiKey, listApiKeys, revokeApiKey, verifyStoredApiKey } from "./services/apiKeys.ts";
-import { getApiExposurePlan } from "./services/apiExposure.ts";
+import { getApiExposurePlan, getAuthenticatedClientPackage } from "./services/apiExposure.ts";
 import { createAgent, listAgentRuns, listAgents, runAgent } from "./services/agents.ts";
 import {
   clickBrowserSession,
@@ -473,6 +473,7 @@ export async function route(req: Request): Promise<Response> {
   const apiKeyMatch = url.pathname.match(/^\/api\/api-keys\/([^/]+)$/);
   if (apiKeyMatch && req.method === "DELETE") return json(revokeApiKey(apiKeyMatch[1]));
   if (url.pathname === "/api/exposure" && req.method === "GET") return json(getApiExposurePlan());
+  if (url.pathname === "/api/exposure/client" && req.method === "GET") return json(getAuthenticatedClientPackage(tokenFromRequest(req)));
   if (url.pathname === "/api/capability-profile" && req.method === "GET") return json(await getCapabilityProfile());
   if (url.pathname === "/api/readiness" && req.method === "GET") return json(await getReadinessReport());
   if (url.pathname === "/api/diagnostics" && req.method === "GET") return json(await getDiagnosticsReport());

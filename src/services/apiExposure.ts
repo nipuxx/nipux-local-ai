@@ -21,9 +21,15 @@ function shellQuote(value: string) {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
-function clientExamples(apiBaseUrl: string, requiresKey: boolean) {
-  const authHeader = requiresKey ? ` \\\n  -H 'x-api-key: <api-key>'` : "";
-  const apiKeyValue = requiresKey ? "<api-key>" : "not-required-for-private-local-mode";
+function redactApiKey(value: string) {
+  if (!value || value === "<api-key>" || value === "not-required-for-private-local-mode") return value;
+  if (value.length <= 12) return `${value.slice(0, 4)}...`;
+  return `${value.slice(0, 10)}...${value.slice(-4)}`;
+}
+
+function clientExamples(apiBaseUrl: string, requiresKey: boolean, apiKey = "") {
+  const apiKeyValue = requiresKey ? apiKey || "<api-key>" : "not-required-for-private-local-mode";
+  const authHeader = requiresKey ? ` \\\n  -H ${shellQuote(`x-api-key: ${apiKeyValue}`)}` : "";
   const chatPayload = JSON.stringify({
     model: "balanced",
     messages: [{ role: "user", content: "Say hello from Nipux." }],
@@ -38,6 +44,25 @@ function clientExamples(apiBaseUrl: string, requiresKey: boolean) {
     env: `OPENAI_BASE_URL=${apiBaseUrl}\nOPENAI_API_KEY=${apiKeyValue}`,
     modelsCurl: `curl ${shellQuote(`${apiBaseUrl}/models`)}${authHeader}`,
     chatCurl: `curl ${shellQuote(`${apiBaseUrl}/chat/completions`)}${authHeader} \\\n  -H 'content-type: application/json' \\\n  --data ${shellQuote(chatPayload)}`,
+  };
+}
+
+export function getAuthenticatedClientPackage(apiKey = "") {
+  const plan = getApiExposurePlan();
+  const requiresKey = plan.auth.required;
+  const client = clientExamples(plan.apiBaseUrl, requiresKey, apiKey);
+  const redactedKey = requiresKey ? redactApiKey(apiKey || "<api-key>") : "not-required-for-private-local-mode";
+  const redacted = clientExamples(plan.apiBaseUrl, requiresKey, redactedKey);
+  return {
+    ...client,
+    containsSecret: Boolean(requiresKey && apiKey),
+    keySource: requiresKey && apiKey ? "request" : "none",
+    warning: requiresKey && apiKey
+      ? "These snippets include the API key supplied by this request. Copy them only into clients you control."
+      : requiresKey
+        ? "Authenticate first to generate snippets with a real API key."
+        : "Private localhost mode does not require an API key.",
+    redacted,
   };
 }
 

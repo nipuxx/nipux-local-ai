@@ -19,7 +19,7 @@ Authorization: Bearer <key>
 x-api-key: <key>
 ```
 
-`GET /api/status` and `GET /api/exposure` remain unauthenticated so clients can discover whether auth is required and how the server is exposed. Neither route returns raw API keys.
+`GET /api/status` and `GET /api/exposure` remain unauthenticated so clients can discover whether auth is required and how the server is exposed. Neither route returns raw API keys. `GET /api/exposure/client` is protected when auth is enabled and can return snippets containing only the key supplied by the current request.
 
 ## OpenAI-Compatible
 
@@ -195,6 +195,25 @@ Returns non-secret LAN/public API exposure metadata for the Settings page and se
     "env": "OPENAI_BASE_URL=http://127.0.0.1:3434/v1\nOPENAI_API_KEY=not-required-for-private-local-mode",
     "modelsCurl": "curl 'http://127.0.0.1:3434/v1/models'",
     "chatCurl": "curl 'http://127.0.0.1:3434/v1/chat/completions' \\\n  -H 'content-type: application/json' \\\n  --data '{\"model\":\"balanced\",\"messages\":[{\"role\":\"user\",\"content\":\"Say hello from Nipux.\"}],\"stream\":false}'"
+  }
+}
+```
+
+### `GET /api/exposure/client`
+
+Returns copyable OpenAI-compatible client setup for the current caller. In private localhost mode, it returns the same no-key local snippets. When API auth is enabled, this route is protected by the same `Authorization: Bearer <key>` or `x-api-key` header as other protected routes and includes only the key supplied on that request. The response also includes a redacted copy for UI display.
+
+```json
+{
+  "openaiCompatible": true,
+  "baseUrl": "http://127.0.0.1:3434/v1",
+  "apiKey": "npx_example",
+  "containsSecret": true,
+  "keySource": "request",
+  "warning": "These snippets include the API key supplied by this request. Copy them only into clients you control.",
+  "env": "OPENAI_BASE_URL=http://127.0.0.1:3434/v1\nOPENAI_API_KEY=npx_example",
+  "redacted": {
+    "env": "OPENAI_BASE_URL=http://127.0.0.1:3434/v1\nOPENAI_API_KEY=npx_exampl...mple"
   }
 }
 ```

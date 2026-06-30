@@ -156,6 +156,18 @@ test("managed API keys can protect local routes and be revoked", async () => {
   expect(exposureJson.client.chatCurl).toContain("<api-key>");
   expect(JSON.stringify(exposureJson.client)).not.toContain(createdJson.key);
 
+  const unauthenticatedClientPackage = await route(new Request("http://localhost/api/exposure/client"));
+  expect(unauthenticatedClientPackage.status).toBe(401);
+
+  const clientPackage = await route(new Request("http://localhost/api/exposure/client", { headers: { "x-api-key": createdJson.key } }));
+  expect(clientPackage.status).toBe(200);
+  const clientPackageJson = await clientPackage.json();
+  expect(clientPackageJson.containsSecret).toBe(true);
+  expect(clientPackageJson.env).toContain(createdJson.key);
+  expect(clientPackageJson.modelsCurl).toContain(`x-api-key: ${createdJson.key}`);
+  expect(clientPackageJson.redacted.env).not.toContain(createdJson.key);
+  expect(clientPackageJson.redacted.modelsCurl).not.toContain(createdJson.key);
+
   const authed = authorizeRequest(
     new Request("http://localhost/v1/models", { headers: { "x-api-key": createdJson.key } }),
     "/v1/models",
@@ -193,6 +205,13 @@ test("API exposure route is safe discovery metadata", async () => {
   expect(json.client.chatCurl).toContain("/v1/chat/completions");
   expect(json.auth).not.toHaveProperty("keys");
   expect(json.client).not.toHaveProperty("key");
+
+  const clientPackage = await route(new Request("http://localhost/api/exposure/client"));
+  expect(clientPackage.status).toBe(200);
+  const clientPackageJson = await clientPackage.json();
+  expect(clientPackageJson.containsSecret).toBe(false);
+  expect(clientPackageJson.apiKey).toBe("not-required-for-private-local-mode");
+  expect(clientPackageJson.env).toContain("OPENAI_BASE_URL=");
 });
 
 test("capability profile route returns machine defaults", async () => {

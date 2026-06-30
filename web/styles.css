@@ -700,6 +700,15 @@ h2 {
   border-top: 1px solid var(--line);
 }
 
+.api-client-package {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.sensitive-command code {
+  color: var(--muted);
+}
+
 .launch-profile {
   display: grid;
   gap: 10px;

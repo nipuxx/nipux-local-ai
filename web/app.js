@@ -32,6 +32,8 @@ const state = {
   diagnostics: null,
   apiKeys: [],
   apiExposure: null,
+  apiClientPackage: null,
+  apiClientPackageError: "",
   chatRuntimeActionMessage: "",
   chatRuntimeBusy: false,
 };
@@ -83,8 +85,13 @@ const h = (value = "") =>
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
 
-function authHeaders() {
+function localApiKey() {
   const key = localStorage.getItem("nipuxApiKey")?.trim();
+  return key || "";
+}
+
+function authHeaders() {
+  const key = localApiKey();
   return key ? { "x-api-key": key } : {};
 }
 
@@ -381,6 +388,79 @@ async function loadApiKeys() {
       .join("") || `<div class="meta">No managed server keys.</div>`;
 }
 
+function clientPackageRow(label, value, displayValue = value) {
+  if (!value) return "";
+  return `
+    <div class="command-row sensitive-command">
+      <div>
+        <span>${h(label)}</span>
+        <code>${h(displayValue)}</code>
+      </div>
+      <button class="copy-command" data-command="${h(value)}">Copy</button>
+    </div>`;
+}
+
+function renderApiClientPackage() {
+  const target = $("#apiClientPackage");
+  if (!target) return;
+  const plan = state.apiExposure;
+  const browserKey = localApiKey();
+  if (!plan) {
+    target.innerHTML = `<div class="meta">Client setup is loading.</div>`;
+    return;
+  }
+  if (plan.auth.required && !browserKey) {
+    const keyGuidance = plan.auth.configured
+      ? "Paste a valid client key above to copy authenticated client snippets."
+      : "Public API mode needs a server key first. Return to private mode to create one, or restart with NIPUX_API_KEY.";
+    target.innerHTML = `
+      <div>
+        <strong>Client Setup</strong>
+        <div class="meta">${h(keyGuidance)}</div>
+      </div>`;
+    return;
+  }
+  if (state.apiClientPackageError) {
+    target.innerHTML = `
+      <div>
+        <strong>Client Setup</strong>
+        <div class="browser-error">${h(state.apiClientPackageError)}</div>
+      </div>`;
+    return;
+  }
+  const pkg = state.apiClientPackage;
+  if (!pkg) {
+    target.innerHTML = `<div class="meta">Client setup is loading.</div>`;
+    return;
+  }
+  target.innerHTML = `
+    <div>
+      <strong>Client Setup</strong>
+      <div class="meta">${h(pkg.containsSecret ? "Copy buttons include this browser's stored key. The key is hidden on screen." : pkg.warning)}</div>
+    </div>
+    ${pkg.containsSecret ? `<div class="browser-error">${h(pkg.warning)}</div>` : ""}
+    ${clientPackageRow("Client env", pkg.env, pkg.redacted?.env || pkg.env)}
+    ${clientPackageRow("List models", pkg.modelsCurl, pkg.redacted?.modelsCurl || pkg.modelsCurl)}
+    ${clientPackageRow("Chat completion", pkg.chatCurl, pkg.redacted?.chatCurl || pkg.chatCurl)}`;
+}
+
+async function loadApiClientPackage(plan = state.apiExposure) {
+  state.apiClientPackage = null;
+  state.apiClientPackageError = "";
+  if (!plan || (plan.auth.required && !localApiKey())) {
+    renderApiClientPackage();
+    return;
+  }
+  const res = await fetch("/api/exposure/client", { headers: authHeaders() });
+  if (!res.ok) {
+    state.apiClientPackageError = (await res.text()) || res.statusText;
+    renderApiClientPackage();
+    return;
+  }
+  state.apiClientPackage = await res.json();
+  renderApiClientPackage();
+}
+
 async function loadApiExposure() {
   const plan = await api("/api/exposure");
   state.apiExposure = plan;
@@ -447,6 +527,7 @@ async function loadApiExposure() {
           : ""
       }
     </div>`;
+  await loadApiClientPackage(plan);
 }
 
 async function saveSettings() {
@@ -469,7 +550,7 @@ async function saveSettings() {
   if (state.status) state.status.settings = state.settingsStatus.settings;
   $("#presetSelect").value = state.settingsStatus.settings.defaultModelPreset;
   applySettingsToUi();
-  await Promise.all([loadReadiness(), loadCapabilityProfile(), loadSetupActions(), loadLocalSupervisor()]);
+  await Promise.all([loadApiExposure(), loadReadiness(), loadCapabilityProfile(), loadSetupActions(), loadLocalSupervisor()]);
 }
 
 async function loadModels() {
@@ -2785,7 +2866,10 @@ $("#createServerApiKey").addEventListener("click", async () => {
 $("#clearApiKey").addEventListener("click", () => {
   localStorage.removeItem("nipuxApiKey");
   $("#settingsApiKey").value = "";
+  state.apiClientPackage = null;
+  state.apiClientPackageError = "";
   applySettingsToUi();
+  renderApiClientPackage();
 });
 $("#newChat").addEventListener("click", createNewChat);
 $("#createBrowser").addEventListener("click", async () => {
