@@ -144,6 +144,24 @@ function setMessageSpeechStatus(el, text = "") {
   if (status) status.textContent = text;
 }
 
+function selectedModelPreset() {
+  return $("#presetSelect")?.value || currentSettings().defaultModelPreset || "balanced";
+}
+
+function selectedModel() {
+  const current = selectedModelPreset();
+  return state.models.find((item) => item.id === current) || state.models.find((item) => item.id === "balanced") || state.models[0];
+}
+
+function emptyChatMessage() {
+  const model = selectedModel();
+  const runtime = state.runtime;
+  if (state.status?.fakeLlm) return "Dev chat is active. Responses stay local, but they are fake test streams until a real GGUF model is installed and started.";
+  if (runtime?.running || runtime?.backend?.ok) return "Local chat is ready. Ask normally; local search citations appear when indexed context is relevant.";
+  const action = modelSetupAction(model, runtime);
+  return `${action.label}. ${action.detail}`;
+}
+
 function stopSpeechPlayback() {
   if (!state.speechPlayback) return;
   state.speechPlayback.audio.pause();
@@ -237,12 +255,14 @@ function applySettingsToUi() {
       <div class="meta">Server keys: ${h((env.envKeyCount || 0) + (env.storedKeyCount || 0))} total · ${h(env.storedKeyCount || 0)} managed here</div>
     </div>`;
   $("#settingsStatus").textContent = JSON.stringify({ settings, env }, null, 2);
+  renderChatSetupGuide();
   renderSearchSetupGuide();
   renderModelSetupGuide();
   renderAgentSetupGuide();
 }
 
-function addMessage(role, content = "") {
+function addMessage(role, content = "", options = {}) {
+  const { scroll = true } = options;
   const el = document.createElement("div");
   el.className = `message ${role}`;
   const body = document.createElement("div");
@@ -258,17 +278,20 @@ function addMessage(role, content = "") {
     el.appendChild(tools);
   }
   $("#messages").appendChild(el);
-  el.scrollIntoView({ block: "end" });
+  if (scroll) el.scrollIntoView({ block: "end" });
   return el;
 }
 
-function renderMessages() {
+function renderMessages(options = {}) {
+  const { scroll = false } = options;
   $("#messages").innerHTML = "";
   if (!state.messages.length) {
-    addMessage("assistant", "Local chat is ready. Use dev mode now, or start llama.cpp and run the same UI against your model.");
+    addMessage("assistant", emptyChatMessage(), { scroll: false });
     return;
   }
-  for (const message of state.messages) addMessage(message.role, message.content);
+  let lastMessage = null;
+  for (const message of state.messages) lastMessage = addMessage(message.role, message.content, { scroll: false });
+  if (scroll) lastMessage?.scrollIntoView({ block: "end" });
 }
 
 function renderChatList() {
@@ -292,7 +315,7 @@ async function openChat(id) {
   state.activeChatId = data.chat.id;
   state.messages = data.messages.map((message) => ({ role: message.role, content: message.content }));
   $("#presetSelect").value = data.chat.modelPreset || $("#presetSelect").value;
-  renderMessages();
+  renderMessages({ scroll: Boolean(state.messages.length) });
   await loadChats();
 }
 
@@ -303,7 +326,7 @@ async function createNewChat() {
   });
   state.activeChatId = data.chat.id;
   state.messages = [];
-  renderMessages();
+  renderMessages({ scroll: false });
   await loadChats();
 }
 
@@ -349,6 +372,7 @@ async function loadApiKeys() {
 async function loadApiExposure() {
   const plan = await api("/api/exposure");
   state.apiExposure = plan;
+  renderChatSetupGuide();
   const lanLabel = plan.exposedOnLan ? "LAN URLs" : "Detected LAN URLs after protected mode starts";
   const client = plan.client || {};
   $("#apiExposure").innerHTML = `
@@ -440,6 +464,7 @@ async function loadModels() {
   const data = await api("/api/models");
   state.models = data.models;
   renderModelSelectors();
+  renderChatSetupGuide();
   renderModelSetupGuide();
   renderAgentSetupGuide();
   renderModels();
@@ -553,6 +578,108 @@ function renderModelSetupGuide() {
     </div>`;
 }
 
+function chatModelStatus(model = selectedModel(), runtime = state.runtime) {
+  if (state.status?.fakeLlm) return "dev backend";
+  if (!model) return "loading";
+  if (runtime?.running || runtime?.backend?.ok) return "ready";
+  return modelStateLabel(model);
+}
+
+function chatVoiceSummary(plan = state.mediaRuntimePlan) {
+  if (!plan) return { label: "checking", detail: "Voice status is loading." };
+  const speech = mediaRuntimeByKind(plan, "speech");
+  const transcription = mediaRuntimeByKind(plan, "transcription");
+  return {
+    label: [voiceStatus(speech), voiceStatus(transcription)].filter(Boolean).join(" / ") || "needs setup",
+    detail: `Output: ${voiceStatus(speech)} · Input: ${voiceStatus(transcription)}`,
+  };
+}
+
+function chatApiSummary(plan = state.apiExposure) {
+  if (!plan) return { label: "checking", detail: "API exposure status is loading.", command: "bun run local" };
+  const label = plan.exposedOnLan ? "LAN/public" : "private";
+  const keyText = plan.auth.configured ? `${plan.auth.totalKeyCount} key(s)` : "no key";
+  return {
+    label,
+    detail: `${plan.apiBaseUrl} · ${keyText}`,
+    command: plan.auth.configured ? plan.commands.protectedLan : plan.commands.privateLocal,
+  };
+}
+
+function chatGuideHeadline(model = selectedModel(), runtime = state.runtime) {
+  if (state.status?.fakeLlm) return "Dev backend is active. Install and start a local model for real inference.";
+  if (runtime?.running || runtime?.backend?.ok) return "Local llama.cpp chat is reachable.";
+  if (model?.state === "missing" || model?.state === "error") return `${model.label} needs a local GGUF download before real chat is ready.`;
+  return state.readiness?.headline || "Checking local model, search, voice, and API readiness.";
+}
+
+function renderChatSetupGuide() {
+  const target = $("#chatSetupGuide");
+  if (!target) return;
+  const model = selectedModel();
+  const runtime = state.runtime;
+  const action = modelSetupAction(model, runtime);
+  const settings = currentSettings();
+  const searxngUrl = settings.searxngUrl?.trim() || "";
+  const webConfigured = Boolean(searxngUrl);
+  const webLocal = webConfigured && isLoopbackUrl(searxngUrl);
+  const documentCount = state.documents.length;
+  const contextLabel = documentCount ? `${documentCount} indexed` : webLocal ? "local web" : webConfigured ? "web set" : "empty";
+  const contextDetail = `Local search: ${documentCount ? `${documentCount} document${documentCount === 1 ? "" : "s"}` : "empty"} · Web: ${webLocal ? "local SearXNG" : webConfigured ? "configured" : "off"}`;
+  const voice = chatVoiceSummary();
+  const apiSummary = chatApiSummary();
+  const guideStatus = chatModelStatus(model, runtime);
+  target.innerHTML = `
+    <div class="chat-guide-head">
+      <div>
+        <h2>Local Chat Status</h2>
+        <div class="meta">${h(chatGuideHeadline(model, runtime))}</div>
+      </div>
+      <span>${h(guideStatus)}</span>
+    </div>
+    <div class="chat-guide-grid">
+      <div class="chat-guide-card">
+        <div>
+          <strong>Model</strong>
+          <span>${h(chatModelStatus(model, runtime))}</span>
+        </div>
+        <div class="meta">${h(model ? `${model.label} · ${model.family} ${model.parametersB}B ${model.quant}` : "Model registry is loading.")}</div>
+        <div class="meta">${h(modelRuntimeDetail(runtime))}</div>
+      </div>
+      <div class="chat-guide-card">
+        <div>
+          <strong>Context</strong>
+          <span>${h(contextLabel)}</span>
+        </div>
+        <div class="meta">${h(contextDetail)}</div>
+        <div class="meta">${h(documentCount ? "Chat can cite indexed local context when relevant." : "Index files on Search to make chat use local context.")}</div>
+      </div>
+      <div class="chat-guide-card">
+        <div>
+          <strong>Voice</strong>
+          <span>${h(voice.label)}</span>
+        </div>
+        <div class="meta">${h(voice.detail)}</div>
+        <div class="meta">Playback uses local speech; recording uses the configured local transcription worker.</div>
+      </div>
+      <div class="chat-guide-card">
+        <div>
+          <strong>API</strong>
+          <span>${h(apiSummary.label)}</span>
+        </div>
+        <div class="meta">${h(apiSummary.detail)}</div>
+        <div class="meta">OpenAI-compatible chat clients use the same local server.</div>
+      </div>
+    </div>
+    <div class="command-row">
+      <div>
+        <span>${h(action.label)}</span>
+        <code>${h(action.command)}</code>
+      </div>
+      <button class="copy-command" data-command="${h(action.command)}">Copy</button>
+    </div>`;
+}
+
 function renderModelInstallPlan(model) {
   const error = state.modelInstallErrors[model.id];
   if (error) {
@@ -614,6 +741,7 @@ function renderModels() {
 async function loadRuntime() {
   const data = await api("/api/runtime/status");
   state.runtime = data;
+  renderChatSetupGuide();
   renderModelSetupGuide();
   $("#runtimeStatus").innerHTML = [
     ["Process", data.running ? `running ${data.pid}` : "stopped"],
@@ -637,6 +765,7 @@ async function loadRuntime() {
 async function loadReadiness() {
   const report = await api("/api/readiness");
   state.readiness = report;
+  renderChatSetupGuide();
   $("#readinessHero").innerHTML = `
     <div>
       <strong>${h(report.usable ? "Ready" : "Needs setup")}</strong>
@@ -1315,6 +1444,7 @@ async function loadMedia() {
   state.mediaRuntimePlan = runtimePlan;
   state.imageBackendPlan = imageBackendPlan;
   state.mediaJobs = jobs.jobs;
+  renderChatSetupGuide();
   renderImageBackendGuide(state.imageBackendPlan);
   renderVoiceSetupGuide(state.mediaRuntimePlan);
   renderVideoSetupGuide(state.mediaRuntimePlan);
@@ -1734,6 +1864,7 @@ function renderSearchSetupGuide(documents = state.documents || []) {
 async function loadDocuments() {
   const data = await api("/api/search/documents");
   state.documents = data.documents;
+  renderChatSetupGuide();
   renderSearchSetupGuide(state.documents);
   renderAgentSetupGuide();
   $("#documentList").innerHTML =
@@ -2431,6 +2562,11 @@ document.addEventListener("click", async (event) => {
 });
 
 $("#chatForm").addEventListener("submit", sendChat);
+$("#presetSelect").addEventListener("change", () => {
+  renderChatSetupGuide();
+  renderModelSetupGuide();
+  renderAgentSetupGuide();
+});
 $("#agentForm").addEventListener("submit", runAgentForm);
 $("#memoryForm").addEventListener("submit", saveMemory);
 $("#memorySearch").addEventListener("click", () => loadMemories($("#memoryQuery").value.trim()));

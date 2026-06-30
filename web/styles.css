@@ -193,7 +193,7 @@ h2 {
 }
 
 .messages {
-  min-height: calc(100vh - 184px);
+  min-height: calc(100vh - 468px);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -254,6 +254,51 @@ h2 {
   min-height: 18px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.chat-setup-guide {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.chat-guide-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.chat-guide-head span,
+.chat-guide-card span {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 9px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.chat-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.chat-guide-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  display: grid;
+  gap: 7px;
+  align-content: start;
+}
+
+.chat-guide-card > div:first-child {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .split {
@@ -1194,6 +1239,8 @@ h2 {
 
   nav,
   .file-import-grid,
+  .chat-guide-head,
+  .chat-guide-grid,
   .agent-guide-head,
   .agent-guide-grid,
   .model-grid,
@@ -1240,6 +1287,7 @@ h2 {
   }
 
   .voice-guide-card > div:first-child,
+  .chat-guide-card > div:first-child,
   .agent-guide-card > div:first-child,
   .search-guide-card > div:first-child,
   .model-guide-card > div:first-child,

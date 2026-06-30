@@ -127,6 +127,8 @@ The OpenAI-compatible routes stay stateless for client compatibility. The web ap
 
 The native responder searches indexed local documents for the latest user message, injects relevant context into the model prompt, streams the assistant response, appends source lines, and persists the assistant message. This keeps normal chat useful with local files while preserving the plain `/v1/chat/completions` contract for API clients.
 
+The Chat page is the first-run status surface as well as the main conversation surface. Its Local Chat Status guide summarizes the selected model/runtime path, indexed local context and SearXNG state, local voice input/output readiness, API exposure mode, and the next copyable run/install command. The empty-chat assistant message is also derived from runtime state instead of claiming a real local model is ready.
+
 Assistant messages in the web chat can be played through `/v1/audio/speech`. That keeps voice playback on the same local speech path as API clients: configured loopback speech workers first, built-in system speech second.
 
 Voice input records microphone audio in the browser and posts it to `/v1/audio/transcriptions` as multipart form data. The server converts that upload to the existing local worker JSON contract, so transcription remains local-only and fails honestly when no loopback transcription worker is configured.
