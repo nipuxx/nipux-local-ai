@@ -126,7 +126,7 @@ Returns the consumer-facing machine profile used by the Setup page and `bun run 
 
 ### `GET /api/setup/actions`
 
-Returns structured setup actions used by the Setup page and `bun run setup:actions`. Each action has a status, kind, description, related capability tags, and copyable commands.
+Returns structured setup actions used by the Setup page and `bun run setup:actions`. Each action has a status, kind, description, related capability tags, and copyable commands. The response also includes `nextActions`, a ranked short list of non-ready actions that the UI can show before the full setup list.
 
 ```json
 {
@@ -138,7 +138,16 @@ Returns structured setup actions used by the Setup page and `bun run setup:actio
       "kind": "start",
       "commands": [{"label": "Command", "command": "llama serve ...", "copyable": true}]
     }
-  ]
+  ],
+  "nextActions": [
+    {
+      "id": "install-chat-model",
+      "label": "Install Balanced chat model",
+      "status": "recommended",
+      "commands": [{"label": "Review download", "command": "bun run model:plan balanced", "copyable": true}]
+    }
+  ],
+  "summary": { "ready": 4, "recommended": 5, "optional": 3, "blocked": 0 }
 }
 ```
 

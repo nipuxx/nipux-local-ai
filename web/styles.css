@@ -362,6 +362,42 @@ h2 {
   gap: 8px;
 }
 
+.setup-quick {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.setup-quick-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.setup-quick-head h2 {
+  margin-bottom: 4px;
+}
+
+.setup-quick-head span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.setup-next-action {
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.setup-next-list {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .setup-action > div:first-child {
   display: flex;
   align-items: center;

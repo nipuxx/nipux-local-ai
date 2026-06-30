@@ -24,6 +24,10 @@ test("setup actions expose copyable commands for local runtime setup", async () 
   expect(result.actions.some((action) => action.id === "run-dev" && action.commands.some((item) => item.command === "bun run dev"))).toBe(true);
   expect(result.actions.some((action) => action.id === "start-llama" && action.commands.some((item) => item.command.includes("llama serve")))).toBe(true);
   expect(result.actions.some((action) => action.id === "verify-readiness" && action.commands.some((item) => item.command === "bun run ready"))).toBe(true);
+  expect(result.nextActions.length).toBeGreaterThan(0);
+  expect(result.nextActions.every((action) => action.status !== "ready")).toBe(true);
+  expect(result.nextActions.every((action) => action.commands.some((item) => item.copyable))).toBe(true);
+  expect(result.nextActions.length).toBeLessThanOrEqual(3);
 });
 
 test("setup actions route returns the shared action plan", async () => {
@@ -31,6 +35,8 @@ test("setup actions route returns the shared action plan", async () => {
   expect(res.status).toBe(200);
   const json = await res.json();
   expect(json.actions.map((action: { id: string }) => action.id)).toContain("open-local-app");
+  expect(json.nextActions.length).toBeGreaterThan(0);
+  expect(json.nextActions[0].commands.some((item: { copyable: boolean }) => item.copyable)).toBe(true);
   expect(json.summary.recommended + json.summary.optional + json.summary.ready + json.summary.blocked).toBe(json.actions.length);
 });
 

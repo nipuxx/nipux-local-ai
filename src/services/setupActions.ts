@@ -26,6 +26,7 @@ export interface SetupAction {
 export interface SetupActionsResult {
   platform: NodeJS.Platform;
   actions: SetupAction[];
+  nextActions: SetupAction[];
   summary: Record<SetupActionStatus, number>;
 }
 
@@ -45,6 +46,45 @@ function countActions(actions: SetupAction[]) {
     },
     { ready: 0, recommended: 0, optional: 0, blocked: 0 },
   );
+}
+
+const ACTION_PRIORITY = [
+  "install-bun",
+  "install-git",
+  "install-llama",
+  "install-chat-model",
+  "start-local-supervisor",
+  "open-local-app",
+  "install-playwright",
+  "start-llama",
+  "verify-readiness",
+  "configure-web-search",
+  "media-transcription",
+  "media-speech",
+  "media-image",
+  "choose-image-backend",
+  "media-video",
+  "run-dev",
+  "review-capabilities",
+];
+
+function actionPriority(id: string) {
+  const index = ACTION_PRIORITY.indexOf(id);
+  return index === -1 ? ACTION_PRIORITY.length : index;
+}
+
+function statusPriority(status: SetupActionStatus) {
+  if (status === "recommended") return 0;
+  if (status === "blocked") return 1;
+  if (status === "optional") return 2;
+  return 3;
+}
+
+function selectNextActions(actions: SetupAction[], limit = 3) {
+  return [...actions]
+    .filter((item) => item.status !== "ready" && item.commands.some((itemCommand) => itemCommand.copyable))
+    .sort((left, right) => statusPriority(left.status) - statusPriority(right.status) || actionPriority(left.id) - actionPriority(right.id) || left.label.localeCompare(right.label))
+    .slice(0, limit);
 }
 
 function byId(checks: SetupCheck[]) {
@@ -267,11 +307,19 @@ export async function getSetupActions(): Promise<SetupActionsResult> {
     }),
   );
 
-  return { platform: os, actions, summary: countActions(actions) };
+  return { platform: os, actions, nextActions: selectNextActions(actions), summary: countActions(actions) };
 }
 
 export function formatSetupActions(result: SetupActionsResult) {
   const lines = [`Platform: ${result.platform}`, ""];
+  if (result.nextActions.length) {
+    lines.push("Next setup actions:");
+    for (const item of result.nextActions) {
+      lines.push(`  [${item.status}] ${item.label}`);
+      if (item.commands[0]) lines.push(`    ${item.commands[0].label}: ${item.commands[0].command}`);
+    }
+    lines.push("");
+  }
   for (const item of result.actions) {
     lines.push(`[${item.status}] ${item.label}`);
     lines.push(`  ${item.description}`);

@@ -545,6 +545,52 @@ function setupCommandMarkup(item) {
     .join("");
 }
 
+function setupQuickSummary(data) {
+  const summary = data.summary || {};
+  return `${summary.recommended || 0} recommended · ${summary.blocked || 0} blocked · ${summary.optional || 0} optional`;
+}
+
+function renderSetupQuickStart(data) {
+  const nextActions = data.nextActions || [];
+  const primary = nextActions[0];
+  const remaining = nextActions.slice(1);
+  $("#setupQuickStart").innerHTML = primary
+    ? `
+      <div class="setup-quick-head">
+        <div>
+          <h2>Next Setup Action</h2>
+          <div class="meta">${h(setupQuickSummary(data))}</div>
+        </div>
+        <span>${h(primary.status)}</span>
+      </div>
+      <div class="setup-next-action">
+        <strong>${h(primary.label)}</strong>
+        <div class="meta">${h(primary.description)}</div>
+        ${primary.reason ? `<div class="meta">${h(primary.reason)}</div>` : ""}
+        ${setupCommandMarkup(primary)}
+      </div>
+      ${
+        remaining.length
+          ? `<div class="setup-next-list">${remaining.map((item) => `<span>${h(item.label)} · ${h(item.status)}</span>`).join("")}</div>`
+          : ""
+      }`
+    : `
+      <div class="setup-quick-head">
+        <div>
+          <h2>Next Setup Action</h2>
+          <div class="meta">No required setup actions are pending.</div>
+        </div>
+        <span>ready</span>
+      </div>
+      <div class="command-row">
+        <div>
+          <span>Start local app</span>
+          <code>bun run local</code>
+        </div>
+        <button class="copy-command" data-command="bun run local">Copy</button>
+      </div>`;
+}
+
 function quotedCommandPart(value = "") {
   return /\s/.test(value) ? JSON.stringify(value) : value;
 }
@@ -567,6 +613,7 @@ function formatBytes(bytes = 0) {
 async function loadSetupActions() {
   const data = await api("/api/setup/actions");
   state.setupActions = data;
+  renderSetupQuickStart(data);
   $("#setupActions").innerHTML =
     data.actions
       .map(
