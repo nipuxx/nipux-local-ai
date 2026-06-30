@@ -46,7 +46,7 @@ flowchart TD
 
 - `src/main.ts`: HTTP server, static UI, OpenAI-compatible routes, app API.
 - `src/providers/llamaCpp.ts`: llama.cpp proxy and fake dev backend.
-- `src/services/modelRegistry.ts`: Gemma presets and Hugging Face integration.
+- `src/services/modelRegistry.ts`: Qwen3 presets and Hugging Face integration.
 - `src/services/modelRuntime.ts`: app-managed llama.cpp start/stop/status/test path.
 - `src/services/chats.ts`: persisted chat records and messages.
 - `src/services/agents.ts`: agent runs, memory injection, search context.
@@ -148,7 +148,7 @@ That route checks whether `hermes` is installed and returns the commands needed 
 ```bash
 hermes config set model.provider custom
 hermes config set model.base_url http://127.0.0.1:8080/v1
-hermes config set model.default google/gemma-4-12B-it-qat-q4_0-gguf:Q4_0
+hermes config set model.default Qwen/Qwen3-8B-GGUF:Qwen3-8B-Q4_K_M.gguf
 ```
 
 When Hermes is unavailable, the app uses the built-in internal memory agent so agents still work out of the box. A future live Hermes runner should execute through this adapter and keep the same database memory tables as the product source of truth.

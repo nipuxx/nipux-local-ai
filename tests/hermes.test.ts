@@ -9,5 +9,5 @@ const { getHermesStatus } = await import("../src/services/hermes.ts");
 test("Hermes status always returns local provider config", async () => {
   const status = await getHermesStatus("balanced");
   expect(status.configCommands.join("\n")).toContain("model.provider custom");
-  expect(status.configCommands.join("\n")).toContain("gemma-4-12B");
+  expect(status.configCommands.join("\n")).toContain("Qwen3-8B-Q4_K_M.gguf");
 });

@@ -484,7 +484,7 @@ Stops the app-managed runtime process.
 
 Runs a non-streaming test prompt against the active backend.
 
-### `GET /api/models/hf/search?q=gemma`
+### `GET /api/models/hf/search?q=qwen`
 
 Searches Hugging Face GGUF models.
 
@@ -496,8 +496,8 @@ Lists GGUF files for a Hugging Face model repo.
 
 ```json
 {
-  "repo": "google/gemma-4-12B-it-qat-q4_0-gguf",
-  "filename": "model.gguf"
+  "repo": "Qwen/Qwen3-8B-GGUF",
+  "filename": "Qwen3-8B-Q4_K_M.gguf"
 }
 ```
 

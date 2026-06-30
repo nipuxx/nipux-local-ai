@@ -24,9 +24,9 @@ The product should be usable by everyday people first. Advanced controls belong 
 - OpenAI-compatible `/v1/chat/completions`, `/v1/responses`, and `/v1/models`.
 - Local llama.cpp backend with automatic health checks.
 - Model presets:
-  - Fast: small Gemma/Qwen-class local model.
-  - Balanced: Gemma 4 12B QAT Q4 GGUF target.
-  - Smart: larger local model for strong GPUs/unified memory.
+  - Fast: small Qwen-class local model.
+  - Balanced: Qwen3 8B Q4_K_M GGUF target.
+  - Smart: larger Qwen3 MoE model for strong GPUs/unified memory.
 - Hugging Face model search, file listing, download, and test.
 - Local agents with persistent memory.
 - Agent browser sessions with user-visible screenshot controls.
@@ -62,7 +62,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - llama.cpp-compatible chat proxy exists.
 - Dev fake LLM streaming exists.
 - Main chat can use indexed local search context and persist cited assistant responses.
-- Gemma 4 Fast/Balanced/Smart model presets exist.
+- Qwen3 Fast/Balanced/Smart model presets exist.
 - Built-in model preset install plus Hugging Face GGUF search/list/download hooks exist; arbitrary downloaded GGUF files are registered as selectable custom local models.
 - Hermes status/config adapter exists.
 - Agent memory and run history exist.

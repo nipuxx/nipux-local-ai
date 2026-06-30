@@ -12,7 +12,7 @@ test("status route returns hardware and command metadata", async () => {
   expect(res.status).toBe(200);
   const json = await res.json();
   expect(json.app).toBe("Nipux Local AI");
-  expect(json.serveCommands.balanced).toContain("gemma-4-12B");
+  expect(json.serveCommands.balanced).toContain("Qwen3-8B-Q4_K_M.gguf");
   expect(json.settings.defaultModelPreset).toBe("balanced");
 });
 

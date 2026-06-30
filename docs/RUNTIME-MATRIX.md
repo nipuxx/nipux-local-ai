@@ -5,7 +5,7 @@ The installer should run everywhere. Model capability depends on hardware.
 | Hardware | Expected Mode | Notes |
 | --- | --- | --- |
 | CPU-only, 8-16GB RAM | Fast | Works, but tokens/sec will be modest. |
-| CPU-only, 16GB+ RAM | Balanced possible | Gemma 12B Q4 can load on some systems but may be slow. |
+| CPU-only, 16GB+ RAM | Balanced possible | Qwen3 8B Q4_K_M can load on some systems but may be slow. |
 | Apple Silicon 16GB | Balanced | Metal backend recommended. Keep context moderate. |
 | Apple Silicon 32GB+ | Balanced / Smart | Unified memory helps model fit; speed varies. |
 | NVIDIA 12GB VRAM | Balanced | CUDA path is the cleanest local GPU route. |

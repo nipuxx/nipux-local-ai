@@ -18,10 +18,10 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - Local speech playback for assistant chat messages
 - Microphone recording in chat that transcribes through a configured local transcription worker
 - Fast / Balanced / Smart model modes
-- Gemma 4 QAT GGUF defaults:
-  - Fast: `google/gemma-4-E4B-it-qat-q4_0-gguf:Q4_0`
-  - Balanced: `google/gemma-4-12B-it-qat-q4_0-gguf:Q4_0`
-  - Smart: `google/gemma-4-26B-A4B-it-qat-q4_0-gguf:Q4_0`
+- Qwen3 GGUF defaults:
+  - Fast: `Qwen/Qwen3-4B-GGUF:Qwen3-4B-Q4_K_M.gguf`
+  - Balanced: `Qwen/Qwen3-8B-GGUF:Qwen3-8B-Q4_K_M.gguf`
+  - Smart: `Qwen/Qwen3-30B-A3B-GGUF:Qwen3-30B-A3B-Q4_K_M.gguf`
 - Local SQLite persistence
 - Agent memory CRUD, scored retrieval, summaries, provenance, compaction, and run history
 - Agent tool activity for local search, SearXNG web search, and browser-session creation
@@ -75,7 +75,7 @@ winget install llama.cpp
 Start the default model:
 
 ```bash
-llama serve -hf google/gemma-4-12B-it-qat-q4_0-gguf:Q4_0 --port 8080 --ctx-size 32768
+llama serve -hf Qwen/Qwen3-8B-GGUF:Qwen3-8B-Q4_K_M.gguf --port 8080 --ctx-size 32768
 ```
 
 Then run:
