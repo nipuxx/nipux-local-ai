@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { platform, tmpdir } from "node:os";
 
 const testHome = mkdtempSync(join(tmpdir(), "nipux-launch-profile-"));
 process.env.NIPUX_HOME = testHome;
@@ -70,8 +70,10 @@ test("launch profile writer emits json, env, and local launcher files", async ()
   expect(readFileSync(result.profile.files.startLocalCmd, "utf8")).toContain("start-local.ps1");
   expect(readFileSync(result.profile.files.desktopFile, "utf8")).toContain("Name=Nipux Local AI");
   expect(readFileSync(result.profile.files.desktopFile, "utf8")).toContain(desktopPath(result.profile.files.startLocalSh));
-  expect(statSync(result.profile.files.startLocalCommand).mode & 0o111).toBeTruthy();
-  expect(statSync(result.profile.files.desktopFile).mode & 0o111).toBeTruthy();
+  if (platform() !== "win32") {
+    expect(statSync(result.profile.files.startLocalCommand).mode & 0o111).toBeTruthy();
+    expect(statSync(result.profile.files.desktopFile).mode & 0o111).toBeTruthy();
+  }
 
   const parsed = JSON.parse(readFileSync(result.profile.files.profileJson, "utf8"));
   expect(parsed.files.envFile).toBe(result.profile.files.envFile);
