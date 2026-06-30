@@ -1366,6 +1366,9 @@ function renderChatBrowserSessions(sessions = [], toolEvents = []) {
           const pending = events.find((event) => event.status === "pending" && event.permissionRequestId);
           const latestNavigation = [...events].reverse().find((event) => event.tool === "browser_navigation");
           const permissionStatus = pending?.permissionStatus || "pending";
+          const hasActionPending = pending && permissionStatus === "pending";
+          const shot = state.browserShots[session.id];
+          const error = state.browserErrors[session.id];
           return `
             <div class="chat-browser-session">
               <div class="chat-browser-head">
@@ -1373,10 +1376,13 @@ function renderChatBrowserSessions(sessions = [], toolEvents = []) {
                   <strong>${h(session.label || "Chat Browser")}</strong>
                   <div class="meta">${h(session.status || "ready")} · ${h(session.url || "about:blank")}</div>
                 </div>
-                <button class="open-agents" type="button">Agents</button>
+                <div class="chat-browser-head-actions">
+                  ${hasActionPending ? "" : `<button class="chat-browser-refresh" type="button" data-id="${h(session.id)}">Shot</button>`}
+                  <button class="open-agents" type="button">Agents</button>
+                </div>
               </div>
               ${
-                pending && permissionStatus === "pending"
+                hasActionPending
                   ? `<div class="browser-error">Waiting for approval${pending.url ? ` to navigate to ${h(pending.url)}` : ""}.</div>
                     <div class="chat-browser-actions">
                       <button class="chat-permission-run" type="button" data-id="${h(pending.permissionRequestId)}">Approve & Run</button>
@@ -1389,6 +1395,14 @@ function renderChatBrowserSessions(sessions = [], toolEvents = []) {
                   : latestNavigation
                     ? `<div class="meta">${h(latestNavigation.summary || "Browser navigation recorded.")}</div>`
                     : `<div class="meta">Browser session is ready for local control.</div>`
+              }
+              ${error ? `<div class="browser-error">${h(error)}</div>` : ""}
+              ${
+                shot
+                  ? `<img class="browser-preview chat-browser-preview" data-id="${h(session.id)}" src="${shot}" alt="Chat browser preview" />`
+                  : !hasActionPending && permissionStatus !== "denied"
+                    ? `<div class="browser-empty">No screenshot yet</div>`
+                    : ""
               }
             </div>`;
         })
@@ -2235,7 +2249,7 @@ function clearSelectedFiles() {
   $("#fileIndexOutput").textContent = "";
 }
 
-async function refreshBrowserScreenshot(id) {
+async function refreshBrowserScreenshot(id, options = {}) {
   try {
     const data = await api(`/api/browsers/${id}/screenshot`);
     state.browserShots[id] = data.dataUrl;
@@ -2243,7 +2257,11 @@ async function refreshBrowserScreenshot(id) {
   } catch (error) {
     state.browserErrors[id] = error instanceof Error ? error.message : String(error);
   }
-  await Promise.all([loadAgents(), loadUsage()]);
+  const refreshes = [];
+  if (options.agents !== false) refreshes.push(loadAgents());
+  if (options.usage !== false) refreshes.push(loadUsage());
+  if (options.chat) refreshes.push(refreshActiveChat());
+  await Promise.all(refreshes);
 }
 
 async function playChatSpeech(button) {
@@ -2770,6 +2788,23 @@ document.addEventListener("click", async (event) => {
       }, 1200);
     }
   }
+  if (target.matches(".chat-browser-refresh")) {
+    const original = target.textContent;
+    target.textContent = "Capturing";
+    target.disabled = true;
+    try {
+      await refreshBrowserScreenshot(target.dataset.id, { chat: true });
+      target.textContent = "Captured";
+    } catch (error) {
+      target.textContent = "Shot failed";
+      alert(error instanceof Error ? error.message : String(error));
+    } finally {
+      setTimeout(() => {
+        target.textContent = original;
+        target.disabled = false;
+      }, 1200);
+    }
+  }
   if (target.matches(".chat-item")) await openChat(target.dataset.chatId);
   if (target.matches(".show-files")) await showHfFiles(target);
   if (target.matches(".download-file")) await downloadFile(target);
@@ -2920,7 +2955,7 @@ document.addEventListener("click", async (event) => {
     const x = Math.round(((event.clientX - rect.left) / rect.width) * target.naturalWidth);
     const y = Math.round(((event.clientY - rect.top) / rect.height) * target.naturalHeight);
     await api(`/api/browsers/${target.dataset.id}/click`, { method: "POST", body: JSON.stringify({ x, y }) });
-    await refreshBrowserScreenshot(target.dataset.id);
+    await refreshBrowserScreenshot(target.dataset.id, { chat: Boolean(target.closest(".chat-browser-session")) });
   }
 });
 
