@@ -333,6 +333,7 @@ async function loadApiExposure() {
   const plan = await api("/api/exposure");
   state.apiExposure = plan;
   const lanLabel = plan.exposedOnLan ? "LAN URLs" : "Detected LAN URLs after protected mode starts";
+  const client = plan.client || {};
   $("#apiExposure").innerHTML = `
     <div>
       <strong>API Exposure</strong>
@@ -355,7 +356,44 @@ async function loadApiExposure() {
     </div>
     ${plan.lanUrls.length ? `<div class="meta">${lanLabel}: ${plan.lanUrls.map(h).join(", ")}</div>` : ""}
     ${plan.warnings.map((warning) => `<div class="browser-error">${h(warning)}</div>`).join("")}
-    ${plan.nextSteps.map((step) => `<div class="meta">${h(step)}</div>`).join("")}`;
+    ${plan.nextSteps.map((step) => `<div class="meta">${h(step)}</div>`).join("")}
+    <div class="api-client-quickstart">
+      <strong>Client Quickstart</strong>
+      <div class="meta">OpenAI-compatible base URL</div>
+      <div class="command-row">
+        <div>
+          <span>Base URL</span>
+          <code>${h(client.baseUrl || plan.apiBaseUrl)}</code>
+        </div>
+        <button class="copy-command" data-command="${h(client.baseUrl || plan.apiBaseUrl)}">Copy</button>
+      </div>
+      <div class="command-row">
+        <div>
+          <span>Client env</span>
+          <code>${h(client.env || `OPENAI_BASE_URL=${plan.apiBaseUrl}`)}</code>
+        </div>
+        <button class="copy-command" data-command="${h(client.env || `OPENAI_BASE_URL=${plan.apiBaseUrl}`)}">Copy</button>
+      </div>
+      <div class="command-row">
+        <div>
+          <span>List models</span>
+          <code>${h(client.modelsCurl || "")}</code>
+        </div>
+        <button class="copy-command" data-command="${h(client.modelsCurl || "")}">Copy</button>
+      </div>
+      <div class="command-row">
+        <div>
+          <span>Chat completion</span>
+          <code>${h(client.chatCurl || "")}</code>
+        </div>
+        <button class="copy-command" data-command="${h(client.chatCurl || "")}">Copy</button>
+      </div>
+      ${
+        plan.auth.required && !plan.auth.configured
+          ? `<div class="browser-error">Replace &lt;api-key&gt; after creating a managed server key or setting NIPUX_API_KEY.</div>`
+          : ""
+      }
+    </div>`;
 }
 
 async function saveSettings() {

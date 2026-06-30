@@ -151,6 +151,10 @@ test("managed API keys can protect local routes and be revoked", async () => {
   const exposureJson = await exposure.json();
   expect(exposureJson.auth.configured).toBe(true);
   expect(exposureJson.commands.protectedLan).toContain("NIPUX_PUBLIC_API=1");
+  expect(exposureJson.client.baseUrl).toContain("/v1");
+  expect(exposureJson.client.chatCurl).toContain("/v1/chat/completions");
+  expect(exposureJson.client.chatCurl).toContain("<api-key>");
+  expect(JSON.stringify(exposureJson.client)).not.toContain(createdJson.key);
 
   const authed = authorizeRequest(
     new Request("http://localhost/v1/models", { headers: { "x-api-key": createdJson.key } }),
@@ -182,7 +186,13 @@ test("API exposure route is safe discovery metadata", async () => {
   expect(json.apiBaseUrl).toContain("/v1");
   expect(json.commands.privateLocal).toBe("bun run local");
   expect(json.commands.protectedLan).toContain("NIPUX_PUBLIC_API=1");
+  expect(json.client.openaiCompatible).toBe(true);
+  expect(json.client.baseUrl).toBe(json.apiBaseUrl);
+  expect(json.client.env).toContain("OPENAI_BASE_URL=");
+  expect(json.client.modelsCurl).toContain("/v1/models");
+  expect(json.client.chatCurl).toContain("/v1/chat/completions");
   expect(json.auth).not.toHaveProperty("keys");
+  expect(json.client).not.toHaveProperty("key");
 });
 
 test("capability profile route returns machine defaults", async () => {

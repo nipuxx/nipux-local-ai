@@ -83,7 +83,7 @@ This file translates the product goal into independently owned workstreams. The 
 
 - Maintain API key management.
 - Keep public/LAN mode off unless explicitly enabled.
-- Maintain API exposure warnings, discovery metadata, and copyable private/protected launch commands.
+- Maintain API exposure warnings, discovery metadata, copyable private/protected launch commands, and non-secret OpenAI-compatible client snippets.
 - Add user approvals for purchases, posting, downloads/uploads, credentials, destructive actions, and file writes/deletes.
 
 ## Testing/Release Agent

@@ -161,7 +161,7 @@ Returns the dry-run plan for `bun run local`: the app process, managed local lla
 
 ### `GET /api/exposure`
 
-Returns non-secret LAN/public API exposure metadata for the Settings page and setup tooling. It includes the local API URL, detected LAN URLs, bind host, whether public mode is enabled, whether protected routes are locked, API-key counts, copyable private/protected launch commands, warnings, and next steps.
+Returns non-secret LAN/public API exposure metadata for the Settings page and setup tooling. It includes the local API URL, detected LAN URLs, bind host, whether public mode is enabled, whether protected routes are locked, API-key counts, copyable private/protected launch commands, OpenAI-compatible client snippets, warnings, and next steps.
 
 ```json
 {
@@ -182,6 +182,15 @@ Returns non-secret LAN/public API exposure metadata for the Settings page and se
   "commands": {
     "privateLocal": "bun run local",
     "protectedLan": "NIPUX_PUBLIC_API=1 bun run local"
+  },
+  "client": {
+    "openaiCompatible": true,
+    "baseUrl": "http://127.0.0.1:3434/v1",
+    "apiKey": "not-required-for-private-local-mode",
+    "authHeader": "",
+    "env": "OPENAI_BASE_URL=http://127.0.0.1:3434/v1\nOPENAI_API_KEY=not-required-for-private-local-mode",
+    "modelsCurl": "curl 'http://127.0.0.1:3434/v1/models'",
+    "chatCurl": "curl 'http://127.0.0.1:3434/v1/chat/completions' \\\n  -H 'content-type: application/json' \\\n  --data '{\"model\":\"balanced\",\"messages\":[{\"role\":\"user\",\"content\":\"Say hello from Nipux.\"}],\"stream\":false}'"
   }
 }
 ```

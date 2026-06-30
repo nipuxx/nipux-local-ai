@@ -432,6 +432,7 @@ h2 {
 .command-row code {
   display: block;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 8px;
@@ -444,6 +445,13 @@ h2 {
   min-height: 32px;
   padding: 0 10px;
   font-size: 13px;
+}
+
+.api-client-quickstart {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
 }
 
 .launch-profile {

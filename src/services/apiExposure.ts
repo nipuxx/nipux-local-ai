@@ -17,6 +17,30 @@ function lanAddresses() {
   return [...new Set(addresses)].sort();
 }
 
+function shellQuote(value: string) {
+  return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+function clientExamples(apiBaseUrl: string, requiresKey: boolean) {
+  const authHeader = requiresKey ? ` \\\n  -H 'x-api-key: <api-key>'` : "";
+  const apiKeyValue = requiresKey ? "<api-key>" : "not-required-for-private-local-mode";
+  const chatPayload = JSON.stringify({
+    model: "balanced",
+    messages: [{ role: "user", content: "Say hello from Nipux." }],
+    stream: false,
+  });
+
+  return {
+    openaiCompatible: true,
+    baseUrl: apiBaseUrl,
+    apiKey: apiKeyValue,
+    authHeader: requiresKey ? "x-api-key: <api-key>" : "",
+    env: `OPENAI_BASE_URL=${apiBaseUrl}\nOPENAI_API_KEY=${apiKeyValue}`,
+    modelsCurl: `curl ${shellQuote(`${apiBaseUrl}/models`)}${authHeader}`,
+    chatCurl: `curl ${shellQuote(`${apiBaseUrl}/chat/completions`)}${authHeader} \\\n  -H 'content-type: application/json' \\\n  --data ${shellQuote(chatPayload)}`,
+  };
+}
+
 export function getApiExposurePlan() {
   const envKeyCount = API_KEYS.length;
   const storedKeyCount = activeStoredApiKeyCount();
@@ -54,6 +78,7 @@ export function getApiExposurePlan() {
       protectedLan: "NIPUX_PUBLIC_API=1 bun run local",
       protectedLanWithEnvKey: "NIPUX_PUBLIC_API=1 NIPUX_API_KEY='<set-a-long-random-key>' bun run local",
     },
+    client: clientExamples(`${localUrl}/v1`, protectedMode),
     nextSteps: locked
       ? ["Stop public mode, run bun run local, create a managed server key in Settings, then start public mode again.", "Alternatively set NIPUX_API_KEY before starting public mode."]
       : exposedOnLan
