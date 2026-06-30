@@ -61,6 +61,11 @@ export interface LaunchProfile {
     startDevSh: string;
     startLocalPs1: string;
     startDevPs1: string;
+    startLocalCommand: string;
+    startDevCommand: string;
+    startLocalCmd: string;
+    startDevCmd: string;
+    desktopFile: string;
   };
   env: {
     local: Record<string, string>;
@@ -86,6 +91,11 @@ function fileTargets() {
     startDevSh: join(NIPUX_HOME, "start-dev.sh"),
     startLocalPs1: join(NIPUX_HOME, "start-local.ps1"),
     startDevPs1: join(NIPUX_HOME, "start-dev.ps1"),
+    startLocalCommand: join(NIPUX_HOME, "Start Nipux Local AI.command"),
+    startDevCommand: join(NIPUX_HOME, "Start Nipux Local AI Dev.command"),
+    startLocalCmd: join(NIPUX_HOME, "Start Nipux Local AI.cmd"),
+    startDevCmd: join(NIPUX_HOME, "Start Nipux Local AI Dev.cmd"),
+    desktopFile: join(NIPUX_HOME, "Nipux Local AI.desktop"),
   };
 }
 
@@ -150,6 +160,34 @@ function ps1Launcher(profile: LaunchProfile, fakeLlm: boolean) {
     `Set-Location ${powershellQuote(profile.repoRoot)}`,
     ...Object.entries(env).map(([key, value]) => `$env:${key} = ${powershellQuote(value)}`),
     "bun run local --open",
+    "",
+  ].join("\n");
+}
+
+function cmdLauncher(profile: LaunchProfile, fakeLlm: boolean) {
+  const script = fakeLlm ? "start-dev.ps1" : "start-local.ps1";
+  return [
+    "@echo off",
+    `powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0${script}"`,
+    "if errorlevel 1 pause",
+    "",
+  ].join("\r\n");
+}
+
+function desktopEscape(value: string) {
+  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+}
+
+function desktopLauncher(profile: LaunchProfile) {
+  return [
+    "[Desktop Entry]",
+    "Type=Application",
+    "Name=Nipux Local AI",
+    "Comment=Start the local Nipux AI workspace",
+    `Exec=/bin/sh "${desktopEscape(profile.files.startLocalSh)}"`,
+    "Terminal=true",
+    "Categories=Development;Utility;",
+    "Keywords=AI;LLM;Local;",
     "",
   ].join("\n");
 }
@@ -251,6 +289,24 @@ export async function writeLaunchProfileFiles(): Promise<LaunchProfileWriteResul
   writeFileSync(profile.files.startDevPs1, ps1Launcher(profile, true));
   written.push(profile.files.startDevPs1);
 
+  writeFileSync(profile.files.startLocalCommand, shLauncher(profile, false));
+  chmodSync(profile.files.startLocalCommand, 0o755);
+  written.push(profile.files.startLocalCommand);
+
+  writeFileSync(profile.files.startDevCommand, shLauncher(profile, true));
+  chmodSync(profile.files.startDevCommand, 0o755);
+  written.push(profile.files.startDevCommand);
+
+  writeFileSync(profile.files.startLocalCmd, cmdLauncher(profile, false));
+  written.push(profile.files.startLocalCmd);
+
+  writeFileSync(profile.files.startDevCmd, cmdLauncher(profile, true));
+  written.push(profile.files.startDevCmd);
+
+  writeFileSync(profile.files.desktopFile, desktopLauncher(profile));
+  chmodSync(profile.files.desktopFile, 0o755);
+  written.push(profile.files.desktopFile);
+
   return { profile, written };
 }
 
@@ -275,7 +331,10 @@ export function formatLaunchProfile(profile: LaunchProfile) {
     "Files:",
     `  Profile: ${profile.files.profileJson}`,
     `  Env:     ${profile.files.envFile}`,
-    `  macOS/Linux dev launcher: ${profile.files.startDevSh}`,
-    `  Windows dev launcher:     ${profile.files.startDevPs1}`,
+    `  macOS/Linux local script:  ${profile.files.startLocalSh}`,
+    `  Windows local script:      ${profile.files.startLocalPs1}`,
+    `  macOS clickable launcher:  ${profile.files.startLocalCommand}`,
+    `  Windows clickable launcher: ${profile.files.startLocalCmd}`,
+    `  Linux desktop launcher:    ${profile.files.desktopFile}`,
   ].join("\n");
 }

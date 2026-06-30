@@ -62,7 +62,7 @@ flowchart TD
 - `src/services/mediaRuntimes.ts`: hardware-aware setup plan for local media worker contracts, default ports, env vars, and fit guidance.
 - `src/services/localSpeech.ts`: built-in local speech fallback through OS speech commands.
 - `src/services/readiness.ts`: user-facing readiness summary that combines setup checks, media runtimes, local chat, search, and API exposure.
-- `src/services/launchProfile.ts`: machine-specific launch profile, env, and local launcher script generation.
+- `src/services/launchProfile.ts`: machine-specific launch profile, env, local launcher scripts, and clickable launcher generation.
 - `src/services/localSupervisor.ts`: local process supervisor plan and `bun run local` orchestration for the app, managed llama.cpp backend, and configured bundled workers.
 - `src/services/hardware.ts`: OS/GPU/RAM detection.
 - `src/db.ts`: SQLite schema and persistence helpers.

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -8,7 +8,7 @@ const testHome = mkdtempSync(join(tmpdir(), "nipux-launch-profile-"));
 process.env.NIPUX_HOME = testHome;
 process.env.NIPUX_FAKE_LLM = "1";
 
-const { getLaunchProfile, writeLaunchProfileFiles } = await import("../src/services/launchProfile.ts");
+const { formatLaunchProfile, getLaunchProfile, writeLaunchProfileFiles } = await import("../src/services/launchProfile.ts");
 const { clearImageBackendPreset, selectImageBackendPreset } = await import("../src/services/imageSetup.ts");
 const { route } = await import("../src/main.ts");
 
@@ -19,6 +19,9 @@ test("launch profile captures local run commands without API secrets", async () 
   expect(profile.localUrl).toContain("127.0.0.1");
   expect(profile.apiBaseUrl).toContain("/v1");
   expect(profile.files.profileJson).toContain(profile.home);
+  expect(profile.files.startLocalCommand).toContain(profile.home);
+  expect(profile.files.startLocalCmd).toContain(profile.home);
+  expect(profile.files.desktopFile).toContain(profile.home);
   expect(profile.commands.oneCommandLocal).toBe("bun run setup && bun run local --open");
   expect(profile.commands.oneCommandDev).toBe("bun run setup && bun run dev");
   expect(profile.commands.appLocal).toBe("bun run local");
@@ -31,6 +34,7 @@ test("launch profile captures local run commands without API secrets", async () 
   expect(profile.env.local.NIPUX_VIDEO_COMMAND).toBeDefined();
   expect(profile.env.dev.NIPUX_FAKE_LLM).toBe("1");
   expect(profile.media.length).toBe(4);
+  expect(formatLaunchProfile(profile)).toContain("macOS clickable launcher");
 });
 
 test("launch profile includes selected image backend env", async () => {
@@ -58,6 +62,12 @@ test("launch profile writer emits json, env, and local launcher files", async ()
   expect(readFileSync(result.profile.files.startDevSh, "utf8")).toContain("exec bun run local --open");
   expect(readFileSync(result.profile.files.startLocalPs1, "utf8")).toContain("$env:NIPUX_FAKE_LLM = '0'");
   expect(readFileSync(result.profile.files.startLocalPs1, "utf8")).toContain("bun run local --open");
+  expect(readFileSync(result.profile.files.startLocalCommand, "utf8")).toContain("exec bun run local --open");
+  expect(readFileSync(result.profile.files.startLocalCmd, "utf8")).toContain("start-local.ps1");
+  expect(readFileSync(result.profile.files.desktopFile, "utf8")).toContain("Name=Nipux Local AI");
+  expect(readFileSync(result.profile.files.desktopFile, "utf8")).toContain(result.profile.files.startLocalSh);
+  expect(statSync(result.profile.files.startLocalCommand).mode & 0o111).toBeTruthy();
+  expect(statSync(result.profile.files.desktopFile).mode & 0o111).toBeTruthy();
 
   const parsed = JSON.parse(readFileSync(result.profile.files.profileJson, "utf8"));
   expect(parsed.files.envFile).toBe(result.profile.files.envFile);
@@ -77,5 +87,6 @@ test("launch profile API returns and writes the shared profile", async () => {
   const writeRes = await route(new Request("http://localhost/api/launch/profile/write", { method: "POST" }));
   expect(writeRes.status).toBe(200);
   const written = await writeRes.json();
-  expect(written.written.length).toBeGreaterThanOrEqual(4);
+  expect(written.written.length).toBeGreaterThanOrEqual(9);
+  expect(written.profile.files.desktopFile).toContain("Nipux Local AI.desktop");
 });

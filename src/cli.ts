@@ -162,6 +162,9 @@ async function setup() {
   console.log(`  Env:     ${launch.profile.files.envFile}`);
   console.log(`  Dev:     ${launch.profile.files.startDevSh}`);
   console.log(`  Local:   ${launch.profile.files.startLocalSh}`);
+  console.log(`  macOS:   ${launch.profile.files.startLocalCommand}`);
+  console.log(`  Windows: ${launch.profile.files.startLocalCmd}`);
+  console.log(`  Linux:   ${launch.profile.files.desktopFile}`);
 
   console.log(`\n✓ Setup complete.`);
   if (!preflight.ready) {

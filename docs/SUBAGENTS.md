@@ -16,7 +16,7 @@ This file translates the product goal into independently owned workstreams. The 
 - Validate Bun, git, llama.cpp, Playwright Chromium, SearXNG, and model directories through preflight.
 - Maintain the user-facing readiness summary for the Setup page and `bun run ready`.
 - Maintain structured setup actions for copyable install/start/configure commands.
-- Maintain launch profile, env, local supervisor, and launcher script generation for local/dev runs, including managed llama.cpp startup when local model prerequisites are present.
+- Maintain launch profile, env, local supervisor, launcher scripts, and clickable launcher generation for local/dev runs, including managed llama.cpp startup when local model prerequisites are present.
 - Maintain the consumer capability profile that decides default, optional, slow, and blocked lanes for each hardware tier.
 - Detect OS, RAM, GPU vendor, and recommended mode.
 - Keep Docker out of the required path.
