@@ -80,7 +80,7 @@ The Settings page writes user-facing defaults to SQLite. Environment variables s
 
 Dev mode hides advanced tools from the main experience until enabled. Runtime start/stop/test controls, Hugging Face model search/download, backend file-path indexing, raw status JSON, and browser action logs are dev-only surfaces. Permission approvals remain visible because they are part of the agent safety flow.
 
-The Setup page is the non-dev status surface. It calls `/api/readiness`, `/api/capability-profile`, `/api/setup/actions`, and `/api/launch/profile`, then shows capability status, copyable setup commands, launch commands, and next steps without exposing raw diagnostics by default.
+The Setup page is the non-dev status surface. It calls `/api/readiness`, `/api/capability-profile`, `/api/setup/actions`, and `/api/launch/profile`, then shows capability status, copyable setup commands, launch commands, clickable launcher paths, and next steps without exposing raw diagnostics by default.
 
 The Settings page owns API safety controls. It can create and revoke managed server keys, store a client key locally in the browser, and show the `/api/exposure` plan so users can copy a private-local or protected-LAN launch command plus OpenAI-compatible client snippets without guessing bind flags or headers.
 

@@ -153,7 +153,7 @@ Returns structured setup actions used by the Setup page and `bun run setup:actio
 
 ### `GET /api/launch/profile`
 
-Returns the machine-specific launch profile used by the Setup page and `bun run launch:profile`. It includes local UI/API URLs, hardware, selected model, llama.cpp command, media worker health, non-secret env values, local script paths, and clickable launcher file paths.
+Returns the machine-specific launch profile used by the Setup page and `bun run launch:profile`. It includes local UI/API URLs, hardware, selected model, llama.cpp command, media worker health, non-secret env values, local script paths, and clickable launcher file paths rendered by the Setup page.
 
 ### `GET /api/launch/supervisor`
 

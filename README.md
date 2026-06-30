@@ -40,7 +40,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - Usage dashboard
 - Settings page for default mode, SearXNG URL, browser headless mode, managed server API keys, client API key, API exposure guidance, OpenAI-compatible client quickstarts, and dev controls
 - Setup page, `bun run ready`, and `bun run setup:actions` for a ranked next action, everyday local capability status, and copyable setup commands
-- Launch profile generation with machine-specific env, run commands, local scripts, and clickable launchers
+- Launch profile generation with machine-specific env, run commands, local scripts, clickable launchers, and Setup-page launcher paths
 - Hardware/runtime detection for CPU, Apple Metal, NVIDIA CUDA, AMD ROCm/Vulkan, Intel Vulkan/DirectML
 - Platform-aware preflight checks for install/runtime readiness and repair hints
 - macOS/Linux and Windows install scripts with optional Playwright Chromium setup
@@ -235,7 +235,7 @@ bun run launch:profile
 bun run launch:write
 ```
 
-`bun run setup` also writes `launch-profile.json`, `nipux.env`, shell/PowerShell scripts, and clickable launchers under `~/.nipux-local-ai`: `Start Nipux Local AI.command` for macOS, `Start Nipux Local AI.cmd` for Windows, and `Nipux Local AI.desktop` for Linux. The local launchers use `bun run local --open`.
+`bun run setup` also writes `launch-profile.json`, `nipux.env`, shell/PowerShell scripts, and clickable launchers under `~/.nipux-local-ai`: `Start Nipux Local AI.command` for macOS, `Start Nipux Local AI.cmd` for Windows, and `Nipux Local AI.desktop` for Linux. The Setup page shows these launcher paths with copy buttons. The local launchers use `bun run local --open`.
 
 ## Release Packaging
 

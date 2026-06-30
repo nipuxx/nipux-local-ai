@@ -641,6 +641,27 @@ function supervisorCommand(process) {
   return [...env, ...command].join(" ");
 }
 
+function launchFileRows(files = {}) {
+  const rows = [
+    ["macOS", "Double-click .command", files.startLocalCommand],
+    ["Windows", "Double-click .cmd", files.startLocalCmd],
+    ["Linux", "Open .desktop", files.desktopFile],
+    ["Profile", "JSON", files.profileJson],
+  ].filter(([, , value]) => value);
+  return rows
+    .map(
+      ([label, detail, value]) => `
+        <div class="command-row">
+          <div>
+            <span>${h(label)} · ${h(detail)}</span>
+            <code>${h(value)}</code>
+          </div>
+          <button class="copy-command" data-command="${h(value)}">Copy</button>
+        </div>`,
+    )
+    .join("");
+}
+
 function formatBytes(bytes = 0) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
@@ -693,6 +714,13 @@ async function loadLaunchProfile() {
     <div class="launch-command">
       <span>API</span>
       <code>${h(profile.apiBaseUrl)}</code>
+    </div>
+    <div class="launcher-files">
+      <div>
+        <strong>Click Launchers</strong>
+        <div class="meta">Generated under ${h(profile.home)}. Use the launcher for this OS after setup finishes.</div>
+      </div>
+      ${launchFileRows(profile.files)}
     </div>`;
 }
 
