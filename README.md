@@ -153,11 +153,12 @@ Review hardware-aware local image backend presets:
 
 ```bash
 bun run image:backends
+bun run image:prepare diffusers-sdxl-turbo
 bun run image:install diffusers-sdxl-turbo
 bun run image:select diffusers-sdxl-turbo
 ```
 
-The repo includes `scripts/image-backends/diffusers-image.py`, a small Diffusers bridge for the image command worker. It is optional and local-only: it uses local Python packages, downloads model weights through Diffusers on first use, writes an output image file, and never calls hosted image APIs. `bun run image:backends` reports whether the managed Python runtime exists and prints the installer command. The Media page shows a normal-user Local Image Setup panel for the recommended or selected backend. Selecting a backend stores the preset and default loopback image worker URL; after the local Python backend is installed, `bun run local` can start the selected image worker automatically.
+The repo includes `scripts/image-backends/diffusers-image.py`, a small Diffusers bridge for the image command worker. It is optional and local-only: it uses local Python packages, downloads model weights through Diffusers on first use, writes an output image file, and never calls hosted image APIs. `bun run image:backends` reports whether the managed Python runtime exists and prints the installer command. `bun run image:prepare <preset>` selects the backend, stores the default local worker URL, and prints the next `bun run local --open` step; add `--install` to install the managed Python runtime in the same action. The Media page shows the same normal-user Local Image Setup flow, including an install/use action for managed local backends. After the local Python backend is installed, `bun run local` can start the selected image worker automatically.
 
 Video generation can use the bundled local command worker. It follows the same pattern, but writes a video request JSON file and expects a local backend to write a video file:
 

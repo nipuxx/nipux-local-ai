@@ -288,6 +288,7 @@ export async function getSetupActions(): Promise<SetupActionsResult> {
         : "Review local image backend setup presets.",
       commands: [
         command("Review presets", "bun run image:backends"),
+        ...(recommendedImageBackend ? [command("Prepare backend", `bun run image:prepare ${recommendedImageBackend.id}`)] : []),
         ...(recommendedImageBackend ? [command("Select backend", `bun run image:select ${recommendedImageBackend.id}`)] : []),
         ...(recommendedImageBackend?.commands.filter((item) => item.copyable).slice(0, 2).map((item) => command(item.label, item.command)) ?? []),
       ],

@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { NIPUX_HOME } from "../config.ts";
 import type { HardwareProfile } from "../types.ts";
 import { detectHardware } from "./hardware.ts";
-import { getRawSetting, setRawSetting, updateAppSettings } from "./settings.ts";
+import { getAppSettings, getRawSetting, setRawSetting, updateAppSettings } from "./settings.ts";
 
 export const DEFAULT_IMAGE_COMMAND_PLACEHOLDER = "/path/to/local-image-command";
 export const DIFFUSERS_IMAGE_BACKEND_SCRIPT = "scripts/image-backends/diffusers-image.py";
@@ -60,6 +60,22 @@ export interface ImageBackendInstallResult {
   output: string[];
 }
 
+export interface ImageBackendPrepareResult {
+  presetId: string;
+  selectedPresetId: string;
+  installed: boolean;
+  install?: ImageBackendInstallResult;
+  settings: ReturnType<typeof updateAppSettings>;
+  plan: ImageBackendPlan;
+  commands: {
+    install?: string;
+    start?: string;
+    local: string;
+    clear: string;
+  };
+  nextSteps: string[];
+}
+
 function shellArg(value: string) {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
@@ -74,6 +90,10 @@ export function imageWorkerContract() {
 
 function command(label: string, value: string, copyable = true): ImageBackendCommand {
   return { label, command: value, copyable };
+}
+
+function commandFor(preset: ImageBackendPreset, labelPart: string) {
+  return preset.commands.find((item) => item.label.toLowerCase().includes(labelPart))?.command;
 }
 
 function diffusersRuntimeDir() {
@@ -225,6 +245,7 @@ export function buildImageBackendPlan(hardware: HardwareProfile): ImageBackendPl
   const selectedPreset = presets.find((preset) => preset.id === selectedPresetId);
   const recommendedPreset = presets.find((preset) => preset.id === recommendedPresetId);
   const managedInstallPreset = presets.find((preset) => preset.install.command.includes("image:install"));
+  const settings = getAppSettings();
   const installStep = selectedPreset?.install.installed
     ? "Selected backend runtime exists; bun run local can start the image worker."
     : selectedPreset?.install.command.includes("image:install")
@@ -236,6 +257,9 @@ export function buildImageBackendPlan(hardware: HardwareProfile): ImageBackendPl
           : managedInstallPreset
             ? `For managed Diffusers, run ${managedInstallPreset.install.command}; custom backends need NIPUX_IMAGE_COMMAND.`
             : "Configure a local image command before starting bun run local.";
+  const workerUrlStep = selectedPresetId && settings.imageWorkerUrl
+    ? `Image worker URL is stored as ${settings.imageWorkerUrl}; rerun bun run local after installing the selected backend.`
+    : "Run bun run media:defaults --include-optional to point Settings at the local worker URL.";
   return {
     hardware,
     presets,
@@ -247,7 +271,7 @@ export function buildImageBackendPlan(hardware: HardwareProfile): ImageBackendPl
         : `Review presets with bun run image:backends.`,
       selectedPresetId ? "Run bun run image:clear to return to manual image worker configuration." : `Select one with bun run image:select ${recommendedPresetId}.`,
       installStep,
-      "Run bun run media:defaults --include-optional to point Settings at the local worker URL.",
+      workerUrlStep,
     ],
   };
 }
@@ -314,4 +338,44 @@ export async function installImageBackendPreset(presetId: string, input: { dryRu
   mkdirSync(dirname(runtimeDir), { recursive: true });
   const output = [await runProcess(venvCommand), await runProcess(pipCommand)];
   return { presetId, installed: existsSync(pythonPath), dryRun: false, runtimeDir, pythonPath, commands, output: output.filter(Boolean) };
+}
+
+export async function prepareImageBackendPreset(input: { presetId?: string; install?: boolean } = {}): Promise<ImageBackendPrepareResult> {
+  const plan = await getImageBackendPlan();
+  const presetId = input.presetId || plan.selectedPresetId || plan.recommendedPresetId;
+  const preset = plan.presets.find((item) => item.id === presetId);
+  if (!preset) throw new Error(`Unknown image backend preset: ${presetId}`);
+
+  let install: ImageBackendInstallResult | undefined;
+  if (input.install) install = await installImageBackendPreset(preset.id);
+
+  const selected = await selectImageBackendPreset(preset.id);
+  const selectedPreset = selected.plan.presets.find((item) => item.id === preset.id) ?? preset;
+  const installCommand = commandFor(selectedPreset, "install");
+  const startCommand = commandFor(selectedPreset, "start");
+  const installed = selectedPreset.install.installed || Boolean(install?.installed);
+  const nextSteps = [
+    installed
+      ? "Run bun run local --open to start the app and managed image worker."
+      : installCommand
+        ? `Run ${installCommand}, then run bun run local --open.`
+        : "Set NIPUX_IMAGE_COMMAND to a local image backend command, then run bun run local --open.",
+    "Open Chat or Media and ask for an image.",
+  ];
+
+  return {
+    presetId: preset.id,
+    selectedPresetId: selected.selectedPresetId,
+    installed,
+    install,
+    settings: selected.settings,
+    plan: selected.plan,
+    commands: {
+      install: installCommand,
+      start: startCommand,
+      local: "bun run local --open",
+      clear: "bun run image:clear",
+    },
+    nextSteps,
+  };
 }

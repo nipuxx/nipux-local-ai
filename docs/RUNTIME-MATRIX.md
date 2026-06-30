@@ -142,11 +142,11 @@ For a direct local Diffusers setup, run `bun run image:backends` and use the rec
 Select a preset for `bun run local`:
 
 ```bash
-bun run image:install diffusers-sdxl-turbo
-bun run image:select diffusers-sdxl-turbo
+bun run image:prepare diffusers-sdxl-turbo
+bun run image:prepare diffusers-sdxl-turbo --install
 ```
 
-Selection stores the preset and local image worker URL. It does not install Python packages or model weights by itself; use `bun run image:install <preset>` or the install command printed by `bun run image:backends`.
+Preparation stores the preset and local image worker URL, then prints the next `bun run local --open` step. It does not install Python packages unless `--install` is supplied; use the install command printed by `bun run image:backends` when you want to do that manually.
 
 Start the bundled video command worker:
 

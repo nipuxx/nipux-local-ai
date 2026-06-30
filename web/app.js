@@ -34,6 +34,7 @@ const state = {
   apiExposure: null,
   apiClientPackage: null,
   apiClientPackageError: "",
+  imageBackendMessage: "",
   chatRuntimeActionMessage: "",
   chatRuntimeBusy: false,
 };
@@ -1527,6 +1528,7 @@ function renderImageBackendGuide(plan) {
   const persistCommand = imageBackendCommand(focus, "persist");
   const isRecommended = focus.id === plan.recommendedPresetId || focus.recommended;
   const status = selected ? "selected" : isRecommended ? "recommended" : "available";
+  const canInstall = Boolean(installCommand && !focus.install?.installed);
   $("#imageBackendGuide").innerHTML = `
     <div class="image-guide-head">
       <div>
@@ -1548,8 +1550,10 @@ function renderImageBackendGuide(plan) {
             ? `<button class="clear-image-backend">Clear</button>`
             : `<button class="select-image-backend" data-preset-id="${h(focus.id)}">${isRecommended ? "Use Recommended" : "Use Backend"}</button>`
         }
+        ${canInstall ? `<button class="prepare-image-backend" data-preset-id="${h(focus.id)}" data-install="1">Install & Use</button>` : ""}
       </div>
     </div>
+    ${state.imageBackendMessage ? `<div class="meta">${h(state.imageBackendMessage)}</div>` : ""}
     <div class="setup-next-list">${(plan.nextSteps || []).map((step) => `<span>${h(step)}</span>`).join("")}</div>
     ${installCommand ? `
       <div class="command-row">
@@ -2915,14 +2919,40 @@ document.addEventListener("click", async (event) => {
       method: "POST",
       body: JSON.stringify({ presetId: target.dataset.presetId }),
     });
+    state.imageBackendMessage = "Image backend selected.";
     state.settingsStatus = { settings: data.settings, env: state.settingsStatus?.env || null };
     if (state.status) state.status.settings = data.settings;
     applySettingsToUi();
     await Promise.all([loadMedia(), loadCapabilityProfile(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor()]);
   }
+  if (target.matches(".prepare-image-backend")) {
+    const original = target.textContent;
+    target.textContent = target.dataset.install === "1" ? "Installing" : "Preparing";
+    target.disabled = true;
+    try {
+      const data = await api("/api/media/images/backends/prepare", {
+        method: "POST",
+        body: JSON.stringify({ presetId: target.dataset.presetId, install: target.dataset.install === "1" }),
+      });
+      state.imageBackendMessage = data.nextSteps?.[0] || "Image backend prepared.";
+      state.settingsStatus = { settings: data.settings, env: state.settingsStatus?.env || null };
+      if (state.status) state.status.settings = data.settings;
+      applySettingsToUi();
+      await Promise.all([loadMedia(), loadCapabilityProfile(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor()]);
+    } catch (error) {
+      state.imageBackendMessage = error instanceof Error ? error.message : String(error);
+      renderImageBackendGuide(state.imageBackendPlan || { presets: [] });
+    } finally {
+      setTimeout(() => {
+        target.textContent = original;
+        target.disabled = false;
+      }, 1200);
+    }
+  }
   if (target.matches(".clear-image-backend")) {
     target.textContent = "Clearing";
     const data = await api("/api/media/images/backends/selection", { method: "DELETE", body: "{}" });
+    state.imageBackendMessage = "Image backend cleared.";
     state.settingsStatus = { settings: data.settings, env: state.settingsStatus?.env || null };
     if (state.status) state.status.settings = data.settings;
     applySettingsToUi();

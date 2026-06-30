@@ -16,6 +16,7 @@ test("setup actions expose copyable commands for local runtime setup", async () 
   expect(result.actions.some((action) => action.id === "media-image" && action.commands.some((item) => item.command.includes("bun run worker:image")))).toBe(true);
   const imageBackendAction = result.actions.find((action) => action.id === "choose-image-backend");
   expect(imageBackendAction?.commands.some((item) => item.command.includes("bun run image:backends"))).toBe(true);
+  expect(imageBackendAction?.commands.some((item) => item.command.includes("bun run image:prepare"))).toBe(true);
   expect(imageBackendAction?.commands.some((item) => item.command.includes("bun run image:select"))).toBe(true);
   expect(imageBackendAction?.commands.some((item) => item.command.includes("bun run image:install") || item.command.includes("bun run worker:image"))).toBe(true);
   expect(result.actions.some((action) => action.id === "media-transcription" && action.commands.some((item) => item.command.includes("bun run transcription:install")))).toBe(true);

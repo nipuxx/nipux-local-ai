@@ -24,6 +24,7 @@ import {
   getImageBackendPlan,
   imageStartCommand,
   installImageBackendPreset,
+  prepareImageBackendPreset,
   selectImageBackendPreset,
 } from "./services/imageSetup.ts";
 import { formatLocalSupervisorPlan, getLocalSupervisorPlan, runLocalSupervisor } from "./services/localSupervisor.ts";
@@ -50,6 +51,7 @@ Commands:
   bun run media:runtimes          Show local media runtime setup plan
   bun run capabilities            Show this machine's consumer capability profile
   bun run image:backends          Show local image backend setup presets
+  bun run image:prepare [preset]  Select local image backend and optionally install it
   bun run image:install <preset>  Install local image backend dependencies
   bun run image:select <preset>   Select a local image backend for bun run local
   bun run media:defaults          Persist recommended local media worker URLs
@@ -304,6 +306,28 @@ async function main() {
         : "Next: set NIPUX_IMAGE_COMMAND to your local image backend command",
     );
     console.log("Then: bun run local");
+    return;
+  }
+
+  if (command === "image-prepare" || command === "image:prepare") {
+    const requestedPreset = process.argv[3] && !process.argv[3].startsWith("--") ? process.argv[3] : undefined;
+    const result = await prepareImageBackendPreset({
+      presetId: requestedPreset,
+      install: process.argv.includes("--install"),
+    });
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+
+    console.log(`\nNipux Local AI image backend prepared`);
+    console.log(`  Preset:    ${result.selectedPresetId}`);
+    console.log(`  Installed: ${result.installed ? "yes" : "no"}`);
+    console.log(`  Worker:    ${result.settings.imageWorkerUrl}`);
+    if (result.commands.install && !result.installed) console.log(`  Install:   ${result.commands.install}`);
+    if (result.commands.start) console.log(`  Start:     ${result.commands.start}`);
+    console.log("\nNext steps:");
+    for (const step of result.nextSteps) console.log(`  ${step}`);
     return;
   }
 

@@ -345,6 +345,28 @@ Returns hardware-aware local image backend presets. The current presets include 
 
 The repo also includes `scripts/image-backends/diffusers-image.py`, which implements the `{input} {output}` command contract for local Diffusers pipelines. Managed Diffusers presets include an `install` object with the current local runtime status, Python path, and one-command installer.
 
+### `POST /api/media/images/backends/install`
+
+Runs or previews the automated local installer for a managed image backend. Use `dryRun: true` for setup UIs that need to show the plan without downloading Python packages.
+
+```json
+{
+  "presetId": "diffusers-sdxl-turbo",
+  "dryRun": true
+}
+```
+
+### `POST /api/media/images/backends/prepare`
+
+Selects a local image backend preset, stores the default loopback image worker URL, and returns the next local run steps. Pass `install: true` to run the managed backend installer before selection.
+
+```json
+{
+  "presetId": "diffusers-sdxl-turbo",
+  "install": false
+}
+```
+
 ### `POST /api/media/images/backends/select`
 
 Persists a selected image backend preset and sets the image worker URL to the local default. The local supervisor uses the selected preset to populate `NIPUX_IMAGE_COMMAND`, `NIPUX_IMAGE_ARGS`, and `NIPUX_IMAGE_MODEL` when env vars do not override them.

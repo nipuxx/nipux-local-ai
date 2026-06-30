@@ -1,7 +1,20 @@
 import { expect, test } from "bun:test";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { HardwareProfile } from "../src/types.ts";
 
-const { DIFFUSERS_IMAGE_BACKEND_SCRIPT, buildImageBackendPlan, imageStartCommand, imageWorkerContract, installImageBackendPreset } = await import(
+process.env.NIPUX_HOME = mkdtempSync(join(tmpdir(), "nipux-image-setup-"));
+
+const {
+  DIFFUSERS_IMAGE_BACKEND_SCRIPT,
+  buildImageBackendPlan,
+  clearImageBackendPreset,
+  imageStartCommand,
+  imageWorkerContract,
+  installImageBackendPreset,
+  prepareImageBackendPreset,
+} = await import(
   "../src/services/imageSetup.ts"
 );
 
@@ -55,4 +68,17 @@ test("image backend installer exposes a dry-run plan", async () => {
   expect(result.pythonPath).toBeTruthy();
   expect(result.commands.some((item) => item.includes("venv"))).toBe(true);
   expect(result.commands.some((item) => item.includes("pip install"))).toBe(true);
+});
+
+test("image backend prepare selects a local backend without installing by default", async () => {
+  const result = await prepareImageBackendPreset({ presetId: "diffusers-sdxl-turbo" });
+
+  expect(result.selectedPresetId).toBe("diffusers-sdxl-turbo");
+  expect(result.settings.imageWorkerUrl).toBe("http://127.0.0.1:8081");
+  expect(result.install).toBeUndefined();
+  expect(result.commands.local).toBe("bun run local --open");
+  expect(result.commands.install).toContain("bun run image:install diffusers-sdxl-turbo");
+  expect(result.nextSteps.some((step) => step.includes("bun run local --open"))).toBe(true);
+
+  await clearImageBackendPreset();
 });

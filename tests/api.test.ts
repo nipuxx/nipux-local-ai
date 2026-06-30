@@ -240,6 +240,39 @@ test("image backend route returns local-only setup presets", async () => {
   expect(json.nextSteps.length).toBeGreaterThan(0);
 });
 
+test("image backend install route can return a dry-run plan", async () => {
+  const res = await route(
+    new Request("http://localhost/api/media/images/backends/install", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ presetId: "diffusers-sdxl-turbo", dryRun: true }),
+    }),
+  );
+  expect(res.status).toBe(200);
+  const json = await res.json();
+  expect(json.presetId).toBe("diffusers-sdxl-turbo");
+  expect(json.dryRun).toBe(true);
+  expect(json.commands.some((item: string) => item.includes("pip install"))).toBe(true);
+});
+
+test("image backend prepare route selects the backend and returns next run steps", async () => {
+  const prepared = await route(
+    new Request("http://localhost/api/media/images/backends/prepare", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ presetId: "diffusers-sdxl-turbo" }),
+    }),
+  );
+  expect(prepared.status).toBe(200);
+  const json = await prepared.json();
+  expect(json.selectedPresetId).toBe("diffusers-sdxl-turbo");
+  expect(json.settings.imageWorkerUrl).toBe("http://127.0.0.1:8081");
+  expect(json.commands.local).toBe("bun run local --open");
+  expect(json.nextSteps.some((step: string) => step.includes("bun run local --open"))).toBe(true);
+
+  await route(new Request("http://localhost/api/media/images/backends/selection", { method: "DELETE" }));
+});
+
 test("image backend selection persists worker defaults", async () => {
   const selected = await route(
     new Request("http://localhost/api/media/images/backends/select", {
