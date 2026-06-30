@@ -861,6 +861,36 @@ function voiceRuntimeDetail(runtime, fallback) {
   return runtime.setup || fallback;
 }
 
+function videoStatus(runtime) {
+  if (!runtime) return "unknown";
+  if (runtime.status === "ready") return "ready · local worker";
+  if (runtime.status === "offline") return "offline";
+  if (runtime.status === "invalid") return "needs fix";
+  return runtime.recommended ? "available setup" : "optional";
+}
+
+function videoRuntimeDetail(runtime) {
+  if (!runtime) return "Local video generation needs a queued local worker.";
+  if (runtime.status === "ready") return `${runtime.workerLabel} is reachable at ${runtime.workerUrl}.`;
+  if (runtime.status === "offline") return `Worker configured at ${runtime.workerUrl}, but it is not responding.`;
+  if (runtime.status === "invalid") return `${runtime.envVar} must be a loopback URL such as ${runtime.defaultUrl}.`;
+  return runtime.recommended
+    ? "This machine can try local video, but the backend model and command still need to be installed."
+    : "Keep video off unless you explicitly install a local video backend for this machine.";
+}
+
+function videoHardwareFit(runtime) {
+  if (!runtime) return "";
+  if (runtime.status === "ready") return "Local video worker is responding. Keep jobs queued and cancellable.";
+  if (runtime.recommended) return "This hardware can try queued local video jobs; keep clip length and size conservative.";
+  return "This machine should treat video as experimental; leave it off unless you install a lightweight local backend.";
+}
+
+function videoNextStepText(step) {
+  if (!step) return "";
+  return step.replace("the user explicitly installs", "you install").replace("Video Generation", "video generation");
+}
+
 function renderImageBackendGuide(plan) {
   const presets = plan.presets || [];
   const selected = presets.find((preset) => preset.id === plan.selectedPresetId);
@@ -1014,6 +1044,66 @@ function renderVoiceSetupGuide(plan) {
       </div>` : ""}`;
 }
 
+function renderVideoSetupGuide(plan) {
+  const video = mediaRuntimeByKind(plan, "video");
+  const startCommand = mediaRuntimeCommand(video, "start");
+  const persistCommand = mediaRuntimeCommand(video, "persist");
+  const contract = mediaRuntimeCommand(video, "contract");
+  const nextStep = videoNextStepText((plan.nextSteps || []).find((step) => step.toLowerCase().includes("video generation")));
+
+  if (!video) {
+    $("#videoSetupGuide").innerHTML = `
+      <div>
+        <h2>Local Video Setup</h2>
+        <div class="meta">No local video runtime plan is available on this machine yet.</div>
+      </div>`;
+    return;
+  }
+
+  $("#videoSetupGuide").innerHTML = `
+    <div class="video-guide-head">
+      <div>
+        <h2>Local Video Setup</h2>
+        <div class="meta">Video generation stays local and opt-in. Hosted video APIs are not used.</div>
+      </div>
+      <span>${h(videoStatus(video))}</span>
+    </div>
+    <div class="video-guide-card">
+      <div>
+        <strong>${h(video.workerLabel)}</strong>
+        <span>${h(video.recommended ? "hardware available" : "hardware cautious")}</span>
+      </div>
+      <div class="meta">${h(videoRuntimeDetail(video))}</div>
+      <div class="meta">${h(videoHardwareFit(video))}</div>
+      <div class="meta">The bundled worker is only an adapter. Install a local video model/backend command first, then point the worker at that command.</div>
+      ${nextStep ? `<div class="meta">${h(nextStep)}</div>` : ""}
+    </div>
+    ${startCommand ? `
+      <div class="command-row">
+        <div>
+          <span>Start video worker</span>
+          <code>${h(startCommand)}</code>
+        </div>
+        <button class="copy-command" data-command="${h(startCommand)}">Copy</button>
+      </div>` : ""}
+    ${persistCommand ? `
+      <div class="command-row">
+        <div>
+          <span>Save video worker URL</span>
+          <code>${h(persistCommand)}</code>
+        </div>
+        <button class="copy-command" data-command="${h(persistCommand)}">Copy</button>
+      </div>` : ""}
+    ${contract ? `
+      <div class="command-row">
+        <div>
+          <span>Worker API</span>
+          <code>${h(contract)}</code>
+        </div>
+        <button class="copy-command" data-command="${h(contract)}">Copy</button>
+      </div>` : ""}`;
+}
+
 async function loadMedia() {
   const [capabilities, runtimePlan, imageBackendPlan, jobs] = await Promise.all([
     api("/api/media/capabilities"),
@@ -1027,6 +1117,7 @@ async function loadMedia() {
   state.mediaJobs = jobs.jobs;
   renderImageBackendGuide(state.imageBackendPlan);
   renderVoiceSetupGuide(state.mediaRuntimePlan);
+  renderVideoSetupGuide(state.mediaRuntimePlan);
   $("#mediaRuntimePlan").innerHTML = state.mediaRuntimePlan.runtimes
     .map(
       (runtime) => `

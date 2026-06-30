@@ -30,7 +30,7 @@ The first runnable build is still LLM-first. Image/audio/video routes and UI sur
 - Browser action logs and exact approval gates for agent-originated risky actions
 - Manual document indexing, browser file/folder import, safe dev file-path indexing, and local search
 - SearXNG adapter for local web search
-- Media tab plus local-only image and voice setup guidance, speech, transcription, and video worker API surfaces
+- Media tab plus local-only image, voice, and video setup guidance, speech, transcription, and video worker API surfaces
 - Consumer capability profile for CPU-only, GPU, and high-memory machines
 - Hardware-aware media runtime planner for image, speech, transcription, and video workers
 - Media worker health checks so configured loopback URLs show `offline` until a worker actually responds
@@ -154,6 +154,8 @@ bun run media:defaults --include-optional
 ```
 
 The default video command contract is `{input} {output}`. Keep this lane opt-in on smaller machines; local video runtimes are much more hardware-sensitive than chat, speech, or transcription.
+
+The Media page shows a Local Video Setup panel that keeps this honest for normal users: video stays local and opt-in, the bundled worker is only an adapter, and users still need to install a local video backend command before saving the loopback worker URL.
 
 Speech has a built-in local fallback when the OS has a supported speech command:
 

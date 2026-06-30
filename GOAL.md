@@ -91,6 +91,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - Image backend preset selection persists to Settings and can be used by `bun run local` when the selected local backend is installed.
 - Managed Diffusers image backend presets report install status and expose `bun run image:install <preset>` for one-command local Python runtime setup.
 - Video generation can run through the bundled local command worker when a local video backend command is configured.
+- The Media page surfaces a consumer-facing local video setup guide that keeps video local-only, opt-in, and backend-command dependent.
 - Built-in local speech generation exists when the host OS has a supported system speech engine.
 - Assistant chat messages can be played through the local speech route.
 - Chat microphone input records audio and can transcribe through the configured local transcription worker, including the bundled whisper.cpp-compatible worker wrapper and local Whisper model install path.
