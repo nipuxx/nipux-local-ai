@@ -237,9 +237,9 @@ export async function getLaunchProfile(): Promise<LaunchProfile> {
       health: runtime.health,
     })),
     commands: {
-      oneCommandLocal: "bun run setup && bun run local --open",
-      oneCommandDev: "bun run setup && bun run dev",
-      setup: "bun run setup",
+      oneCommandLocal: "bun run setup:prepare && bun run local --open",
+      oneCommandDev: "bun run setup:prepare && bun run dev",
+      setup: "bun run setup:prepare",
       appDev: "NIPUX_FAKE_LLM=1 NIPUX_DEV_UI=1 bun run local",
       appLocal: "bun run local",
       appLocalOpen: "bun run local --open",

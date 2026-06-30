@@ -232,10 +232,11 @@ Run the platform-aware readiness check at any time:
 bun run ready
 bun run preflight
 bun run setup:actions
+bun run setup:prepare
 bun run capabilities
 ```
 
-`bun run ready` summarizes the user-facing state: chat, browser agents, voice output/input, image/video workers, search, and API exposure. `bun run capabilities` explains what should be enabled by default on this hardware. `bun run setup:actions` turns that state into a ranked next action plus copyable install/start/configure commands. `bun run preflight` keeps the lower-level installer checks.
+`bun run ready` summarizes the user-facing state: chat, browser agents, voice output/input, image/video workers, search, and API exposure. `bun run capabilities` explains what should be enabled by default on this hardware. `bun run setup:actions` turns that state into a ranked next action plus copyable install/start/configure commands. `bun run setup:prepare` applies safe first-run defaults, prepares local launchers, and selects the recommended managed image backend when appropriate without downloading heavy image dependencies unless `--install-image` is supplied. `bun run preflight` keeps the lower-level installer checks.
 
 Start the app, managed local backends, and browser UI:
 

@@ -29,5 +29,5 @@ test("diagnostics route returns the shared report", async () => {
   const json = await res.json();
   expect(json.generatedAt).toBeTruthy();
   expect(json.runtime.running).toBe(false);
-  expect(json.launch.commands.oneCommandLocal).toBe("bun run setup && bun run local --open");
+  expect(json.launch.commands.oneCommandLocal).toBe("bun run setup:prepare && bun run local --open");
 });

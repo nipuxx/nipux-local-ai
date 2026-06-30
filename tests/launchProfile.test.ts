@@ -26,8 +26,8 @@ test("launch profile captures local run commands without API secrets", async () 
   expect(profile.files.startLocalCommand).toContain(profile.home);
   expect(profile.files.startLocalCmd).toContain(profile.home);
   expect(profile.files.desktopFile).toContain(profile.home);
-  expect(profile.commands.oneCommandLocal).toBe("bun run setup && bun run local --open");
-  expect(profile.commands.oneCommandDev).toBe("bun run setup && bun run dev");
+  expect(profile.commands.oneCommandLocal).toBe("bun run setup:prepare && bun run local --open");
+  expect(profile.commands.oneCommandDev).toBe("bun run setup:prepare && bun run dev");
   expect(profile.commands.appLocal).toBe("bun run local");
   expect(profile.commands.appLocalOpen).toBe("bun run local --open");
   expect(profile.commands.model).toContain("llama serve");

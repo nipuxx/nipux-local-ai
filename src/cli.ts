@@ -17,6 +17,7 @@ import { formatSetupCheck, getSetupPreflight } from "./services/setupChecks.ts";
 import { applyRecommendedMediaRuntimeDefaults, formatMediaRuntimePlan, getMediaRuntimePlan } from "./services/mediaRuntimes.ts";
 import { formatReadinessReport, getReadinessReport } from "./services/readiness.ts";
 import { formatSetupActions, getSetupActions } from "./services/setupActions.ts";
+import { prepareFirstRunSetup } from "./services/setupPrepare.ts";
 import { formatLaunchProfile, getLaunchProfile, writeLaunchProfileFiles } from "./services/launchProfile.ts";
 import {
   clearImageBackendPreset,
@@ -48,6 +49,7 @@ Commands:
   bun run src/cli.ts preflight    Check install/runtime readiness with repair hints
   bun run ready                   Show everyday readiness summary
   bun run setup:actions           Show copyable setup actions
+  bun run setup:prepare           Prepare safe first-run defaults and launcher files
   bun run media:runtimes          Show local media runtime setup plan
   bun run capabilities            Show this machine's consumer capability profile
   bun run image:backends          Show local image backend setup presets
@@ -158,15 +160,17 @@ async function setup() {
   const preflight = await getSetupPreflight();
   for (const check of preflight.checks) console.log(`  ${formatSetupCheck(check).replaceAll("\n", "\n  ")}`);
 
-  step(8, "Writing launch profile");
-  const launch = await writeLaunchProfileFiles();
-  console.log(`  Profile: ${launch.profile.files.profileJson}`);
-  console.log(`  Env:     ${launch.profile.files.envFile}`);
-  console.log(`  Dev:     ${launch.profile.files.startDevSh}`);
-  console.log(`  Local:   ${launch.profile.files.startLocalSh}`);
-  console.log(`  macOS:   ${launch.profile.files.startLocalCommand}`);
-  console.log(`  Windows: ${launch.profile.files.startLocalCmd}`);
-  console.log(`  Linux:   ${launch.profile.files.desktopFile}`);
+  step(8, "Preparing first-run defaults and launchers");
+  const prepared = await prepareFirstRunSetup();
+  for (const item of prepared.applied) console.log(`  ✓ ${item.label}: ${item.detail}`);
+  for (const item of prepared.skipped) console.log(`  - ${item.label}: ${item.detail}`);
+  console.log(`  Profile: ${prepared.launch.profile.files.profileJson}`);
+  console.log(`  Env:     ${prepared.launch.profile.files.envFile}`);
+  console.log(`  Dev:     ${prepared.launch.profile.files.startDevSh}`);
+  console.log(`  Local:   ${prepared.launch.profile.files.startLocalSh}`);
+  console.log(`  macOS:   ${prepared.launch.profile.files.startLocalCommand}`);
+  console.log(`  Windows: ${prepared.launch.profile.files.startLocalCmd}`);
+  console.log(`  Linux:   ${prepared.launch.profile.files.desktopFile}`);
 
   console.log(`\n✓ Setup complete.`);
   if (!preflight.ready) {
@@ -253,6 +257,30 @@ async function main() {
     }
     console.log(`\nNipux Local AI setup actions`);
     console.log(formatSetupActions(actions));
+    return;
+  }
+
+  if (command === "setup-prepare" || command === "setup:prepare") {
+    const result = await prepareFirstRunSetup({
+      overwrite: process.argv.includes("--overwrite"),
+      alignModel: !process.argv.includes("--no-model"),
+      prepareImage: !process.argv.includes("--no-image"),
+      installImage: process.argv.includes("--install-image"),
+      writeLaunchers: !process.argv.includes("--no-launchers"),
+    });
+    if (process.argv.includes("--json")) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+    console.log(`\nNipux Local AI first-run preparation`);
+    for (const item of result.applied) console.log(`  [set] ${item.label}: ${item.detail}`);
+    for (const item of result.skipped) console.log(`  [skip] ${item.label}: ${item.detail}`);
+    console.log(`\nCommands:`);
+    console.log(`  Start: ${result.commands.startLocal}`);
+    console.log(`  Model: ${result.commands.installModel}`);
+    console.log(`  Ready: ${result.commands.readiness}`);
+    console.log(`\nNext steps:`);
+    for (const step of result.nextSteps) console.log(`  - ${step}`);
     return;
   }
 

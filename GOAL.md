@@ -106,6 +106,7 @@ The product should be usable by everyday people first. Advanced controls belong 
 - The Media page surfaces a consumer-facing local voice setup guide for built-in speech output and bundled Whisper transcription setup.
 - Setup page, `bun run ready`, `bun run capabilities`, `bun run setup:actions`, and `bun run src/cli.ts local --dry-run` summarize readiness, hardware capability, and copyable setup/launch commands, including the local supervisor start/skip plan.
 - The Setup page surfaces a ranked next setup action before the detailed readiness and capability sections.
+- `bun run setup:prepare`, `POST /api/setup/prepare`, and the Setup page Prepare Local App action run safe first-run preparation: local folders, first-run model default alignment, recommended managed image backend selection, launcher writing, and refreshed readiness/supervisor state without heavyweight downloads by default.
 - Launch profile generation exists for machine-specific env, commands, local launcher scripts, and clickable launcher files that use the local supervisor and open the private local UI; the Setup page shows those launcher paths with copy actions.
 - `bun run local --open` starts the app, opens the browser UI, starts local llama.cpp when `llama` and a local GGUF path are available, and starts configured bundled local workers from one command; `bun run local` remains available for server-only launches.
 - One-command setup CLI and install scripts exist.

@@ -85,6 +85,7 @@ import {
 } from "./services/modelRegistry.ts";
 import { getRuntimeStatus, startModelRuntime, stopModelRuntime, testModelPrompt } from "./services/modelRuntime.ts";
 import { getSetupActions } from "./services/setupActions.ts";
+import { prepareFirstRunSetup } from "./services/setupPrepare.ts";
 import { getReadinessReport } from "./services/readiness.ts";
 import { addLocalDocument, addLocalDocumentsBulk, localSearch, webSearch, type BulkDocumentInput } from "./services/search.ts";
 import { getAppSettings, getSettingsStatus, updateAppSettings, type AppSettings } from "./services/settings.ts";
@@ -617,6 +618,20 @@ export async function route(req: Request): Promise<Response> {
   if (url.pathname === "/api/readiness" && req.method === "GET") return json(await getReadinessReport());
   if (url.pathname === "/api/diagnostics" && req.method === "GET") return json(await getDiagnosticsReport());
   if (url.pathname === "/api/setup/actions" && req.method === "GET") return json(await getSetupActions());
+  if (url.pathname === "/api/setup/prepare" && req.method === "POST") {
+    const body = await readJson<{
+      overwrite?: boolean;
+      alignModel?: boolean;
+      prepareImage?: boolean;
+      installImage?: boolean;
+      writeLaunchers?: boolean;
+    }>(req);
+    try {
+      return json(await prepareFirstRunSetup(body));
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    }
+  }
   if (url.pathname === "/api/launch/profile" && req.method === "GET") return json(await getLaunchProfile());
   if (url.pathname === "/api/launch/supervisor" && req.method === "GET") return json(getLocalSupervisorPlan());
   if (url.pathname === "/api/launch/profile/write" && req.method === "POST") return json(await writeLaunchProfileFiles());

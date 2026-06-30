@@ -27,6 +27,7 @@ const state = {
   readiness: null,
   capabilityProfile: null,
   setupActions: null,
+  setupPrepareResult: null,
   launchProfile: null,
   localSupervisor: null,
   diagnostics: null,
@@ -1011,6 +1012,14 @@ function renderSetupQuickStart(data) {
   const nextActions = data.nextActions || [];
   const primary = nextActions[0];
   const remaining = nextActions.slice(1);
+  const prepared = state.setupPrepareResult;
+  const preparedMarkup = prepared
+    ? `<div class="setup-next-list">${[
+        `Prepared ${prepared.applied?.length || 0} item(s)`,
+        `Skipped ${prepared.skipped?.length || 0} item(s)`,
+        prepared.commands?.startLocal || "",
+      ].filter(Boolean).map((item) => `<span>${h(item)}</span>`).join("")}</div>`
+    : "";
   $("#setupQuickStart").innerHTML = primary
     ? `
       <div class="setup-quick-head">
@@ -1026,6 +1035,7 @@ function renderSetupQuickStart(data) {
         ${primary.reason ? `<div class="meta">${h(primary.reason)}</div>` : ""}
         ${setupCommandMarkup(primary)}
       </div>
+      ${preparedMarkup}
       ${
         remaining.length
           ? `<div class="setup-next-list">${remaining.map((item) => `<span>${h(item.label)} · ${h(item.status)}</span>`).join("")}</div>`
@@ -1039,6 +1049,7 @@ function renderSetupQuickStart(data) {
         </div>
         <span>ready</span>
       </div>
+      ${preparedMarkup}
       <div class="command-row">
         <div>
           <span>Start local app</span>
@@ -3160,6 +3171,22 @@ $("#copyDiagnostics").addEventListener("click", async () => {
 });
 $("#refreshReadiness").addEventListener("click", async () => {
   await Promise.all([loadReadiness(), loadCapabilityProfile(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor()]);
+});
+$("#prepareSetup").addEventListener("click", async () => {
+  const button = $("#prepareSetup");
+  const original = button.textContent;
+  button.disabled = true;
+  button.textContent = "Preparing";
+  try {
+    state.setupPrepareResult = await api("/api/setup/prepare", { method: "POST", body: "{}" });
+    state.settingsStatus = { settings: state.setupPrepareResult.settings, env: state.settingsStatus?.env || null };
+    if (state.status) state.status.settings = state.setupPrepareResult.settings;
+    applySettingsToUi();
+    await Promise.all([loadReadiness(), loadCapabilityProfile(), loadSetupActions(), loadLaunchProfile(), loadLocalSupervisor(), loadMedia(), loadModels()]);
+  } finally {
+    button.disabled = false;
+    button.textContent = original;
+  }
 });
 $("#writeLaunchProfile").addEventListener("click", async () => {
   const result = await api("/api/launch/profile/write", { method: "POST", body: "{}" });

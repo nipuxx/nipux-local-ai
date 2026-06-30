@@ -155,6 +155,22 @@ Returns structured setup actions used by the Setup page and `bun run setup:actio
 }
 ```
 
+### `POST /api/setup/prepare`
+
+Runs safe first-run preparation. It creates local folders, aligns the default model preset only when no user default has been stored yet, prepares the recommended managed image backend without downloading by default, writes launch profile files, and returns refreshed readiness, setup actions, and local supervisor state.
+
+```json
+{
+  "overwrite": false,
+  "alignModel": true,
+  "prepareImage": true,
+  "installImage": false,
+  "writeLaunchers": true
+}
+```
+
+Use `installImage: true` only when the caller explicitly wants to install the managed local Python image runtime.
+
 ### `GET /api/launch/profile`
 
 Returns the machine-specific launch profile used by the Setup page and `bun run launch:profile`. It includes local UI/API URLs, hardware, selected model, llama.cpp command, media worker health, non-secret env values, local script paths, and clickable launcher file paths rendered by the Setup page.
