@@ -12,6 +12,10 @@ const { formatLaunchProfile, getLaunchProfile, writeLaunchProfileFiles } = await
 const { clearImageBackendPreset, selectImageBackendPreset } = await import("../src/services/imageSetup.ts");
 const { route } = await import("../src/main.ts");
 
+function desktopPath(value: string) {
+  return value.replaceAll("\\", "\\\\");
+}
+
 test("launch profile captures local run commands without API secrets", async () => {
   await clearImageBackendPreset();
   const profile = await getLaunchProfile();
@@ -65,7 +69,7 @@ test("launch profile writer emits json, env, and local launcher files", async ()
   expect(readFileSync(result.profile.files.startLocalCommand, "utf8")).toContain("exec bun run local --open");
   expect(readFileSync(result.profile.files.startLocalCmd, "utf8")).toContain("start-local.ps1");
   expect(readFileSync(result.profile.files.desktopFile, "utf8")).toContain("Name=Nipux Local AI");
-  expect(readFileSync(result.profile.files.desktopFile, "utf8")).toContain(result.profile.files.startLocalSh);
+  expect(readFileSync(result.profile.files.desktopFile, "utf8")).toContain(desktopPath(result.profile.files.startLocalSh));
   expect(statSync(result.profile.files.startLocalCommand).mode & 0o111).toBeTruthy();
   expect(statSync(result.profile.files.desktopFile).mode & 0o111).toBeTruthy();
 
